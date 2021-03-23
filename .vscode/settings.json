@@ -1,0 +1,23 @@
+{
+  "python.pythonPath": ".venv/bin/python",
+  "editor.tabSize": 2,
+  "python.linting.enabled": true,
+  "python.linting.pylintEnabled": true,
+  "python.linting.lintOnSave": true,
+  "python.linting.flake8Enabled": false,
+  "python.linting.pycodestyleEnabled": false,
+  "python.linting.banditEnabled": false,
+  "python.linting.mypyEnabled": false,
+  "python.languageServer": "Pylance",
+  "python.formatting.autopep8Args": [
+    "--indent-size=2",
+    "--ignore=E121",
+    "--max-line-length=100"
+  ],
+  "editor.formatOnSave": true,
+  "python.analysis.diagnosticMode": "workspace",
+  "python.analysis.autoSearchPaths": false,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": true
+  },
+}
