@@ -1,8 +1,8 @@
 from typing import List
-from src.core.common.globals import PADDING_SYMBOL
+from tacotron.globals import DEFAULT_PADDING_SYMBOL
 
 
-SHARED_SYMBOLS = [PADDING_SYMBOL]
+SHARED_SYMBOLS = [DEFAULT_PADDING_SYMBOL]
 SHARED_SYMBOLS_COUNT = len(SHARED_SYMBOLS)
 
 def get_model_symbol_ids(symbol_ids: List[int], accent_ids: List[int], n_symbols: int,

@@ -3,14 +3,12 @@ from typing import Optional
 
 import pandas as pd
 import plotly.offline as plt
-
-from src.app.io import get_checkpoints_dir
-from src.app.tacotron.io import get_train_dir
-from src.app.utils import prepare_logger
-from src.core.common.analysis import plot_embeddings as plot_embeddings_core
-from src.core.common.train import get_custom_or_last_checkpoint
-from src.core.common.utils import get_subdir, save_df
+from tacotron.analysis import plot_embeddings as plot_embeddings_core
+from tacotron.app.io import get_checkpoints_dir
+from tacotron.app.io import get_train_dir
+from tacotron.utils import prepare_logger
 from tacotron.core.training import CheckpointTacotron
+from tacotron.utils import get_custom_or_last_checkpoint, get_subdir, save_df
 
 
 def get_analysis_root_dir(train_dir: str):

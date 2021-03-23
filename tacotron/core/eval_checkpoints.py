@@ -2,18 +2,15 @@ from logging import Logger
 from typing import Dict, Optional
 
 import torch
-from tacotron.utils import (filter_checkpoints,
-                                   get_all_checkpoint_iterations,
-                                   get_checkpoint, overwrite_custom_hparams)
-from src.core.pre.prep.data import PreparedDataList
 from tacotron.core.dataloader import (SymbolsMelCollate, parse_batch,
                                       prepare_valloader)
 from tacotron.core.hparams import HParams
 from tacotron.core.model_checkpoint import CheckpointTacotron
-from tacotron.core.training import (Tacotron2Loss, load_model,
-                                    validate_model)
+from tacotron.core.training import Tacotron2Loss, load_model, validate_model
+from tacotron.utils import (filter_checkpoints, get_all_checkpoint_iterations,
+                            get_checkpoint, overwrite_custom_hparams)
 from tqdm import tqdm
-
+from tts_preparation import PreparedDataList
 
 
 def eval_checkpoints(custom_hparams: Optional[Dict[str, str]], checkpoint_dir: str, select: int, min_it: int, max_it: int, n_symbols: int, n_accents: int, n_speakers: int, valset: PreparedDataList, logger: Logger):

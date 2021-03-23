@@ -4,10 +4,10 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
-from src.core.common.globals import PADDING_SYMBOL
-from src.core.common.train import overwrite_custom_hparams
 from tacotron.core.model_symbols import get_model_symbol_ids
 from tacotron.core.training import CheckpointTacotron, load_model
+from tacotron.globals import DEFAULT_PADDING_SYMBOL
+from tacotron.utils import overwrite_custom_hparams
 
 
 class Synthesizer():
@@ -47,7 +47,8 @@ class Synthesizer():
   def infer(self, symbols: List[str], accents: List[str], speaker: str, allow_unknown: bool = False) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     if self.symbols.has_unknown_symbols(symbols):
       if allow_unknown:
-        symbols = self.symbols.replace_unknown_symbols_with_pad(symbols, pad_symbol=PADDING_SYMBOL)
+        symbols = self.symbols.replace_unknown_symbols_with_pad(
+          symbols, pad_symbol=DEFAULT_PADDING_SYMBOL)
       else:
         self._logger.exception("Unknown symbols are not allowed!")
         raise Exception()

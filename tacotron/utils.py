@@ -1,3 +1,4 @@
+from typing import Optional
 import dataclasses
 import json
 import logging
@@ -18,6 +19,7 @@ import numpy as np
 import pandas as pd
 import torch
 import wget
+from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 from scipy.spatial.distance import cosine
 from sklearn.model_selection import train_test_split
@@ -30,6 +32,98 @@ from tqdm import tqdm
 
 _T = TypeVar('_T')
 PYTORCH_EXT = ".pt"
+
+
+def disable_matplot_logger():
+  disable_matplot_font_logger()
+  disable_matplot_colorbar_logger()
+
+
+def disable_numba_logger():
+  disable_numba_core_logger()
+
+
+
+formatter = logging.Formatter(
+  '[%(asctime)s.%(msecs)03d] (%(levelname)s) %(message)s',
+  datefmt='%Y/%m/%d %H:%M:%S'
+)
+
+
+def get_default_logger():
+  return logging.getLogger("default")
+
+
+def prepare_logger(log_file_path: Optional[str] = None, reset: bool = False, logger: Logger = get_default_logger()):
+  init_logger(logger)
+  add_console_out_to_logger(logger)
+  if log_file_path is not None:
+    if reset:
+      reset_file_log(log_file_path)
+    add_file_out_to_logger(logger, log_file_path)
+  return logger
+
+
+def init_logger(logger: logging.Logger = get_default_logger()):
+  root_logger = logging.getLogger()
+  root_logger.setLevel(logging.DEBUG)
+  # disable is required (don't know why) because otherwise DEBUG messages would be ignored!
+  logger.manager.disable = logging.NOTSET
+
+  # to disable double logging
+  logger.propagate = False
+
+  # take it from the above logger (root)
+  logger.setLevel(logging.DEBUG)
+
+  for h in logger.handlers:
+    logger.removeHandler(h)
+
+  disable_matplot_logger()
+  disable_numba_logger()
+
+  return logger
+
+
+def add_console_out_to_logger(logger: logging.Logger = get_default_logger()):
+  console_handler = logging.StreamHandler()
+  console_handler.setLevel(logging.NOTSET)
+  console_handler.setFormatter(formatter)
+  logger.addHandler(console_handler)
+  logger.debug("init console logger")
+
+
+def add_file_out_to_logger(logger: logging.Logger = get_default_logger(), log_file_path: str = "/tmp/log.txt"):
+  fh = logging.FileHandler(log_file_path)
+  fh.setLevel(logging.INFO)
+  fh.setFormatter(formatter)
+  logger.addHandler(fh)
+  logger.debug(f"init logger to {log_file_path}")
+
+
+def reset_file_log(log_file_path: str):
+  if os.path.isfile(log_file_path):
+    os.remove(log_file_path)
+
+
+if __name__ == "__main__":
+  test_logger = logging.getLogger("test")
+
+  add_console_out_to_logger(test_logger)
+
+
+def plot_alignment_np(alignment) -> np.ndarray:
+  fig, ax = plt.subplots(figsize=(6, 4))
+  im = ax.imshow(alignment, aspect='auto', origin='lower',
+                 interpolation='none')
+  fig.colorbar(im, ax=ax)
+  ax.set_xlabel("Decoder timestep")
+  ax.set_ylabel("Encoder timestep")
+
+  plt.tight_layout()  # font logging occurs here
+  plot_np = figure_to_numpy_rgb(fig)
+  plt.close()
+  return plot_np
 
 
 def get_last_checkpoint(checkpoint_dir: str) -> Tuple[str, int]:
@@ -119,6 +213,13 @@ def overwrite_custom_hparams(hparams_dc: _T, custom_hparams: Optional[Dict[str, 
 
   result = replace(hparams_dc, **custom_hparams)
   return result
+
+
+def get_mask_from_lengths(lengths):
+  max_len = torch.max(lengths).item()
+  ids = torch.arange(0, max_len, out=torch.cuda.LongTensor(max_len))
+  mask = (ids < lengths.unsqueeze(1)).bool()
+  return mask
 
 
 def get_uniform_weights(dimension: int, emb_dim: int) -> Tensor:
@@ -383,19 +484,6 @@ def assert_fraction_is_big_enough(fraction: float, size: int, verbose: bool) -> 
   return True
 
 
-def filter_checkpoints(iterations: List[int], select: Optional[int], min_it: Optional[int], max_it: Optional[int]) -> List[int]:
-  if select is None:
-    select = 0
-  if min_it is None:
-    min_it = 0
-  if max_it is None:
-    max_it = max(iterations)
-  process_checkpoints = [checkpoint for checkpoint in iterations if checkpoint %
-                         select == 0 and min_it <= checkpoint <= max_it]
-
-  return process_checkpoints
-
-
 def parse_tuple_list(tuple_list: Optional[str] = None) -> Optional[List[Tuple]]:
   """ tuple_list: "a,b;c,d;... """
   if tuple_list is None:
@@ -456,15 +544,6 @@ def have_common_entries(l: Union[Tuple[_T], List[_T]], s: Union[Tuple[_T], List[
 def contains_only_allowed_symbols(l: Union[Tuple[_T], List[_T]], allowed: Union[Tuple[_T], List[_T]]) -> bool:
   res = len(set(l).difference(set(allowed))) == 0
   return res
-
-
-def disable_matplot_logger():
-  disable_matplot_font_logger()
-  disable_matplot_colorbar_logger()
-
-
-def disable_numba_logger():
-  disable_numba_core_logger()
 
 
 def disable_numba_core_logger():

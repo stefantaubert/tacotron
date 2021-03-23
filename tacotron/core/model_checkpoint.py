@@ -5,9 +5,9 @@ from typing import Dict, Optional
 from typing import OrderedDict as OrderedDictType
 
 import torch
-from src.core.common.checkpoint import Checkpoint
-from src.core.common.train import (get_pytorch_filename,
-                                   overwrite_custom_hparams)
+from tacotron.checkpoint import Checkpoint
+from tacotron.utils import (get_pytorch_filename,
+                            overwrite_custom_hparams)
 from tacotron.core.hparams import HParams
 from tacotron.core.model import (SPEAKER_EMBEDDING_LAYER_NAME,
                                  SYMBOL_EMBEDDING_LAYER_NAME, Tacotron2)

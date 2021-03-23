@@ -13,9 +13,22 @@ rope = "*"
 
 [packages]
 pandas = "*"
+librosa = "*"
+plotly = "*"
+torch = "==1.7.1"
+scikit-image = "*"
+matplotlib = "*"
 tqdm = "*"
+wget = "*"
 numpy = "*"
+gdown = "*"
+scikit-learn = "*"
+scipy = "*"
+tensorboard = "*"
 Unidecode = "*"
+Pillow = "*"
+pysptk = "*"
+fastdtw = "*"
 cmudict-parser = {editable = true, ref = "master", git = "https://github.com/stefantaubert/cmudict-parser.git"}
 text-utils = {editable = true, ref = "master", git = "https://github.com/stefantaubert/text-utils.git"}
 audio-utils = {editable = true, ref = "master", git = "https://github.com/stefantaubert/audio-utils.git"}
@@ -23,6 +36,7 @@ image-utils = {editable = true, ref = "master", git = "https://github.com/stefan
 speech-dataset-preprocessing = {editable = true, ref = "master", git = "https://github.com/stefantaubert/speech-dataset-preprocessing.git"}
 speech-dataset-parser = {editable = true, ref = "master", git = "https://github.com/stefantaubert/speech-dataset-parser.git"}
 tts-preparation = {editable = true, ref = "master", git = "https://github.com/stefantaubert/tts-preparation.git"}
+mcd = {editable = true, ref = "main", git = "https://github.com/jasminsternkopf/mel_cepstral_distance.git"}
 
 [requires]
 python_version = "3.8"

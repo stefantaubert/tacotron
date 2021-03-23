@@ -7,9 +7,9 @@
 # from torch.autograd import Variable
 # from torch.nn import functional as F
 
-# from src.core.common.globals import PADDING_SYMBOL
-# from src.core.common.layers import ConvNorm, LinearNorm
-# from src.core.common.utils import get_mask_from_lengths, to_gpu
+# from tacotron.globals import PADDING_SYMBOL
+# from tacotron.layers import ConvNorm, LinearNorm
+# from tacotron.utils import get_mask_from_lengths, to_gpu
 
 # SYMBOL_EMBEDDING_LAYER_NAME = "symbol_embedding.weight"
 # ACCENT_EMBEDDING_LAYER_NAME = "accent_embedding.weight"

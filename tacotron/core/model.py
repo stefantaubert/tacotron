@@ -2,12 +2,11 @@ from logging import Logger
 from typing import Tuple
 
 import torch
-from src.core.common.layers import ConvNorm, LinearNorm
-from src.core.common.train import (get_uniform_weights, get_xavier_weights,
-                                   weights_to_embedding)
-from src.core.common.utils import get_mask_from_lengths
 from tacotron.core.hparams import HParams
+from tacotron.core.layers import ConvNorm, LinearNorm
 from tacotron.core.model_symbols import get_model_symbols_count
+from tacotron.utils import (get_mask_from_lengths, get_uniform_weights,
+                            get_xavier_weights, weights_to_embedding)
 from torch import nn
 from torch.autograd import Variable
 from torch.nn import functional as F

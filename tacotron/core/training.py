@@ -5,34 +5,30 @@ from typing import Callable, Dict, Iterator, List, Optional
 
 import numpy as np
 import torch
-from src.core.common.checkpoint import Checkpoint, get_iteration
-from src.core.common.globals import PADDING_ACCENT, PADDING_SYMBOL
-from src.core.common.train import (SaveIterationSettings, check_save_it,
-                                   copy_state_dict,
-                                   get_continue_batch_iteration,
-                                   get_continue_epoch,
-                                   get_formatted_current_total,
-                                   get_next_save_it, init_cuddn,
-                                   init_cuddn_benchmark, init_torch_seed,
-                                   log_hparams, overwrite_custom_hparams,
-                                   skip_batch, update_weights, validate_model)
-from src.core.pre.prep.data import PreparedDataList
+from tacotron.checkpoint import Checkpoint, get_iteration
 from tacotron.core.dataloader import (SymbolsMelCollate, parse_batch,
-                                      prepare_trainloader,
-                                      prepare_valloader)
-from tacotron.core.hparams import (ExperimentHParams, HParams,
-                                   OptimizerHParams)
+                                      prepare_trainloader, prepare_valloader)
+from tacotron.core.hparams import ExperimentHParams, HParams, OptimizerHParams
 from tacotron.core.logger import Tacotron2Logger
 from tacotron.core.model import (SPEAKER_EMBEDDING_LAYER_NAME,
                                  SYMBOL_EMBEDDING_LAYER_NAME, Tacotron2)
 from tacotron.core.model_checkpoint import CheckpointTacotron
 from tacotron.core.model_weights import (get_mapped_speaker_weights,
                                          get_mapped_symbol_weights)
+from tacotron.globals import DEFAULT_PADDING_ACCENT, DEFAULT_PADDING_SYMBOL
+from tacotron.utils import (SaveIterationSettings, check_save_it,
+                            copy_state_dict, get_continue_batch_iteration,
+                            get_continue_epoch, get_formatted_current_total,
+                            get_next_save_it, init_cuddn, init_cuddn_benchmark,
+                            init_torch_seed, log_hparams,
+                            overwrite_custom_hparams, skip_batch,
+                            update_weights, validate_model)
 from text_utils import AccentsDict, SpeakersDict, SymbolIdDict, SymbolsMap
 from torch import nn
 from torch.nn import Parameter
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from tts_preparation import PreparedDataList
 
 
 class Tacotron2Loss(nn.Module):
@@ -211,8 +207,8 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
 
   collate_fn = SymbolsMelCollate(
     n_frames_per_step=hparams.n_frames_per_step,
-    padding_symbol_id=symbols.get_id(PADDING_SYMBOL),
-    padding_accent_id=accents.get_id(PADDING_ACCENT)
+    padding_symbol_id=symbols.get_id(DEFAULT_PADDING_SYMBOL),
+    padding_accent_id=accents.get_id(DEFAULT_PADDING_ACCENT)
   )
 
   val_loader = prepare_valloader(hparams, collate_fn, valset, logger)

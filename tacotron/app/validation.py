@@ -1,31 +1,24 @@
 import datetime
 import os
 from functools import partial
-from typing import Dict, List, Optional, Set
+from typing import Dict, Optional, Set
 
 import imageio
 from audio_utils.audio import float_to_wav
-from src.app.io import (_get_validation_root_dir, get_checkpoints_dir,
-                        get_val_log, load_prep_settings)
-from src.app.pre.merge_ds import get_merged_dir
-from src.app.pre.prepare import get_prep_dir, load_testset, load_valset
-from src.app.tacotron.defaults import (DEFAULT_DENOISER_STRENGTH,
-                                       DEFAULT_SIGMA, DEFAULT_WAVEGLOW)
-from src.app.tacotron.io import get_train_dir
-from src.app.utils import prepare_logger
-from src.app.waveglow.training import get_train_dir as get_wg_train_dir
-from src.core.common.train import (get_all_checkpoint_iterations,
-                                   get_checkpoint,
-                                   get_custom_or_last_checkpoint,
-                                   get_last_checkpoint)
-from src.core.common.utils import get_subdir, stack_images_vertically
-from src.core.inference.validation import (ValidationEntries,
-                                           ValidationEntryOutput)
-from src.core.inference.validation import validate as validate_new
-from src.core.pre.prep.data import PreparedData
+from image_utils import stack_images_vertically
+from tacotron.app.defaults import (DEFAULT_DENOISER_STRENGTH, DEFAULT_SIGMA,
+                                   DEFAULT_WAVEGLOW)
+from tacotron.app.io import (_get_validation_root_dir, get_checkpoints_dir,
+                             get_train_dir, load_prep_settings)
+from tacotron.core.inference.validation import (ValidationEntries,
+                                                ValidationEntryOutput)
+from tacotron.core.inference.validation import validate as validate_new
 from tacotron.core.training import CheckpointTacotron
-from src.core.waveglow.train import CheckpointWaveglow
+from tacotron.utils import (get_all_checkpoint_iterations, get_checkpoint,
+                            get_last_checkpoint, get_subdir)
 from tqdm import tqdm
+from tts_preparation import (PreparedData, get_merged_dir, get_prep_dir,
+                             load_testset, load_valset)
 
 
 def get_repr_entries(entry_ids: Optional[Set[int]]):

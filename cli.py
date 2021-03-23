@@ -2,15 +2,15 @@ import os
 from argparse import ArgumentParser
 from argparse import ArgumentParser
 
-from src.app.tacotron.analysis import plot_embeddings
-from src.app.tacotron.defaults import (DEFAULT_DENOISER_STRENGTH,
-                                       DEFAULT_SENTENCE_PAUSE_S, DEFAULT_SIGMA,
-                                       DEFAULT_WAVEGLOW)
-from src.app.tacotron.eval_checkpoints import eval_checkpoints_main
-from src.app.tacotron.inference import infer_main2
-from src.app.tacotron.training import (continue_train_main, restore_model,
-                                       train_main)
-from src.app.tacotron.validation import app_validate
+from tacotron.app.tacotron.analysis import plot_embeddings
+from tacotron.app.tacotron.defaults import (DEFAULT_DENOISER_STRENGTH,
+                                            DEFAULT_SENTENCE_PAUSE_S, DEFAULT_SIGMA,
+                                            DEFAULT_WAVEGLOW)
+from tacotron.app.tacotron.eval_checkpoints import eval_checkpoints_main
+from tacotron.app.tacotron.inference import infer_main2
+from tacotron.app.tacotron.training import (continue_train_main, restore_model,
+                                            train_main)
+from tacotron.app.tacotron.validation import app_validate
 from src.cli.utils import split_hparams_string, split_int_set_str
 
 
@@ -171,6 +171,7 @@ def infer_cli(**args):
   args["sentence_ids"] = split_int_set_str(args["sentence_ids"])
   infer_main2(**args)
 
+
 BASE_DIR_VAR = "base_dir"
 
 
@@ -186,7 +187,6 @@ def _add_parser_to(subparsers, name: str, init_method):
   parser.set_defaults(invoke_handler=invoke_method)
   add_base_dir(parser)
   return parser
-
 
 
 def _init_parser():

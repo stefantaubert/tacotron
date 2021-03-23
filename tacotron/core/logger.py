@@ -2,7 +2,7 @@ import random
 
 import matplotlib.pylab as plt
 import torch
-from src.core.common.utils import disable_matplot_logger, figure_to_numpy_rgb
+from tacotron.utils import disable_matplot_logger, figure_to_numpy_rgb
 from torch.utils.tensorboard import SummaryWriter
 
 

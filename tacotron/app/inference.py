@@ -5,27 +5,19 @@ from typing import Dict, List, Optional, Set
 
 import imageio
 from audio_utils import float_to_wav
-from src.app.io import (get_checkpoints_dir, get_inference_root_dir,
-                        load_prep_settings)
-from src.app.pre.inference import get_infer_sentences
-from src.app.pre.merge_ds import get_merged_dir
-from src.app.tacotron.defaults import (DEFAULT_DENOISER_STRENGTH,
-                                       DEFAULT_SENTENCE_PAUSE_S, DEFAULT_SIGMA,
-                                       DEFAULT_WAVEGLOW)
-from src.app.tacotron.io import get_train_dir
-from src.app.utils import (add_console_out_to_logger, add_file_out_to_logger,
-                           get_default_logger, init_logger)
-from src.app.waveglow.io import get_train_dir as get_wg_train_dir
-from src.core.common.train import (get_custom_or_last_checkpoint,
-                                   get_last_checkpoint)
-from src.core.common.utils import (get_subdir, parse_json,
-                                   stack_images_horizontally,
-                                   stack_images_vertically)
-from src.core.inference.infer import (InferenceEntries, InferenceEntryOutput,
-                                      infer2)
-from src.core.pre.text.pre_inference import InferSentence, InferSentenceList
+from image_utils import stack_images_horizontally, stack_images_vertically
+from tacotron.app.defaults import (DEFAULT_DENOISER_STRENGTH,
+                                   DEFAULT_SENTENCE_PAUSE_S, DEFAULT_SIGMA,
+                                   DEFAULT_WAVEGLOW)
+from tacotron.app.inference import get_infer_sentences
+from tacotron.app.io import (get_checkpoints_dir, get_inference_root_dir,
+                             get_train_dir, load_prep_settings)
+from tacotron.core.inference.infer import (InferenceEntries,
+                                           InferenceEntryOutput, infer2)
 from tacotron.core.training import CheckpointTacotron
-from src.core.waveglow.train import CheckpointWaveglow
+from tacotron.utils import (get_custom_or_last_checkpoint, get_last_checkpoint,
+                            get_subdir, parse_json)
+from tts_preparation import InferSentence, InferSentenceList, get_merged_dir
 
 
 def get_infer_dir(train_dir: str, input_name: str, iteration: int, speaker_name: str, full_run: bool):

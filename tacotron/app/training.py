@@ -5,21 +5,19 @@ from functools import partial
 from logging import Logger
 from typing import Dict, Optional
 
-from src.app.io import (get_checkpoints_dir, get_train_checkpoints_log_file,
-                        get_train_log_file, get_train_logs_dir,
-                        load_prep_settings, save_prep_settings)
-from src.app.pre.mapping import load_weights_map
-from src.app.pre.merge_ds import (get_merged_dir, load_merged_accents_ids,
-                                  load_merged_speakers_json,
-                                  load_merged_symbol_converter)
-from src.app.pre.prepare import get_prep_dir, load_trainset, load_valset
-from src.app.tacotron.io import get_train_dir
-from src.app.utils import prepare_logger
-from src.core.common.train import (get_custom_or_last_checkpoint,
-                                   get_last_checkpoint, get_pytorch_filename)
+from tacotron.app.io import (get_checkpoints_dir,
+                             get_train_checkpoints_log_file, get_train_dir,
+                             get_train_log_file, get_train_logs_dir,
+                             load_prep_settings, save_prep_settings)
 from tacotron.core.logger import Tacotron2Logger
-from tacotron.core.training import (CheckpointTacotron, continue_train,
-                                    train)
+from tacotron.core.training import CheckpointTacotron, continue_train, train
+from tacotron.utils import (get_custom_or_last_checkpoint, get_last_checkpoint,
+                            get_pytorch_filename, prepare_logger)
+from tts_preparation import (get_merged_dir, get_prep_dir,
+                             load_merged_accents_ids,
+                             load_merged_speakers_json,
+                             load_merged_symbol_converter, load_trainset,
+                             load_valset, load_weights_map)
 
 
 def try_load_checkpoint(base_dir: str, train_name: Optional[str], checkpoint: Optional[int], logger: Logger) -> Optional[CheckpointTacotron]:
