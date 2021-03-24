@@ -112,7 +112,7 @@ def train_main(base_dir: str, ttsp_dir: str, train_name: str, merge_name: str, p
   )
 
 
-def continue_train_main(base_dir: str, ttsp_dir: str, train_name: str, custom_hparams: Optional[Dict[str, str]] = None) -> None:
+def continue_train_main(base_dir: str, train_name: str, custom_hparams: Optional[Dict[str, str]] = None) -> None:
   train_dir = get_train_dir(base_dir, train_name, create=False)
   assert os.path.isdir(train_dir)
 

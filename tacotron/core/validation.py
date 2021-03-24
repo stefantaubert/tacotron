@@ -12,12 +12,10 @@ from mcd import (get_audio_and_sampling_rate_from_path,
                  get_mcd_dtw_from_mel_spectograms)
 from tacotron.core.synthesizer import Synthesizer
 from tacotron.core.training import CheckpointTacotron
+from tacotron.globals import MCD_NO_OF_COEFFS_PER_FRAME
 from tacotron.utils import GenericList, cosine_dist_mels, plot_alignment_np
 from text_utils import deserialize_list
 from tts_preparation import InferSentence, PreparedData, PreparedDataList
-
-# from paper
-MCD_NO_OF_COEFFS_PER_FRAME: int = 16
 
 
 @dataclass
@@ -28,14 +26,13 @@ class ValidationEntry():
   text: str = None
   wav_path: str = None
   original_duration_s: float = None
-  diff_duration_s: float = None
   speaker_id: int = None
   speaker_name: str = None
   iteration: int = None
   reached_max_decoder_steps: bool = None
   inference_duration_s: float = None
-  unique_symbol_ids: str = None
-  unique_symbol_ids_count: int = None
+  unique_symbols: str = None
+  unique_symbols_count: int = None
   symbol_count: int = None
   # grad_norm: float = None
   # loss: float = None
@@ -56,15 +53,15 @@ class ValidationEntries(GenericList[ValidationEntry]):
 
 @dataclass
 class ValidationEntryOutput():
-  orig_mel: np.ndarray = None
-  orig_mel_sr: int = None
-  orig_mel_img: np.ndarray = None
-  inferred_mel: np.ndarray = None
-  inferred_mel_sr: int = None
-  inferred_mel_img: np.ndarray = None
-  struc_sim_img: np.ndarray = None
+  mel_orig: np.ndarray = None
+  mel_orig_sr: int = None
+  mel_orig_img: np.ndarray = None
+  mel_postnet: np.ndarray = None
+  mel_postnet_sr: int = None
+  mel_postnet_img: np.ndarray = None
+  mel_img: np.ndarray = None
   alignments_img: np.ndarray = None
-  postnet_img: np.ndarray = None
+  mel_diff_img: np.ndarray = None
   # gate_out_img: np.ndarray = None
 
 
@@ -72,10 +69,10 @@ class ValidationEntryOutputs(GenericList[ValidationEntryOutput]):
   pass
 
 
-def validate(tacotron_checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hparams: Optional[Dict[str, str]], entry_ids: Optional[Set[int]], speaker_name: Optional[str], train_name: str, full_run: bool, save_callback: Callable[[PreparedData, ValidationEntryOutput], None], logger: Logger) -> ValidationEntries:
-  model_symbols = tacotron_checkpoint.get_symbols()
-  model_accents = tacotron_checkpoint.get_accents()
-  model_speakers = tacotron_checkpoint.get_speakers()
+def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hparams: Optional[Dict[str, str]], entry_ids: Optional[Set[int]], speaker_name: Optional[str], train_name: str, full_run: bool, save_callback: Callable[[PreparedData, ValidationEntryOutput], None], logger: Logger) -> ValidationEntries:
+  model_symbols = checkpoint.get_symbols()
+  model_accents = checkpoint.get_accents()
+  model_speakers = checkpoint.get_speakers()
   validation_entries = ValidationEntries()
 
   if full_run:
@@ -91,7 +88,7 @@ def validate(tacotron_checkpoint: CheckpointTacotron, data: PreparedDataList, cu
     return validation_entries
 
   synth = Synthesizer(
-      checkpoint=tacotron_checkpoint,
+      checkpoint=checkpoint,
       custom_hparams=custom_hparams,
       logger=logger,
   )
@@ -101,7 +98,6 @@ def validate(tacotron_checkpoint: CheckpointTacotron, data: PreparedDataList, cu
   taco_stft = TacotronSTFT(synth.hparams, logger=logger)
 
   for entry in entries.items(True):
-    speaker_name = model_speakers.get_speaker(entry.speaker_id)
     infer_sent = InferSentence(
       sent_id=1,
       symbols=model_symbols.get_symbols(entry.serialized_symbol_ids),
@@ -109,11 +105,17 @@ def validate(tacotron_checkpoint: CheckpointTacotron, data: PreparedDataList, cu
       original_text=entry.text_original,
     )
 
-    symbol_count = len(deserialize_list(entry.serialized_symbol_ids))
+    speaker_name = model_speakers.get_speaker(entry.speaker_id)
+    inference_result = synth.infer(
+      sentence=infer_sent,
+      speaker=speaker_name,
+      ignore_unknown_symbols=False,
+    )
 
-    unique_symbols_ids = set(model_symbols.get_symbols(entry.serialized_symbol_ids))
-    unique_symbols_ids_str = " ".join(list(sorted(unique_symbols_ids)))
-    unique_symbols_ids_count = len(unique_symbols_ids)
+    symbol_count = len(deserialize_list(entry.serialized_symbol_ids))
+    unique_symbols = set(model_symbols.get_symbols(entry.serialized_symbol_ids))
+    unique_symbols_str = " ".join(list(sorted(unique_symbols)))
+    unique_symbols_count = len(unique_symbols)
     timepoint = f"{datetime.datetime.now():%Y/%m/%d %H:%M:%S}"
 
     val_entry = ValidationEntry(
@@ -125,119 +127,78 @@ def validate(tacotron_checkpoint: CheckpointTacotron, data: PreparedDataList, cu
       original_duration_s=entry.duration,
       speaker_id=entry.speaker_id,
       speaker_name=speaker_name,
-      iteration=tacotron_checkpoint.iteration,
-      unique_symbol_ids=unique_symbols_ids_str,
-      unique_symbol_ids_count=unique_symbols_ids_count,
+      iteration=checkpoint.iteration,
+      unique_symbols=unique_symbols_str,
+      unique_symbols_count=unique_symbols_count,
       symbol_count=symbol_count,
       timepoint=timepoint,
       train_name=train_name,
       sampling_rate=synth.get_sampling_rate(),
+      reached_max_decoder_steps=inference_result.reached_max_decoder_steps,
+      inference_duration_s=inference_result.inference_duration_s,
     )
-
-    inference_result = synth.infer(
-      sentence=infer_sent,
-      speaker=speaker_name,
-      ignore_unknown_symbols=False,
-    )
-
-    validation_entry_output = ValidationEntryOutput()
-
-    val_entry.reached_max_decoder_steps = inference_result.reached_max_decoder_steps
-    val_entry.inference_duration_s = inference_result.inference_duration_s
 
     _, orig_sr = get_audio_and_sampling_rate_from_path(entry.wav_path)
-    mel_spectogram_orig = taco_stft.get_mel_tensor_from_file(entry.wav_path).cpu().numpy()
-    mel_spectogram_pred = inference_result.mel_outputs_postnet
+    mel_orig = taco_stft.get_mel_tensor_from_file(entry.wav_path).cpu().numpy()
 
-    # spectogram_orig = get_spectogram(
-    #   orig_wav, n_fft=mcd_settings.n_fft, hop_length=mcd_settings.hop_length)
-    # spectogram_pred = get_spectogram(
-    #   inference_result.wav, n_fft=mcd_settings.n_fft, hop_length=mcd_settings.hop_length)
-    # mel_spectogram_orig = get_mel_spectogram(
-    #   spectogram_orig, sr=orig_sr, n_mels=mcd_settings.n_mels)
-    # mel_spectogram_pred = get_mel_spectogram(
-    #   spectogram_pred, sr=synth.get_sampling_rate(), n_mels=mcd_settings.n_mels)
-
-    validation_entry_output.orig_mel = mel_spectogram_orig
-    validation_entry_output.orig_mel_sr = orig_sr
-
-    validation_entry_output.inferred_mel = mel_spectogram_pred
-    validation_entry_output.inferred_mel_sr = inference_result.sampling_rate
+    validation_entry_output = ValidationEntryOutput(
+      mel_orig=mel_orig,
+      mel_orig_sr=orig_sr,
+      mel_postnet=inference_result.mel_outputs_postnet,
+      mel_postnet_sr=inference_result.sampling_rate,
+    )
 
     mcd, frames = get_mcd_dtw_from_mel_spectograms(
-      mel_spectogram_orig, mel_spectogram_pred, MCD_NO_OF_COEFFS_PER_FRAME)
+      mel_spectogram_1=mel_orig,
+      mel_spectogram_2=inference_result.mel_outputs_postnet, no_of_coeffs_per_frame=MCD_NO_OF_COEFFS_PER_FRAME
+    )
 
     val_entry.mcd_dtw = mcd
     val_entry.mcd_dtw_frames = frames
 
-    # val_entry.mcd_dtw_v2 = 0
-    # val_entry.mcd_dtw_v2_frames = 0
+    cosine_similarity = cosine_dist_mels(mel_orig, inference_result.mel_outputs_postnet)
+    val_entry.cosine_similarity = cosine_similarity
 
-    # if True:
-    #   orig_mgc = get_mgc_wav_file(entry.wav_path)
-    #   infered_wav_int = convert_wav(inference_result.wav, np.int16)
-    #   infered_wav_int = infered_wav_int.astype(np.float64)
-    #   inferred_mgc = get_mgc_wav(infered_wav_int)
+    mel_orig_img_raw, mel_orig_img = plot_melspec_np(mel_orig)
+    mel_outputs_postnet_img_raw, mel_outputs_postnet_img = plot_melspec_np(
+      inference_result.mel_outputs_postnet)
 
-    #   mcd_v2, frames_v2 = calcdist_mgc(
-    #     x_mgc=orig_mgc,
-    #     y_mgc=inferred_mgc,
-    #   )
+    validation_entry_output.mel_orig_img = mel_orig_img
+    validation_entry_output.mel_postnet_img = mel_outputs_postnet_img
 
-    #   val_entry.mcd_dtw_v2 = mcd_v2
-    #   val_entry.mcd_dtw_v2_frames = frames_v2
+    imageio.imsave("/tmp/mel_orig_img_raw.png", mel_orig_img_raw)
+    imageio.imsave("/tmp/mel_outputs_postnet_img_raw.png", mel_outputs_postnet_img_raw)
 
-    orig_mel = taco_stft.get_mel_tensor_from_file(entry.wav_path)
-    orig_mel_np = orig_mel.cpu().numpy()
-
-    # audio_tensor = torch.FloatTensor(inference_result.wav)
-    # inferred_mel = taco_stft.get_mel_tensor(audio_tensor)
-    # inferred_mel_np = inferred_mel.numpy()
-    inferred_mel_np = inference_result.mel_outputs
-
-    cos_sim = cosine_dist_mels(orig_mel_np, inferred_mel_np)
-    val_entry.cosine_similarity = cos_sim
-
-    orig_mel_plot_core, orig_mel_plot = plot_melspec_np(orig_mel_np)
-    inferred_mel_plot_core, inferred_mel_plot = plot_melspec_np(inferred_mel_np)
-
-    validation_entry_output.orig_mel_img = orig_mel_plot
-    validation_entry_output.inferred_mel_img = inferred_mel_plot
-
-    imageio.imsave("/tmp/core_orig_mel.png", orig_mel_plot_core)
-    imageio.imsave("/tmp/core_inferred_mel.png", inferred_mel_plot_core)
-
-    orig_mel_plot_core, inferred_mel_plot_core = make_same_width_by_filling_white(
-      img_a=orig_mel_plot_core,
-      img_b=inferred_mel_plot_core,
+    mel_orig_img_raw, mel_outputs_postnet_img_raw = make_same_width_by_filling_white(
+      img_a=mel_orig_img_raw,
+      img_b=mel_outputs_postnet_img_raw,
     )
 
-    structural_similarity, core_diff_img = calculate_structual_similarity_np(
-        img_a=orig_mel_plot_core,
-        img_b=inferred_mel_plot_core,
+    structural_similarity, mel_diff_img_raw = calculate_structual_similarity_np(
+        img_a=mel_orig_img_raw,
+        img_b=mel_outputs_postnet_img_raw,
     )
     val_entry.structural_similarity = structural_similarity
+    imageio.imsave("/tmp/mel_diff_img_raw.png", mel_diff_img_raw)
 
-    imageio.imsave("/tmp/core_struc_sim_img.png", core_diff_img)
-
-    orig_mel_plot, inferred_mel_plot = make_same_width_by_filling_white(
-      img_a=orig_mel_plot,
-      img_b=inferred_mel_plot,
+    mel_orig_img, mel_outputs_postnet_img = make_same_width_by_filling_white(
+      img_a=mel_orig_img,
+      img_b=mel_outputs_postnet_img,
     )
 
-    _, diff_img = calculate_structual_similarity_np(
-        img_a=orig_mel_plot,
-        img_b=inferred_mel_plot,
+    _, mel_diff_img = calculate_structual_similarity_np(
+        img_a=mel_orig_img,
+        img_b=mel_outputs_postnet_img,
     )
 
-    validation_entry_output.struc_sim_img = diff_img
+    validation_entry_output.mel_diff_img = mel_diff_img
 
     alignments_img = plot_alignment_np(inference_result.alignments)
     validation_entry_output.alignments_img = alignments_img
     _, post_mel_img = plot_melspec_np(inference_result.mel_outputs_postnet)
 
     # validation_entry_output.gate_out_img = None
-    validation_entry_output.postnet_img = post_mel_img
+    validation_entry_output.mel_img = post_mel_img
     # val_entry.grad_norm = None
     # val_entry.loss = None
 

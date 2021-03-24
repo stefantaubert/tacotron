@@ -58,20 +58,20 @@ def save_stats(val_dir: str, validation_entries: ValidationEntries) -> None:
 
 def save_results(entry: PreparedData, output: ValidationEntryOutput, val_dir: str, iteration: int):
   dest_dir = get_val_entry_dir(val_dir, entry, iteration)
-  imageio.imsave(os.path.join(dest_dir, "original.png"), output.orig_mel_img)
-  imageio.imsave(os.path.join(dest_dir, "inferred.png"), output.inferred_mel_img)
-  imageio.imsave(os.path.join(dest_dir, "postnet.png"), output.postnet_img)
+  imageio.imsave(os.path.join(dest_dir, "original.png"), output.mel_orig_img)
+  imageio.imsave(os.path.join(dest_dir, "inferred.png"), output.mel_postnet_img)
+  imageio.imsave(os.path.join(dest_dir, "mel.png"), output.mel_img)
   imageio.imsave(os.path.join(dest_dir, "alignments.png"), output.alignments_img)
-  imageio.imsave(os.path.join(dest_dir, "diff.png"), output.struc_sim_img)
-  np.save(os.path.join(dest_dir, "original.mel.npy"), output.orig_mel)
-  np.save(os.path.join(dest_dir, "inferred.mel.npy"), output.inferred_mel)
+  imageio.imsave(os.path.join(dest_dir, "diff.png"), output.mel_diff_img)
+  np.save(os.path.join(dest_dir, "original.mel.npy"), output.mel_orig)
+  np.save(os.path.join(dest_dir, "inferred.mel.npy"), output.mel_postnet)
 
   stack_images_vertically(
     list_im=[
       os.path.join(dest_dir, "original.png"),
       os.path.join(dest_dir, "inferred.png"),
       os.path.join(dest_dir, "diff.png"),
-      os.path.join(dest_dir, "postnet.png"),
+      os.path.join(dest_dir, "mel.png"),
       os.path.join(dest_dir, "alignments.png"),
     ],
     out_path=os.path.join(dest_dir, "comparison.png")
@@ -130,7 +130,7 @@ def app_validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] =
     save_callback = partial(save_results, val_dir=val_dir, iteration=iteration)
 
     validation_entries = validate_new(
-      tacotron_checkpoint=taco_checkpoint,
+      checkpoint=taco_checkpoint,
       data=data,
       custom_hparams=custom_hparams,
       entry_ids=entry_ids,
