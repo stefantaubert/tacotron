@@ -4,11 +4,10 @@ from typing import Optional
 import pandas as pd
 import plotly.offline as plt
 from tacotron.analysis import plot_embeddings as plot_embeddings_core
-from tacotron.app.io import get_checkpoints_dir
-from tacotron.app.io import get_train_dir
-from tacotron.utils import prepare_logger
+from tacotron.app.io import get_checkpoints_dir, get_train_dir
 from tacotron.core.training import CheckpointTacotron
-from tacotron.utils import get_custom_or_last_checkpoint, get_subdir, save_df
+from tacotron.utils import (get_custom_or_last_checkpoint, get_subdir,
+                            prepare_logger, save_df)
 
 
 def get_analysis_root_dir(train_dir: str):
@@ -52,10 +51,3 @@ def plot_embeddings(base_dir: str, train_name: str, custom_checkpoint: Optional[
   _save_2d_plot(analysis_dir, checkpoint_it, fig_2d)
   _save_3d_plot(analysis_dir, checkpoint_it, fig_3d)
   logger.info(f"Saved analysis to: {analysis_dir}")
-
-
-if __name__ == "__main__":
-  plot_embeddings(
-    base_dir="/datasets/models/taco2pt_v5",
-    train_name="debug"
-  )

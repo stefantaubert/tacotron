@@ -8,7 +8,6 @@ import torch
 from scipy.spatial.distance import cosine
 from sklearn.manifold import TSNE
 from sklearn.preprocessing import normalize
-
 from text_utils import SymbolIdDict
 
 
@@ -50,7 +49,7 @@ def sims_to_csv(sims: Dict[int, List[Tuple[int, float]]], symbols: SymbolIdDict)
   return df
 
 
-def emb_plot_3d(emb: np.ndarray, symbols: SymbolIdDict) -> go.Figure:
+def emb_plot_3d(emb: np.ndarray, symbols: List[str]) -> go.Figure:
   np.set_printoptions(suppress=True)
 
   tsne = TSNE(n_components=3, random_state=0)
@@ -59,7 +58,7 @@ def emb_plot_3d(emb: np.ndarray, symbols: SymbolIdDict) -> go.Figure:
   y_coords = Y[:, 1]
   z_coords = Y[:, 2]
 
-  plot_3d = go.Scatter3d(x=x_coords, y=y_coords, z=z_coords, mode='markers+text', text=symbols,
+  plot_3d = go.Scatter3d(x=x_coords, y=y_coords, z=z_coords, mode='markers+text', text=list(symbols),
                          textposition='bottom center', hoverinfo='text', marker=dict(size=5, opacity=0.8))
 
   layout = go.Layout(title='3D-Embeddings')
@@ -67,7 +66,7 @@ def emb_plot_3d(emb: np.ndarray, symbols: SymbolIdDict) -> go.Figure:
   return fig
 
 
-def emb_plot_2d(emb: np.ndarray, symbols: SymbolIdDict) -> go.Figure:
+def emb_plot_2d(emb: np.ndarray, symbols: List[str]) -> go.Figure:
   np.set_printoptions(suppress=True)
   tsne_2d = TSNE(n_components=2, random_state=0)
   Y_2d = tsne_2d.fit_transform(emb)
@@ -89,9 +88,9 @@ def plot_embeddings(symbols: SymbolIdDict, emb: torch.Tensor, logger: Logger) ->
 
   sims = get_similarities(emb.numpy())
   df = sims_to_csv(sims, symbols)
-  all_symbols = symbols.get_all_symbols()
+  all_symbols_sorted = [symbols.get_symbol(x) for x in range(len(symbols))]
   emb_normed = norm2emb(emb)
-  fig_2d = emb_plot_2d(emb_normed, all_symbols)
-  fig_3d = emb_plot_3d(emb_normed, all_symbols)
+  fig_2d = emb_plot_2d(emb_normed, all_symbols_sorted)
+  fig_3d = emb_plot_3d(emb_normed, all_symbols_sorted)
 
   return df, fig_2d, fig_3d
