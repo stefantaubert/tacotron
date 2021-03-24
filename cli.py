@@ -1,11 +1,8 @@
 import os
 from argparse import ArgumentParser
-from tacotron.app.inference import app_infer
 
 from tacotron.app.analysis import plot_embeddings
-from tacotron.app.defaults import (DEFAULT_DENOISER_STRENGTH,
-                                   DEFAULT_SENTENCE_PAUSE_S, DEFAULT_SIGMA,
-                                   DEFAULT_WAVEGLOW)
+from tacotron.app.inference import app_infer
 # from tacotron.app.eval_checkpoints import eval_checkpoints
 from tacotron.app.training import (continue_train_main, restore_model,
                                    train_main)
