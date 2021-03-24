@@ -1,16 +1,16 @@
 import datetime
-from tts_preparation import PreparedData
+import os
+from shutil import copyfile
+from typing import Optional, Tuple
+
+import matplotlib.pylab as plt
+import numpy as np
+from audio_utils import float_to_wav
+from audio_utils.mel import plot_melspec
+from image_utils import stack_images_vertically
 from tacotron.utils import (get_parent_dirname, get_subdir, parse_json,
                             save_json)
-from image_utils import stack_images_vertically
-from audio_utils.mel import plot_melspec
-from audio_utils import float_to_wav
-import numpy as np
-import matplotlib.pylab as plt
-from typing import Optional, Tuple
-from shutil import copyfile
-import os
-from tacotron.utils import get_subdir
+from tts_preparation import PreparedData
 
 
 def get_train_dir(base_dir: str, train_name: str, create: bool):
@@ -77,11 +77,12 @@ def get_checkpoints_dir(train_dir: str):
 def load_prep_settings(train_dir: str) -> Tuple[str, str]:
   path = os.path.join(train_dir, _settings_json)
   res = parse_json(path)
-  return res["merge_name"], res["prep_name"]
+  return res["ttsp_dir"], res["merge_name"], res["prep_name"]
 
 
-def save_prep_settings(train_dir: str, merge_name: Optional[str], prep_name: Optional[str]):
+def save_prep_settings(train_dir: str, ttsp_dir: str, merge_name: Optional[str], prep_name: Optional[str]):
   settings = {
+    "ttsp_dir": ttsp_dir,
     "merge_name": merge_name,
     "prep_name": prep_name,
   }

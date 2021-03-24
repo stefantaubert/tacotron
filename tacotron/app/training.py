@@ -48,9 +48,10 @@ def restore_model(base_dir: str, train_name: str, checkpoint_dir: str) -> None:
   logger.info("Restoring done.")
 
 
-def train_main(base_dir: str, train_name: str, merge_name: str, prep_name: str, warm_start_train_name: Optional[str] = None, warm_start_checkpoint: Optional[int] = None, custom_hparams: Optional[Dict[str, str]] = None, weights_train_name: Optional[str] = None, weights_checkpoint: Optional[int] = None, use_weights_map: Optional[bool] = None, map_from_speaker: Optional[str] = None) -> None:
-  merge_dir = get_merged_dir(base_dir, merge_name, create=False)
+def train_main(base_dir: str, ttsp_dir: str, train_name: str, merge_name: str, prep_name: str, warm_start_train_name: Optional[str] = None, warm_start_checkpoint: Optional[int] = None, custom_hparams: Optional[Dict[str, str]] = None, weights_train_name: Optional[str] = None, weights_checkpoint: Optional[int] = None, use_weights_map: Optional[bool] = None, map_from_speaker: Optional[str] = None) -> None:
+  merge_dir = get_merged_dir(ttsp_dir, merge_name, create=False)
   prep_dir = get_prep_dir(merge_dir, prep_name, create=False)
+
   train_dir = get_train_dir(base_dir, train_name, create=True)
   logs_dir = get_train_logs_dir(train_dir)
 
@@ -62,7 +63,7 @@ def train_main(base_dir: str, train_name: str, merge_name: str, prep_name: str, 
     reset=True
   )
 
-  save_prep_settings(train_dir, merge_name, prep_name)
+  save_prep_settings(train_dir, ttsp_dir, merge_name, prep_name)
 
   trainset = load_trainset(prep_dir)
   valset = load_valset(prep_dir)
@@ -77,7 +78,7 @@ def train_main(base_dir: str, train_name: str, merge_name: str, prep_name: str, 
   weights_map = None
   if use_weights_map is not None and use_weights_map:
     weights_train_dir = get_train_dir(base_dir, weights_train_name, False)
-    weights_merge_name, _ = load_prep_settings(weights_train_dir)
+    _, weights_merge_name, _ = load_prep_settings(weights_train_dir)
     weights_map = load_weights_map(merge_dir, weights_merge_name)
 
   warm_model = try_load_checkpoint(
@@ -111,7 +112,7 @@ def train_main(base_dir: str, train_name: str, merge_name: str, prep_name: str, 
   )
 
 
-def continue_train_main(base_dir: str, train_name: str, custom_hparams: Optional[Dict[str, str]] = None) -> None:
+def continue_train_main(base_dir: str, ttsp_dir: str, train_name: str, custom_hparams: Optional[Dict[str, str]] = None) -> None:
   train_dir = get_train_dir(base_dir, train_name, create=False)
   assert os.path.isdir(train_dir)
 
@@ -133,8 +134,8 @@ def continue_train_main(base_dir: str, train_name: str, custom_hparams: Optional
     logger=logger,
   )
 
-  merge_name, prep_name = load_prep_settings(train_dir)
-  merge_dir = get_merged_dir(base_dir, merge_name, create=False)
+  ttsp_dir, merge_name, prep_name = load_prep_settings(train_dir)
+  merge_dir = get_merged_dir(ttsp_dir, merge_name, create=False)
   prep_dir = get_prep_dir(merge_dir, prep_name, create=False)
   trainset = load_trainset(prep_dir)
   valset = load_valset(prep_dir)

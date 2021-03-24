@@ -288,7 +288,7 @@
         "image-utils": {
             "editable": true,
             "git": "https://github.com/stefantaubert/image-utils.git",
-            "ref": "64e6e1f0cae87c1b5408c24f7d4803c500bc1373"
+            "ref": "b4d885a766edca806884d85ede49c594375c12d5"
         },
         "imageio": {
             "hashes": [
@@ -488,7 +488,7 @@
                 "sha256:ed7b0652007a33e2b3052e16744805f0d43ad41abf3c716b588c4be7547c5c3d",
                 "sha256:f9bd6f6512eae91fd5e7fbbb8a970b00620fa00d3c525736f2bfc9c7e4eb1622"
             ],
-            "markers": "python_version < '3.10' and python_version >= '3.6'",
+            "markers": "python_version >= '3.6' and python_version < '3.9'",
             "version": "==0.53.0"
         },
         "numpy": {

@@ -4,18 +4,15 @@ from functools import partial
 from typing import Dict, Optional, Set
 
 import imageio
-from audio_utils.audio import float_to_wav
+import numpy as np
 from image_utils import stack_images_vertically
-from tacotron.app.defaults import (DEFAULT_DENOISER_STRENGTH, DEFAULT_SIGMA,
-                                   DEFAULT_WAVEGLOW)
 from tacotron.app.io import (_get_validation_root_dir, get_checkpoints_dir,
                              get_train_dir, load_prep_settings)
-from tacotron.core.inference.validation import (ValidationEntries,
-                                                ValidationEntryOutput)
-from tacotron.core.inference.validation import validate as validate_new
 from tacotron.core.training import CheckpointTacotron
+from tacotron.core.validation import ValidationEntries, ValidationEntryOutput
+from tacotron.core.validation import validate as validate_new
 from tacotron.utils import (get_all_checkpoint_iterations, get_checkpoint,
-                            get_last_checkpoint, get_subdir)
+                            get_last_checkpoint, get_subdir, prepare_logger)
 from tqdm import tqdm
 from tts_preparation import (PreparedData, get_merged_dir, get_prep_dir,
                              load_testset, load_valset)
@@ -61,21 +58,14 @@ def save_stats(val_dir: str, validation_entries: ValidationEntries) -> None:
 
 def save_results(entry: PreparedData, output: ValidationEntryOutput, val_dir: str, iteration: int):
   dest_dir = get_val_entry_dir(val_dir, entry, iteration)
-  imageio.imsave(os.path.join(dest_dir, "original.png"), output.orig_wav_img)
-  imageio.imsave(os.path.join(dest_dir, "inferred.png"), output.inferred_wav_img)
+  imageio.imsave(os.path.join(dest_dir, "original.png"), output.orig_mel_img)
+  imageio.imsave(os.path.join(dest_dir, "inferred.png"), output.inferred_mel_img)
   imageio.imsave(os.path.join(dest_dir, "postnet.png"), output.postnet_img)
   imageio.imsave(os.path.join(dest_dir, "alignments.png"), output.alignments_img)
   imageio.imsave(os.path.join(dest_dir, "diff.png"), output.struc_sim_img)
-  float_to_wav(
-    path=os.path.join(dest_dir, "original.wav"),
-    wav=output.orig_wav,
-    sample_rate=output.orig_wav_sr,
-  )
-  float_to_wav(
-    path=os.path.join(dest_dir, "inferred.wav"),
-    wav=output.inferred_wav,
-    sample_rate=output.inferred_wav_sr,
-  )
+  np.save(os.path.join(dest_dir, "original.mel.npy"), output.orig_mel)
+  np.save(os.path.join(dest_dir, "inferred.mel.npy"), output.inferred_mel)
+
   stack_images_vertically(
     list_im=[
       os.path.join(dest_dir, "original.png"),
@@ -88,14 +78,14 @@ def save_results(entry: PreparedData, output: ValidationEntryOutput, val_dir: st
   )
 
 
-def app_validate(base_dir: str, train_name: str, waveglow: str = DEFAULT_WAVEGLOW, entry_ids: Optional[Set[int]] = None, speaker: Optional[str] = None, ds: str = "val", custom_checkpoints: Optional[Set[int]] = None, sigma: float = DEFAULT_SIGMA, denoiser_strength: float = DEFAULT_DENOISER_STRENGTH, custom_tacotron_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, custom_waveglow_hparams: Optional[Dict[str, str]] = None):
+def app_validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = None, speaker: Optional[str] = None, ds: str = "val", custom_checkpoints: Optional[Set[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False):
   """Param: custom checkpoints: empty => all; None => random; ids"""
 
   train_dir = get_train_dir(base_dir, train_name, create=False)
   assert os.path.isdir(train_dir)
 
-  merge_name, prep_name = load_prep_settings(train_dir)
-  merge_dir = get_merged_dir(base_dir, merge_name, create=False)
+  ttsp_dir, merge_name, prep_name = load_prep_settings(train_dir)
+  merge_dir = get_merged_dir(ttsp_dir, merge_name, create=False)
   prep_dir = get_prep_dir(merge_dir, prep_name, create=False)
 
   if ds == "val":
@@ -133,10 +123,6 @@ def app_validate(base_dir: str, train_name: str, waveglow: str = DEFAULT_WAVEGLO
 
   result = ValidationEntries()
 
-  train_dir_wg = get_wg_train_dir(base_dir, waveglow, create=False)
-  wg_checkpoint_path, _ = get_last_checkpoint(get_checkpoints_dir(train_dir_wg))
-  wg_checkpoint = CheckpointWaveglow.load(wg_checkpoint_path, logger)
-
   for iteration in tqdm(sorted(iterations)):
     logger.info(f"Current checkpoint: {iteration}")
     checkpoint_path = get_checkpoint(checkpoint_dir, iteration)
@@ -145,21 +131,18 @@ def app_validate(base_dir: str, train_name: str, waveglow: str = DEFAULT_WAVEGLO
 
     validation_entries = validate_new(
       tacotron_checkpoint=taco_checkpoint,
-      waveglow_checkpoint=wg_checkpoint,
-      sigma=sigma,
-      denoiser_strength=denoiser_strength,
       data=data,
-      logger=logger,
-      custom_taco_hparams=custom_tacotron_hparams,
-      custom_wg_hparams=custom_waveglow_hparams,
+      custom_hparams=custom_hparams,
       entry_ids=entry_ids,
       full_run=full_run,
       speaker_name=speaker,
       train_name=train_name,
       save_callback=save_callback,
+      logger=logger,
     )
 
     result.extend(validation_entries)
+
   if len(result) > 0:
     save_stats(val_dir, result)
     logger.info(f"Saved output to: {val_dir}")
