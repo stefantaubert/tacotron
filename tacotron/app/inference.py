@@ -1,6 +1,7 @@
 import datetime
 import os
 from functools import partial
+from tacotron.app.defaults import DEFAULT_MAX_DECODER_STEPS
 from typing import Dict, List, Optional, Set
 
 import imageio
@@ -86,7 +87,7 @@ def get_infer_log_new(infer_dir: str):
   return os.path.join(infer_dir, "log.txt")
 
 
-def app_infer(base_dir: str, train_name: str, text_name: str, speaker: str, sentence_ids: Optional[Set[int]] = None, custom_checkpoint: Optional[int] = None, full_run: bool = True, custom_hparams: Optional[Dict[str, str]] = None):
+def app_infer(base_dir: str, train_name: str, text_name: str, speaker: str, sentence_ids: Optional[Set[int]] = None, custom_checkpoint: Optional[int] = None, full_run: bool = True, custom_hparams: Optional[Dict[str, str]] = None, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS):
   train_dir = get_train_dir(base_dir, train_name, create=False)
   assert os.path.isdir(train_dir)
 
@@ -126,6 +127,7 @@ def app_infer(base_dir: str, train_name: str, text_name: str, speaker: str, sent
     sentence_ids=sentence_ids,
     speaker_name=speaker,
     train_name=train_name,
+    max_decoder_steps=max_decoder_steps,
     logger=logger,
   )
 

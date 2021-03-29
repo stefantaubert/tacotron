@@ -44,7 +44,6 @@ class ModelHParams():
   n_frames_per_step: int = 1  # currently only 1 is supported
   decoder_rnn_dim: int = 1024
   prenet_dim: int = 256
-  max_decoder_steps: int = 3000  # 1000
   gate_threshold: float = 0.5
   p_attention_dropout: float = 0.1
   p_decoder_dropout: float = 0.1

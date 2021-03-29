@@ -282,7 +282,6 @@ class Decoder(nn.Module):
     self.attention_rnn_dim = hparams.attention_rnn_dim
     self.decoder_rnn_dim = hparams.decoder_rnn_dim
     self.prenet_dim = hparams.prenet_dim
-    self.max_decoder_steps = hparams.max_decoder_steps
     self.gate_threshold = hparams.gate_threshold
     self.p_attention_dropout = hparams.p_attention_dropout
     self.p_decoder_dropout = hparams.p_decoder_dropout
@@ -479,7 +478,7 @@ class Decoder(nn.Module):
 
     return self.parse_decoder_outputs(mel_outputs, gate_outputs, alignments)
 
-  def inference(self, memory) -> Tuple[Tuple[torch.Tensor, torch.Tensor, torch.Tensor], bool]:
+  def inference(self, memory, max_decoder_steps: int) -> Tuple[Tuple[torch.Tensor, torch.Tensor, torch.Tensor], bool]:
     """ Decoder inference
     PARAMS
     ------
@@ -508,7 +507,7 @@ class Decoder(nn.Module):
       if torch.sigmoid(gate_output.data) > self.gate_threshold:
         break
 
-      if self.max_decoder_steps > 0 and len(mel_outputs) == self.max_decoder_steps:
+      if max_decoder_steps > 0 and len(mel_outputs) == max_decoder_steps:
         self.logger.warn("Reached max decoder steps.")
         reached_max_decoder_steps = True
         break
@@ -619,7 +618,7 @@ class Tacotron2(nn.Module):
 
     return mel_outputs, mel_outputs_postnet, gate_outputs, alignments
 
-  def inference(self, inputs: torch.LongTensor, accents: torch.LongTensor, speaker_id: torch.LongTensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+  def inference(self, inputs: torch.LongTensor, accents: torch.LongTensor, speaker_id: torch.LongTensor, max_decoder_steps: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     embedded_inputs = self.embedding(inputs).transpose(1, 2)
     encoder_outputs = self.encoder.inference(embedded_inputs)
 
@@ -633,7 +632,7 @@ class Tacotron2(nn.Module):
 
       merged_outputs = torch.cat([encoder_outputs, embedded_speaker], -1)
 
-    decoder_outputs, reached_max_decoder_steps = self.decoder.inference(merged_outputs)
+    decoder_outputs, reached_max_decoder_steps = self.decoder.inference(merged_outputs, max_decoder_steps)
     mel_outputs, gate_outputs, alignments = decoder_outputs
 
     mel_outputs_postnet = self.postnet(mel_outputs)

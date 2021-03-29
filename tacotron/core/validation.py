@@ -6,10 +6,11 @@ from typing import Callable, Dict, Optional, Set
 import imageio
 import numpy as np
 from audio_utils.mel import TacotronSTFT, plot_melspec_np
+from audio_utils.mel.main import wav_to_float32_tensor
 from image_utils import (calculate_structual_similarity_np,
                          make_same_width_by_filling_white)
-from mcd import (get_audio_and_sampling_rate_from_path,
-                 get_mcd_dtw_from_mel_spectograms)
+from mcd import get_mcd_between_mel_spectograms
+from scipy.io.wavfile import read
 from tacotron.core.synthesizer import Synthesizer
 from tacotron.core.training import CheckpointTacotron
 from tacotron.globals import MCD_NO_OF_COEFFS_PER_FRAME
@@ -36,7 +37,9 @@ class ValidationEntry():
   symbol_count: int = None
   # grad_norm: float = None
   # loss: float = None
+  diff_frames: int = None
   mcd_dtw: float = None
+  mcd_dtw_penalty: float = None
   mcd_dtw_frames: int = None
   # mcd_dtw_v2: float = None
   # mcd_dtw_v2_frames: int = None
@@ -69,7 +72,7 @@ class ValidationEntryOutputs(GenericList[ValidationEntryOutput]):
   pass
 
 
-def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hparams: Optional[Dict[str, str]], entry_ids: Optional[Set[int]], speaker_name: Optional[str], train_name: str, full_run: bool, save_callback: Callable[[PreparedData, ValidationEntryOutput], None], logger: Logger) -> ValidationEntries:
+def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hparams: Optional[Dict[str, str]], entry_ids: Optional[Set[int]], speaker_name: Optional[str], train_name: str, full_run: bool, save_callback: Callable[[PreparedData, ValidationEntryOutput], None], max_decoder_steps: int, logger: Logger) -> ValidationEntries:
   model_symbols = checkpoint.get_symbols()
   model_accents = checkpoint.get_accents()
   model_speakers = checkpoint.get_speakers()
@@ -110,6 +113,7 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hpar
       sentence=infer_sent,
       speaker=speaker_name,
       ignore_unknown_symbols=False,
+      max_decoder_steps=max_decoder_steps,
     )
 
     symbol_count = len(deserialize_list(entry.serialized_symbol_ids))
@@ -136,10 +140,13 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hpar
       sampling_rate=synth.get_sampling_rate(),
       reached_max_decoder_steps=inference_result.reached_max_decoder_steps,
       inference_duration_s=inference_result.inference_duration_s,
+      diff_frames=None,
     )
 
-    _, orig_sr = get_audio_and_sampling_rate_from_path(entry.wav_path)
-    mel_orig = taco_stft.get_mel_tensor_from_file(entry.wav_path).cpu().numpy()
+    orig_sr, _ = read(entry.wav_path)
+    mel_orig: np.ndarray = taco_stft.get_mel_tensor_from_file(entry.wav_path).cpu().numpy()
+
+    val_entry.diff_frames = inference_result.mel_outputs_postnet.shape[1] - mel_orig.shape[1]
 
     validation_entry_output = ValidationEntryOutput(
       mel_orig=mel_orig,
@@ -148,12 +155,16 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hpar
       mel_postnet_sr=inference_result.sampling_rate,
     )
 
-    mcd, frames = get_mcd_dtw_from_mel_spectograms(
-      mel_spectogram_1=mel_orig,
-      mel_spectogram_2=inference_result.mel_outputs_postnet, no_of_coeffs_per_frame=MCD_NO_OF_COEFFS_PER_FRAME
+    mcd, penalty, frames = get_mcd_between_mel_spectograms(
+      mel_1=mel_orig,
+      mel_2=inference_result.mel_outputs_postnet,
+      n_mfcc=MCD_NO_OF_COEFFS_PER_FRAME,
+      take_log=False,
+      use_dtw=True,
     )
 
     val_entry.mcd_dtw = mcd
+    val_entry.mcd_dtw_penalty = penalty
     val_entry.mcd_dtw_frames = frames
 
     cosine_similarity = cosine_dist_mels(mel_orig, inference_result.mel_outputs_postnet)

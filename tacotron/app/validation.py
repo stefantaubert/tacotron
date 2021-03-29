@@ -1,6 +1,7 @@
 import datetime
 import os
 from functools import partial
+from tacotron.app.defaults import DEFAULT_MAX_DECODER_STEPS
 from typing import Dict, Optional, Set
 
 import imageio
@@ -78,7 +79,7 @@ def save_results(entry: PreparedData, output: ValidationEntryOutput, val_dir: st
   )
 
 
-def app_validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = None, speaker: Optional[str] = None, ds: str = "val", custom_checkpoints: Optional[Set[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False):
+def app_validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = None, speaker: Optional[str] = None, ds: str = "val", custom_checkpoints: Optional[Set[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS):
   """Param: custom checkpoints: empty => all; None => random; ids"""
 
   train_dir = get_train_dir(base_dir, train_name, create=False)
@@ -139,6 +140,7 @@ def app_validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] =
       train_name=train_name,
       save_callback=save_callback,
       logger=logger,
+      max_decoder_steps=max_decoder_steps,
     )
 
     result.extend(validation_entries)

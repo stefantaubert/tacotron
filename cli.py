@@ -1,5 +1,6 @@
 import os
 from argparse import ArgumentParser
+from tacotron.app.defaults import DEFAULT_MAX_DECODER_STEPS
 
 from tacotron.app.analysis import plot_embeddings
 from tacotron.app.inference import app_infer
@@ -77,6 +78,7 @@ def init_validate_parser(parser: ArgumentParser):
                       choices=["val", "test"], default="val")
   parser.add_argument('--custom_checkpoints', type=str)
   parser.add_argument('--full_run', action='store_true')
+  parser.add_argument('--max_decoder_steps', type=int, default=DEFAULT_MAX_DECODER_STEPS)
 
   parser.add_argument(
     '--custom_hparams',
@@ -101,6 +103,7 @@ def init_inference_parser(parser: ArgumentParser):
   parser.add_argument('--custom_checkpoint', type=int)
   parser.add_argument('--custom_hparams', type=str)
   parser.add_argument('--full_run', action='store_true')
+  parser.add_argument('--max_decoder_steps', type=int, default=DEFAULT_MAX_DECODER_STEPS)
 
   return infer_cli
 
