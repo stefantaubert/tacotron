@@ -5,7 +5,7 @@ import pandas as pd
 import plotly.offline as plt
 from tacotron.analysis import plot_embeddings as plot_embeddings_core
 from tacotron.app.io import get_checkpoints_dir, get_train_dir
-from tacotron.core.training import CheckpointTacotron
+from tacotron.core import CheckpointTacotron
 from tacotron.utils import (get_custom_or_last_checkpoint, get_subdir,
                             prepare_logger, save_df)
 

@@ -1,17 +1,17 @@
 import datetime
 import os
 from functools import partial
-from tacotron.app.defaults import DEFAULT_MAX_DECODER_STEPS
 from typing import Dict, Optional, Set
 
 import imageio
 import numpy as np
 from image_utils import stack_images_vertically
+from tacotron.app.defaults import DEFAULT_MAX_DECODER_STEPS
 from tacotron.app.io import (_get_validation_root_dir, get_checkpoints_dir,
                              get_train_dir, load_prep_settings)
-from tacotron.core.training import CheckpointTacotron
-from tacotron.core.validation import ValidationEntries, ValidationEntryOutput
-from tacotron.core.validation import validate as validate_new
+from tacotron.core import (CheckpointTacotron, ValidationEntries,
+                           ValidationEntryOutput)
+from tacotron.core import validate as validate_core
 from tacotron.utils import (get_all_checkpoint_iterations, get_checkpoint,
                             get_last_checkpoint, get_subdir, prepare_logger)
 from tqdm import tqdm
@@ -79,7 +79,7 @@ def save_results(entry: PreparedData, output: ValidationEntryOutput, val_dir: st
   )
 
 
-def app_validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = None, speaker: Optional[str] = None, ds: str = "val", custom_checkpoints: Optional[Set[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS):
+def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = None, speaker: Optional[str] = None, ds: str = "val", custom_checkpoints: Optional[Set[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS) -> None:
   """Param: custom checkpoints: empty => all; None => random; ids"""
 
   train_dir = get_train_dir(base_dir, train_name, create=False)
@@ -130,7 +130,7 @@ def app_validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] =
     taco_checkpoint = CheckpointTacotron.load(checkpoint_path, logger)
     save_callback = partial(save_results, val_dir=val_dir, iteration=iteration)
 
-    validation_entries = validate_new(
+    validation_entries = validate_core(
       checkpoint=taco_checkpoint,
       data=data,
       custom_hparams=custom_hparams,

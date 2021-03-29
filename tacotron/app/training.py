@@ -9,8 +9,9 @@ from tacotron.app.io import (get_checkpoints_dir,
                              get_train_checkpoints_log_file, get_train_dir,
                              get_train_log_file, get_train_logs_dir,
                              load_prep_settings, save_prep_settings)
-from tacotron.core.logger import Tacotron2Logger
-from tacotron.core.training import CheckpointTacotron, continue_train, train
+from tacotron.core import CheckpointTacotron, Tacotron2Logger
+from tacotron.core import continue_train as continue_train_core
+from tacotron.core import train as train_core
 from tacotron.utils import (get_custom_or_last_checkpoint, get_last_checkpoint,
                             get_pytorch_filename, prepare_logger)
 from tts_preparation import (get_merged_dir, get_prep_dir,
@@ -48,7 +49,7 @@ def restore_model(base_dir: str, train_name: str, checkpoint_dir: str) -> None:
   logger.info("Restoring done.")
 
 
-def train_main(base_dir: str, ttsp_dir: str, train_name: str, merge_name: str, prep_name: str, warm_start_train_name: Optional[str] = None, warm_start_checkpoint: Optional[int] = None, custom_hparams: Optional[Dict[str, str]] = None, weights_train_name: Optional[str] = None, weights_checkpoint: Optional[int] = None, use_weights_map: Optional[bool] = None, map_from_speaker: Optional[str] = None) -> None:
+def train(base_dir: str, ttsp_dir: str, train_name: str, merge_name: str, prep_name: str, warm_start_train_name: Optional[str] = None, warm_start_checkpoint: Optional[int] = None, custom_hparams: Optional[Dict[str, str]] = None, weights_train_name: Optional[str] = None, weights_checkpoint: Optional[int] = None, use_weights_map: Optional[bool] = None, map_from_speaker: Optional[str] = None) -> None:
   merge_dir = get_merged_dir(ttsp_dir, merge_name, create=False)
   prep_dir = get_prep_dir(merge_dir, prep_name, create=False)
 
@@ -94,7 +95,7 @@ def train_main(base_dir: str, ttsp_dir: str, train_name: str, merge_name: str, p
     logger=logger,
   )
 
-  train(
+  train_core(
     custom_hparams=custom_hparams,
     taco_logger=taco_logger,
     symbols=load_merged_symbol_converter(merge_dir),
@@ -112,7 +113,7 @@ def train_main(base_dir: str, ttsp_dir: str, train_name: str, merge_name: str, p
   )
 
 
-def continue_train_main(base_dir: str, train_name: str, custom_hparams: Optional[Dict[str, str]] = None) -> None:
+def continue_train(base_dir: str, train_name: str, custom_hparams: Optional[Dict[str, str]] = None) -> None:
   train_dir = get_train_dir(base_dir, train_name, create=False)
   assert os.path.isdir(train_dir)
 
@@ -140,7 +141,7 @@ def continue_train_main(base_dir: str, train_name: str, custom_hparams: Optional
   trainset = load_trainset(prep_dir)
   valset = load_valset(prep_dir)
 
-  continue_train(
+  continue_train_core(
     checkpoint=last_checkpoint,
     custom_hparams=custom_hparams,
     taco_logger=taco_logger,

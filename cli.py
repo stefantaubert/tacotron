@@ -1,13 +1,10 @@
 import os
 from argparse import ArgumentParser
-from tacotron.app.defaults import DEFAULT_MAX_DECODER_STEPS
 
-from tacotron.app.analysis import plot_embeddings
-from tacotron.app.inference import app_infer
 # from tacotron.app.eval_checkpoints import eval_checkpoints
-from tacotron.app.training import (continue_train_main, restore_model,
-                                   train_main)
-from tacotron.app.validation import app_validate
+from tacotron.app import (DEFAULT_MAX_DECODER_STEPS, infer, validate,
+                          continue_train, plot_embeddings, restore_model,
+                          train)
 from tacotron.utils import split_hparams_string, split_int_set_str
 
 BASE_DIR_VAR = "base_dir"
@@ -56,7 +53,7 @@ def init_train_parser(parser: ArgumentParser):
 
 def train_cli(**args):
   args["custom_hparams"] = split_hparams_string(args["custom_hparams"])
-  train_main(**args)
+  train(**args)
 
 
 def init_continue_train_parser(parser: ArgumentParser):
@@ -67,7 +64,7 @@ def init_continue_train_parser(parser: ArgumentParser):
 
 def continue_train_cli(**args):
   args["custom_hparams"] = split_hparams_string(args["custom_hparams"])
-  continue_train_main(**args)
+  continue_train(**args)
 
 
 def init_validate_parser(parser: ArgumentParser):
@@ -92,7 +89,7 @@ def validate_cli(**args):
   args["custom_hparams"] = split_hparams_string(args["custom_hparams"])
   args["entry_ids"] = split_int_set_str(args["entry_ids"])
   args["custom_checkpoints"] = split_int_set_str(args["custom_checkpoints"])
-  app_validate(**args)
+  validate(**args)
 
 
 def init_inference_parser(parser: ArgumentParser):
@@ -111,7 +108,7 @@ def init_inference_parser(parser: ArgumentParser):
 def infer_cli(**args):
   args["custom_hparams"] = split_hparams_string(args["custom_hparams"])
   args["sentence_ids"] = split_int_set_str(args["sentence_ids"])
-  app_infer(**args)
+  infer(**args)
 
 
 def add_base_dir(parser: ArgumentParser):

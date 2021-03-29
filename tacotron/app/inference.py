@@ -1,17 +1,17 @@
 import datetime
 import os
 from functools import partial
-from tacotron.app.defaults import DEFAULT_MAX_DECODER_STEPS
 from typing import Dict, List, Optional, Set
 
 import imageio
 import numpy as np
 from image_utils import stack_images_horizontally, stack_images_vertically
+from tacotron.app.defaults import DEFAULT_MAX_DECODER_STEPS
 from tacotron.app.io import (get_checkpoints_dir, get_inference_root_dir,
                              get_train_dir, load_prep_settings)
-from tacotron.core.inference import (InferenceEntries, InferenceEntryOutput,
-                                     infer)
-from tacotron.core.training import CheckpointTacotron
+from tacotron.core import (CheckpointTacotron, InferenceEntries,
+                           InferenceEntryOutput)
+from tacotron.core import infer as infer_core
 from tacotron.utils import (add_console_out_to_logger, add_file_out_to_logger,
                             get_custom_or_last_checkpoint, get_default_logger,
                             get_subdir, init_logger, parse_json)
@@ -87,7 +87,7 @@ def get_infer_log_new(infer_dir: str):
   return os.path.join(infer_dir, "log.txt")
 
 
-def app_infer(base_dir: str, train_name: str, text_name: str, speaker: str, sentence_ids: Optional[Set[int]] = None, custom_checkpoint: Optional[int] = None, full_run: bool = True, custom_hparams: Optional[Dict[str, str]] = None, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS):
+def infer(base_dir: str, train_name: str, text_name: str, speaker: str, sentence_ids: Optional[Set[int]] = None, custom_checkpoint: Optional[int] = None, full_run: bool = True, custom_hparams: Optional[Dict[str, str]] = None, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS):
   train_dir = get_train_dir(base_dir, train_name, create=False)
   assert os.path.isdir(train_dir)
 
@@ -118,7 +118,7 @@ def app_infer(base_dir: str, train_name: str, text_name: str, speaker: str, sent
 
   save_callback = partial(save_results, infer_dir=infer_dir)
 
-  inference_results = infer(
+  inference_results = infer_core(
     checkpoint=taco_checkpoint,
     sentences=infer_sents,
     custom_hparams=custom_hparams,
