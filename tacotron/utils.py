@@ -1,4 +1,3 @@
-from typing import Optional
 import dataclasses
 import json
 import logging
@@ -41,7 +40,6 @@ def disable_matplot_logger():
 
 def disable_numba_logger():
   disable_numba_core_logger()
-
 
 
 formatter = logging.Formatter(
@@ -597,8 +595,12 @@ def cast_as(obj, _: _T) -> _T:
   return obj
 
 
-def pass_lines(method: Any, text: str):
+def pass_lines(method: Any, text: str) -> None:
   lines = text.split("\n")
+  pass_lines_list(method, lines)
+
+
+def pass_lines_list(method: Any, lines: List[str]) -> None:
   for l in lines:
     method(l)
 

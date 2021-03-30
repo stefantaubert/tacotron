@@ -56,15 +56,16 @@ class ValidationEntries(GenericList[ValidationEntry]):
 
 @dataclass
 class ValidationEntryOutput():
+  wav_orig: np.ndarray = None
   mel_orig: np.ndarray = None
-  mel_orig_sr: int = None
+  orig_sr: int = None
   mel_orig_img: np.ndarray = None
   mel_postnet: np.ndarray = None
   mel_postnet_sr: int = None
   mel_postnet_img: np.ndarray = None
+  mel_postnet_diff_img: np.ndarray = None
   mel_img: np.ndarray = None
   alignments_img: np.ndarray = None
-  mel_diff_img: np.ndarray = None
   # gate_out_img: np.ndarray = None
 
 
@@ -143,14 +144,15 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hpar
       diff_frames=None,
     )
 
-    orig_sr, _ = read(entry.wav_path)
+    orig_sr, orig_wav = read(entry.wav_path)
     mel_orig: np.ndarray = taco_stft.get_mel_tensor_from_file(entry.wav_path).cpu().numpy()
 
     val_entry.diff_frames = inference_result.mel_outputs_postnet.shape[1] - mel_orig.shape[1]
 
     validation_entry_output = ValidationEntryOutput(
+      wav_orig=orig_wav,
       mel_orig=mel_orig,
-      mel_orig_sr=orig_sr,
+      orig_sr=orig_sr,
       mel_postnet=inference_result.mel_outputs_postnet,
       mel_postnet_sr=inference_result.sampling_rate,
     )
@@ -202,7 +204,7 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hpar
         img_b=mel_outputs_postnet_img,
     )
 
-    validation_entry_output.mel_diff_img = mel_diff_img
+    validation_entry_output.mel_postnet_diff_img = mel_diff_img
 
     alignments_img = plot_alignment_np(inference_result.alignments)
     validation_entry_output.alignments_img = alignments_img

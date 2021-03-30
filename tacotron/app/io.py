@@ -1,7 +1,7 @@
 import datetime
 import os
 from shutil import copyfile
-from typing import Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import matplotlib.pylab as plt
 import numpy as np
@@ -88,6 +88,25 @@ def save_prep_settings(train_dir: str, ttsp_dir: str, merge_name: Optional[str],
   }
   path = os.path.join(train_dir, _settings_json)
   save_json(path, settings)
+
+
+def get_mel_info_dict(identifier: int, path: str, sr: int) -> Dict[str, Any]:
+  mel_info = {
+    "id": identifier,
+    "path": path,
+    "sr": sr,
+  }
+
+  return mel_info
+
+
+def get_mel_out_dict(name: str, mel_info_dict: Dict[str, Any]) -> Dict[str, Any]:
+  info_json = {
+    "name": name,
+    "mels": mel_info_dict,
+  }
+
+  return info_json
 
 
 # def split_dataset(prep_dir: str, train_dir: str, test_size: float = 0.01, validation_size: float = 0.05, split_seed: int = 1234):
