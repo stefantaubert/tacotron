@@ -63,6 +63,8 @@ class Synthesizer():
     return symbols_tensor
 
   def infer(self, sentence: InferSentence, speaker: str, ignore_unknown_symbols: bool, max_decoder_steps: int) -> InferenceResult:
+    pass_lines(self._logger.info, sentence.get_formatted(self.accents))
+
     accent_ids = self.accents.get_ids(sentence.accents)
     accents_tensor = np.array([accent_ids])
     accents_tensor = torch.from_numpy(accents_tensor)
@@ -128,13 +130,11 @@ class Synthesizer():
         space_symbol=" ",
         space_accent=DEFAULT_PADDING_ACCENT,
       )
-      self._logger.info(f"\n{sentence.get_formatted(accent_id_dict)}")
       infer_res = self.infer(sentence, speaker, ignore_unknown_symbols, max_decoder_steps)
       result.append(infer_res)
     else:
       # Speed is: 1min inference for 3min wav result
       for sentence in sentences.items(True):
-        pass_lines(self._logger.info, sentence.get_formatted(accent_id_dict))
         infer_res = self.infer(sentence, speaker, ignore_unknown_symbols, max_decoder_steps)
         result.append(infer_res)
 
