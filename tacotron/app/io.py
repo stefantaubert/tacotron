@@ -74,7 +74,7 @@ def get_checkpoints_dir(train_dir: str):
 #   return PreparedDataList.load(PreparedData, path)
 
 
-def load_prep_settings(train_dir: str) -> Tuple[str, str]:
+def load_prep_settings(train_dir: str) -> Tuple[str, str, str]:
   path = os.path.join(train_dir, _settings_json)
   res = parse_json(path)
   return res["ttsp_dir"], res["merge_name"], res["prep_name"]

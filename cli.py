@@ -2,9 +2,9 @@ import os
 from argparse import ArgumentParser
 
 # from tacotron.app.eval_checkpoints import eval_checkpoints
-from tacotron.app import (DEFAULT_MAX_DECODER_STEPS, infer, validate,
-                          continue_train, plot_embeddings, restore_model,
-                          train)
+from tacotron.app import (DEFAULT_MAX_DECODER_STEPS, continue_train, infer,
+                          plot_embeddings, restore_model, train, validate)
+from tacotron.app.defaults import DEFAULT_MEL_INFO_COPY_PATH
 from tacotron.utils import split_hparams_string, split_int_set_str
 
 BASE_DIR_VAR = "base_dir"
@@ -76,11 +76,8 @@ def init_validate_parser(parser: ArgumentParser):
   parser.add_argument('--custom_checkpoints', type=str)
   parser.add_argument('--full_run', action='store_true')
   parser.add_argument('--max_decoder_steps', type=int, default=DEFAULT_MAX_DECODER_STEPS)
-
-  parser.add_argument(
-    '--custom_hparams',
-    type=str
-  )
+  parser.add_argument('--copy_mel_info_to', type=str, default=DEFAULT_MEL_INFO_COPY_PATH)
+  parser.add_argument('--custom_hparams', type=str)
 
   return validate_cli
 
@@ -96,11 +93,12 @@ def init_inference_parser(parser: ArgumentParser):
   parser.add_argument('--train_name', type=str, required=True)
   parser.add_argument('--text_name', type=str, required=True)
   parser.add_argument('--speaker', type=str, required=True, help="ds_name,speaker_name")
-  parser.add_argument('--sentence_ids', type=str,)
+  parser.add_argument('--sentence_ids', type=str)
   parser.add_argument('--custom_checkpoint', type=int)
   parser.add_argument('--custom_hparams', type=str)
   parser.add_argument('--full_run', action='store_true')
   parser.add_argument('--max_decoder_steps', type=int, default=DEFAULT_MAX_DECODER_STEPS)
+  parser.add_argument('--copy_mel_info_to', type=str, default=DEFAULT_MEL_INFO_COPY_PATH)
 
   return infer_cli
 
