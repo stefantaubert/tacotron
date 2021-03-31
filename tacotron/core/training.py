@@ -20,7 +20,7 @@ from tacotron.utils import (SaveIterationSettings, check_save_it,
                             copy_state_dict, get_continue_batch_iteration,
                             get_continue_epoch, get_formatted_current_total,
                             get_next_save_it, init_cuddn, init_cuddn_benchmark,
-                            init_torch_seed, log_hparams,
+                            init_global_seeds, log_hparams,
                             overwrite_custom_hparams, skip_batch,
                             update_weights, validate_model)
 from text_utils import AccentsDict, SpeakersDict, SymbolIdDict, SymbolsMap
@@ -113,7 +113,6 @@ def continue_train(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict
 
 
 def init_torch(hparams: ExperimentHParams):
-  init_torch_seed(hparams.seed)
   init_cuddn(hparams.cudnn_enabled)
   init_cuddn_benchmark(hparams.cudnn_benchmark)
 
@@ -156,6 +155,7 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
     hparams.learning_rate = checkpoint.learning_rate
 
   log_hparams(hparams, logger)
+  init_global_seeds(hparams.seed)
   init_torch(hparams)
 
   model, optimizer = load_model_and_optimizer(

@@ -408,9 +408,15 @@ def filter_checkpoints(iterations: List[int], select: Optional[int], min_it: Opt
   return process_checkpoints
 
 
-def init_torch_seed(seed: int):
+def init_global_seeds(seed: int) -> None:
+  # torch.backends.cudnn.deterministic = True
+  os.environ['PYTHONHASHSEED'] = str(seed)
+  np.random.seed(seed)
+  torch.random.manual_seed(seed)
   torch.manual_seed(seed)
   torch.cuda.manual_seed(seed)
+  # only on multi GPU
+  # torch.cuda.manual_seed_all(seed)
 
 
 def init_cuddn(enabled: bool):
