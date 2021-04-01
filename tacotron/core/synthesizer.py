@@ -121,8 +121,6 @@ class Synthesizer():
 
     result: List[InferenceResult] = []
 
-    accent_id_dict = self.accents
-
     all_in_one = False
 
     if all_in_one:
