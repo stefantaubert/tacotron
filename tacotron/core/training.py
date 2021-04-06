@@ -324,8 +324,16 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
         valloss = validate(model, criterion, val_loader, iteration, taco_logger, logger)
 
         # if rank == 0:
-        log_checkpoint_score(iteration, grad_norm,
-                             reduced_loss, valloss, epoch, batch_iteration, hparams.batch_size, checkpoint_logger)
+        log_checkpoint_score(
+          iteration=iteration,
+          gradloss=grad_norm,
+          trainloss=reduced_loss,
+          valloss=valloss,
+          epoch_one_based=epoch + 1,
+          batch_it_one_based=batch_iteration + 1,
+          batch_size=hparams.batch_size,
+          checkpoint_logger=checkpoint_logger
+        )
 
   duration_s = time.time() - complete_start
   logger.info(f'Finished training. Total duration: {duration_s / 60:.2f}m')
@@ -397,7 +405,7 @@ def warm_start_model(model: nn.Module, warm_model: CheckpointTacotron, hparams: 
   )
 
 
-def log_checkpoint_score(iteration: int, gradloss: float, trainloss: float, valloss: float, epoch: int, i: int, batch_size: int, checkpoint_logger: Logger):
+def log_checkpoint_score(iteration: int, gradloss: float, trainloss: float, valloss: float, epoch_one_based: int, batch_it_one_based: int, batch_size: int, checkpoint_logger: Logger):
   loss_avg = (trainloss + valloss) / 2
-  msg = f"{iteration}\tepoch: {epoch}\tit-{i}\tgradloss: {gradloss:.6f}\ttrainloss: {trainloss:.6f}\tvalidationloss: {valloss:.6f}\tavg-train-val: {loss_avg:.6f}\tutterances: {iteration*batch_size}"
+  msg = f"{iteration}\tepoch: {epoch_one_based}\tit-{batch_it_one_based}\tgradloss: {gradloss:.6f}\ttrainloss: {trainloss:.6f}\tvalidationloss: {valloss:.6f}\tavg-train-val: {loss_avg:.6f}\tutterances: {iteration*batch_size}"
   checkpoint_logger.info(msg)
