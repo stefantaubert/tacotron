@@ -21,6 +21,7 @@ import wget
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 from scipy.spatial.distance import cosine
+from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 from speech_dataset_preprocessing.globals import DEFAULT_CSV_SEPERATOR
 from torch import Tensor, nn
@@ -782,6 +783,12 @@ def get_unique_items(of_list: List[Union[List[_T], Set[_T]]]) -> Set[_T]:
   for sub_entries in of_list:
     items = items.union(set(sub_entries))
   return items
+
+
+def mse_mels(a: np.ndarray, b: np.ndarray) -> float:
+  a, b = make_same_dim(a, b)
+  mse = mean_squared_error(a, b)
+  return mse
 
 
 def cosine_dist_mels(a: np.ndarray, b: np.ndarray) -> float:

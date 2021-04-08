@@ -1,6 +1,7 @@
 import datetime
 import os
 from functools import partial
+from logging import getLogger
 from shutil import copyfile
 from typing import Any, Dict, List, Optional, Set
 
@@ -118,7 +119,7 @@ def save_results(entry: PreparedData, output: ValidationEntryOutput, val_dir: st
   mel_postnet_npy_paths.append(mel_info)
 
 
-def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = None, speaker: Optional[str] = None, ds: str = "val", custom_checkpoints: Optional[Set[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, copy_mel_info_to: Optional[str] = DEFAULT_MEL_INFO_COPY_PATH) -> None:
+def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = None, speaker: Optional[str] = None, ds: str = "val", custom_checkpoints: Optional[Set[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, copy_mel_info_to: Optional[str] = DEFAULT_MEL_INFO_COPY_PATH, fast: bool = False) -> None:
   """Param: custom checkpoints: empty => all; None => random; ids"""
 
   train_dir = get_train_dir(base_dir, train_name, create=False)
@@ -166,14 +167,16 @@ def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = Non
   logger.info(f"Checkpoints: {','.join(str(x) for x in sorted(iterations))}")
 
   result = ValidationEntries()
+  save_callback = None
 
   for iteration in tqdm(sorted(iterations)):
     mel_postnet_npy_paths: List[str] = []
     logger.info(f"Current checkpoint: {iteration}")
     checkpoint_path = get_checkpoint(checkpoint_dir, iteration)
     taco_checkpoint = CheckpointTacotron.load(checkpoint_path, logger)
-    save_callback = partial(save_results, val_dir=val_dir, iteration=iteration,
-                            mel_postnet_npy_paths=mel_postnet_npy_paths)
+    if not fast:
+      save_callback = partial(save_results, val_dir=val_dir, iteration=iteration,
+                              mel_postnet_npy_paths=mel_postnet_npy_paths)
 
     validation_entries = validate_core(
       checkpoint=taco_checkpoint,
@@ -183,9 +186,10 @@ def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = Non
       full_run=full_run,
       speaker_name=speaker,
       train_name=train_name,
-      save_callback=save_callback,
       logger=logger,
       max_decoder_steps=max_decoder_steps,
+      fast=fast,
+      save_callback=save_callback,
     )
 
     result.extend(validation_entries)
@@ -194,17 +198,19 @@ def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = Non
     return
 
   save_stats(val_dir, result)
-  logger.info("Wrote all inferred mel paths including sampling rate into these file(s):")
-  npy_path = save_mel_postnet_npy_paths(
-    val_dir=val_dir,
-    name=run_name,
-    mel_postnet_npy_paths=mel_postnet_npy_paths
-  )
-  logger.info(npy_path)
 
-  if copy_mel_info_to is not None:
-    create_parent_folder(copy_mel_info_to)
-    copyfile(npy_path, copy_mel_info_to)
-    logger.info(copy_mel_info_to)
+  if not fast:
+    logger.info("Wrote all inferred mel paths including sampling rate into these file(s):")
+    npy_path = save_mel_postnet_npy_paths(
+      val_dir=val_dir,
+      name=run_name,
+      mel_postnet_npy_paths=mel_postnet_npy_paths
+    )
+    logger.info(npy_path)
+
+    if copy_mel_info_to is not None:
+      create_parent_folder(copy_mel_info_to)
+      copyfile(npy_path, copy_mel_info_to)
+      logger.info(copy_mel_info_to)
 
   logger.info(f"Saved output to: {val_dir}")

@@ -78,6 +78,7 @@ def init_validate_parser(parser: ArgumentParser):
   parser.add_argument('--max_decoder_steps', type=int, default=DEFAULT_MAX_DECODER_STEPS)
   parser.add_argument('--copy_mel_info_to', type=str, default=DEFAULT_MEL_INFO_COPY_PATH)
   parser.add_argument('--custom_hparams', type=str)
+  parser.add_argument('--fast', action='store_true')
 
   return validate_cli
 
