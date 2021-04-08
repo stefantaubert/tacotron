@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import (Any, Dict, Generic, List, Optional, Set, Tuple, Type,
                     TypeVar, Union)
 
+import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
 import torch
@@ -21,7 +22,6 @@ import wget
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 from scipy.spatial.distance import cosine
-from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 from speech_dataset_preprocessing.globals import DEFAULT_CSV_SEPERATOR
 from torch import Tensor, nn
@@ -80,6 +80,7 @@ def init_logger(logger: logging.Logger = get_default_logger()):
 
   disable_matplot_logger()
   disable_numba_logger()
+  disable_imageio_logger()
 
   return logger
 
@@ -111,7 +112,7 @@ if __name__ == "__main__":
   add_console_out_to_logger(test_logger)
 
 
-def plot_alignment_np(alignment) -> np.ndarray:
+def plot_alignment_np(alignment: np.ndarray) -> np.ndarray:
   fig, ax = plt.subplots(figsize=(6, 4))
   im = ax.imshow(alignment, aspect='auto', origin='lower',
                  interpolation='none')
@@ -123,6 +124,46 @@ def plot_alignment_np(alignment) -> np.ndarray:
   plot_np = figure_to_numpy_rgb(fig)
   plt.close()
   return plot_np
+
+
+def plot_alignment_np_new(alignment: np.ndarray, mel_dim_x=16, mel_dim_y=5, factor=1, title: Optional[str] = None) -> Tuple[np.ndarray, np.ndarray]:
+  alignment = alignment.T
+
+  height, width = alignment.shape
+  width_factor = width / 1000
+  fig, axes = plt.subplots(
+    nrows=1,
+    ncols=1,
+    figsize=(mel_dim_x * factor * width_factor, mel_dim_y * factor),
+  )
+
+  img = axes.imshow(
+    X=alignment,
+    aspect='auto',
+    origin='lower',
+    interpolation='none'
+  )
+
+  axes.set_yticks(np.arange(0, height, step=5))
+  axes.set_xticks(np.arange(0, width, step=50))
+  axes.xaxis.set_major_locator(ticker.NullLocator())
+  axes.yaxis.set_major_locator(ticker.NullLocator())
+  plt.tight_layout()  # font logging occurs here
+  figa_core = figure_to_numpy_rgb(fig)
+
+  fig.colorbar(img, ax=axes)
+  axes.xaxis.set_major_locator(ticker.AutoLocator())
+  axes.yaxis.set_major_locator(ticker.AutoLocator())
+
+  if title is not None:
+    axes.set_title(title)
+  axes.set_xlabel("Encoder timestep")
+  axes.set_ylabel("Decoder timestep")
+  plt.tight_layout()  # font logging occurs here
+  figa_labeled = figure_to_numpy_rgb(fig)
+  plt.close()
+
+  return figa_core, figa_labeled
 
 
 def get_last_checkpoint(checkpoint_dir: str) -> Tuple[str, int]:
@@ -551,6 +592,15 @@ def contains_only_allowed_symbols(l: Union[Tuple[_T], List[_T]], allowed: Union[
   return res
 
 
+def disable_imageio_logger():
+  """
+  Disables:
+    WARNING:imageio:Lossy conversion from float64 to uint8. Range [-0.952922124289318, 1.0000000000043152]. Convert image to uint8 prior to saving to suppress this warning.
+    ...
+  """
+  logging.getLogger('imageio').disabled = True
+
+
 def disable_numba_core_logger():
   """
   Disables:
@@ -785,14 +835,8 @@ def get_unique_items(of_list: List[Union[List[_T], Set[_T]]]) -> Set[_T]:
   return items
 
 
-def mse_mels(a: np.ndarray, b: np.ndarray) -> float:
-  a, b = make_same_dim(a, b)
-  mse = mean_squared_error(a, b)
-  return mse
-
-
 def cosine_dist_mels(a: np.ndarray, b: np.ndarray) -> float:
-  a, b = make_same_dim(a, b)
+  assert a.shape == b.shape
   scores = []
   for channel_nr in range(a.shape[0]):
     channel_a = a[channel_nr]

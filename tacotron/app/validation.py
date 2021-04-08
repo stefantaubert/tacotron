@@ -10,6 +10,7 @@ import numpy as np
 from image_utils import stack_images_vertically
 from scipy.io.wavfile import write
 from tacotron.app.defaults import (DEFAULT_MAX_DECODER_STEPS,
+                                   DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME,
                                    DEFAULT_MEL_INFO_COPY_PATH)
 from tacotron.app.io import (_get_validation_root_dir, get_checkpoints_dir,
                              get_mel_info_dict, get_mel_out_dict,
@@ -90,24 +91,42 @@ def save_results(entry: PreparedData, output: ValidationEntryOutput, val_dir: st
   dest_dir = get_val_entry_dir(val_dir, result_name)
   write(os.path.join(dest_dir, "original.wav"), output.orig_sr, output.wav_orig)
   imageio.imsave(os.path.join(dest_dir, "original.png"), output.mel_orig_img)
+  imageio.imsave(os.path.join(dest_dir, "original_aligned.png"), output.mel_orig_aligned_img)
   imageio.imsave(os.path.join(dest_dir, "inferred.png"), output.mel_postnet_img)
+  imageio.imsave(os.path.join(dest_dir, "inferred_aligned.png"), output.mel_postnet_aligned_img)
   imageio.imsave(os.path.join(dest_dir, "mel.png"), output.mel_img)
   imageio.imsave(os.path.join(dest_dir, "alignments.png"), output.alignments_img)
+  imageio.imsave(os.path.join(dest_dir, "alignments_aligned.png"), output.alignments_aligned_img)
   imageio.imsave(os.path.join(dest_dir, "diff.png"), output.mel_postnet_diff_img)
+  imageio.imsave(os.path.join(dest_dir, "diff_aligned.png"), output.mel_postnet_aligned_diff_img)
   np.save(os.path.join(dest_dir, "original.mel.npy"), output.mel_orig)
+  np.save(os.path.join(dest_dir, "original_aligned.mel.npy"), output.mel_orig_aligned)
 
   mel_postnet_npy_path = os.path.join(dest_dir, "inferred.mel.npy")
   np.save(mel_postnet_npy_path, output.mel_postnet)
+  np.save(os.path.join(dest_dir, "inferred_aligned.mel.npy"), output.mel_postnet_aligned)
 
   stack_images_vertically(
     list_im=[
       os.path.join(dest_dir, "original.png"),
       os.path.join(dest_dir, "inferred.png"),
       os.path.join(dest_dir, "diff.png"),
-      os.path.join(dest_dir, "mel.png"),
       os.path.join(dest_dir, "alignments.png"),
+      os.path.join(dest_dir, "mel.png"),
     ],
     out_path=os.path.join(dest_dir, "comparison.png")
+  )
+
+  stack_images_vertically(
+    list_im=[
+      os.path.join(dest_dir, "original.png"),
+      os.path.join(dest_dir, "inferred.png"),
+      os.path.join(dest_dir, "original_aligned.png"),
+      os.path.join(dest_dir, "inferred_aligned.png"),
+      os.path.join(dest_dir, "diff_aligned.png"),
+      os.path.join(dest_dir, "alignments_aligned.png"),
+    ],
+    out_path=os.path.join(dest_dir, "comparison_aligned.png")
   )
 
   mel_info = get_mel_info_dict(
@@ -119,7 +138,7 @@ def save_results(entry: PreparedData, output: ValidationEntryOutput, val_dir: st
   mel_postnet_npy_paths.append(mel_info)
 
 
-def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = None, speaker: Optional[str] = None, ds: str = "val", custom_checkpoints: Optional[Set[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, copy_mel_info_to: Optional[str] = DEFAULT_MEL_INFO_COPY_PATH, fast: bool = False) -> None:
+def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = None, speaker: Optional[str] = None, ds: str = "val", custom_checkpoints: Optional[Set[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, mcd_no_of_coeffs_per_frame: int = DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME, copy_mel_info_to: Optional[str] = DEFAULT_MEL_INFO_COPY_PATH, fast: bool = False) -> None:
   """Param: custom checkpoints: empty => all; None => random; ids"""
 
   train_dir = get_train_dir(base_dir, train_name, create=False)
@@ -190,6 +209,7 @@ def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = Non
       max_decoder_steps=max_decoder_steps,
       fast=fast,
       save_callback=save_callback,
+      mcd_no_of_coeffs_per_frame=mcd_no_of_coeffs_per_frame,
     )
 
     result.extend(validation_entries)

@@ -4,7 +4,8 @@ from argparse import ArgumentParser
 # from tacotron.app.eval_checkpoints import eval_checkpoints
 from tacotron.app import (DEFAULT_MAX_DECODER_STEPS, continue_train, infer,
                           plot_embeddings, restore_model, train, validate)
-from tacotron.app.defaults import DEFAULT_MEL_INFO_COPY_PATH
+from tacotron.app.defaults import (DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME,
+                                   DEFAULT_MEL_INFO_COPY_PATH)
 from tacotron.utils import split_hparams_string, split_int_set_str
 
 BASE_DIR_VAR = "base_dir"
@@ -78,6 +79,8 @@ def init_validate_parser(parser: ArgumentParser):
   parser.add_argument('--max_decoder_steps', type=int, default=DEFAULT_MAX_DECODER_STEPS)
   parser.add_argument('--copy_mel_info_to', type=str, default=DEFAULT_MEL_INFO_COPY_PATH)
   parser.add_argument('--custom_hparams', type=str)
+  parser.add_argument('--mcd_no_of_coeffs_per_frame', type=int,
+                      default=DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME)
   parser.add_argument('--fast', action='store_true')
 
   return validate_cli

@@ -5,16 +5,17 @@ from typing import Callable, Dict, Optional, Set
 
 import imageio
 import numpy as np
-from audio_utils.mel import TacotronSTFT, plot_melspec_np
+from audio_utils.mel import (TacotronSTFT, align_mels_with_dtw, get_msd,
+                             plot_melspec_np)
 from image_utils import (calculate_structual_similarity_np,
                          make_same_width_by_filling_white)
 from mcd import get_mcd_between_mel_spectograms
 from scipy.io.wavfile import read
+from sklearn.metrics import mean_squared_error
 from tacotron.core.synthesizer import Synthesizer
 from tacotron.core.training import CheckpointTacotron
-from tacotron.globals import MCD_NO_OF_COEFFS_PER_FRAME
-from tacotron.utils import (GenericList, cosine_dist_mels, mse_mels,
-                            plot_alignment_np)
+from tacotron.utils import (GenericList, cosine_dist_mels, make_same_dim,
+                            plot_alignment_np, plot_alignment_np_new)
 from text_utils import deserialize_list
 from tts_preparation import InferSentence, PreparedData, PreparedDataList
 
@@ -48,9 +49,14 @@ class ValidationEntry():
   padded_mse: float
   padded_cosine_similarity: Optional[float]
   padded_structural_similarity: Optional[float]
+  aligned_mse: float
+  aligned_cosine_similarity: Optional[float]
+  aligned_structural_similarity: Optional[float]
+  mfcc_no_coeffs: int
   mfcc_dtw_mcd: float
   mfcc_dtw_penalty: float
   mfcc_dtw_frames: int
+  msd: float
 
 
 class ValidationEntries(GenericList[ValidationEntry]):
@@ -61,14 +67,20 @@ class ValidationEntries(GenericList[ValidationEntry]):
 class ValidationEntryOutput():
   wav_orig: np.ndarray
   mel_orig: np.ndarray
+  mel_orig_aligned: np.ndarray
   orig_sr: int
   mel_orig_img: np.ndarray
+  mel_orig_aligned_img: np.ndarray
   mel_postnet: np.ndarray
+  mel_postnet_aligned: np.ndarray
   mel_postnet_sr: int
   mel_postnet_img: np.ndarray
+  mel_postnet_aligned_img: np.ndarray
   mel_postnet_diff_img: np.ndarray
+  mel_postnet_aligned_diff_img: np.ndarray
   mel_img: np.ndarray
   alignments_img: np.ndarray
+  alignments_aligned_img: np.ndarray
   # gate_out_img: np.ndarray
 
 
@@ -76,7 +88,7 @@ class ValidationEntryOutputs(GenericList[ValidationEntryOutput]):
   pass
 
 
-def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hparams: Optional[Dict[str, str]], entry_ids: Optional[Set[int]], speaker_name: Optional[str], train_name: str, full_run: bool, save_callback: Optional[Callable[[PreparedData, ValidationEntryOutput], None]], max_decoder_steps: int, fast: bool, logger: Logger) -> ValidationEntries:
+def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hparams: Optional[Dict[str, str]], entry_ids: Optional[Set[int]], speaker_name: Optional[str], train_name: str, full_run: bool, save_callback: Optional[Callable[[PreparedData, ValidationEntryOutput], None]], max_decoder_steps: int, fast: bool, mcd_no_of_coeffs_per_frame: int, logger: Logger) -> ValidationEntries:
   model_symbols = checkpoint.get_symbols()
   model_accents = checkpoint.get_accents()
   model_speakers = checkpoint.get_speakers()
@@ -135,29 +147,79 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hpar
     dtw_mcd, dtw_penalty, dtw_frames = get_mcd_between_mel_spectograms(
       mel_1=mel_orig,
       mel_2=inference_result.mel_outputs_postnet,
-      n_mfcc=MCD_NO_OF_COEFFS_PER_FRAME,
+      n_mfcc=mcd_no_of_coeffs_per_frame,
       take_log=False,
       use_dtw=True,
     )
 
-    cosine_similarity = cosine_dist_mels(mel_orig, inference_result.mel_outputs_postnet)
-    mse = mse_mels(mel_orig, inference_result.mel_outputs_postnet)
-    structural_similarity = None
+    padded_mel_orig, padded_mel_postnet = make_same_dim(
+      mel_orig, inference_result.mel_outputs_postnet)
+
+    aligned_mel_orig, aligned_mel_postnet, mel_dtw_dist, _, path_mel_postnet = align_mels_with_dtw(
+      mel_orig, inference_result.mel_outputs_postnet)
+
+    mel_aligned_length = len(aligned_mel_postnet)
+    msd = get_msd(mel_dtw_dist, mel_aligned_length)
+
+    padded_cosine_similarity = cosine_dist_mels(padded_mel_orig, padded_mel_postnet)
+    aligned_cosine_similarity = cosine_dist_mels(aligned_mel_orig, aligned_mel_postnet)
+
+    padded_mse = mean_squared_error(padded_mel_orig, padded_mel_postnet)
+    aligned_mse = mean_squared_error(aligned_mel_orig, aligned_mel_postnet)
+
+    padded_structural_similarity = None
+    aligned_structural_similarity = None
 
     if not fast:
-      mel_orig_img_raw, mel_orig_img = plot_melspec_np(mel_orig)
-      mel_outputs_postnet_img_raw, mel_outputs_postnet_img = plot_melspec_np(
-        inference_result.mel_outputs_postnet)
+      padded_mel_orig_img_raw_1, padded_mel_orig_img = plot_melspec_np(padded_mel_orig)
+      padded_mel_outputs_postnet_img_raw_1, padded_mel_outputs_postnet_img = plot_melspec_np(
+        padded_mel_postnet)
 
-      mel_orig_img_raw, mel_outputs_postnet_img_raw = make_same_width_by_filling_white(
-        img_a=mel_orig_img_raw,
-        img_b=mel_outputs_postnet_img_raw,
+      imageio.imsave("/tmp/padded_mel_orig_img_raw_1.png", padded_mel_orig_img_raw_1)
+      imageio.imsave("/tmp/padded_mel_outputs_postnet_img_raw_1.png",
+                     padded_mel_outputs_postnet_img_raw_1)
+
+      padded_structural_similarity, padded_mel_postnet_diff_img_raw = calculate_structual_similarity_np(
+          img_a=padded_mel_orig_img_raw_1,
+          img_b=padded_mel_outputs_postnet_img_raw_1,
       )
 
-      structural_similarity, mel_diff_img_raw = calculate_structual_similarity_np(
-          img_a=mel_orig_img_raw,
-          img_b=mel_outputs_postnet_img_raw,
+      imageio.imsave("/tmp/padded_mel_diff_img_raw_1.png", padded_mel_postnet_diff_img_raw)
+
+      # mel_orig_img_raw, mel_orig_img = plot_melspec_np(mel_orig)
+      # mel_outputs_postnet_img_raw, mel_outputs_postnet_img = plot_melspec_np(
+      #   inference_result.mel_outputs_postnet)
+
+      # padded_mel_orig_img_raw, padded_mel_outputs_postnet_img_raw = make_same_width_by_filling_white(
+      #   img_a=mel_orig_img_raw,
+      #   img_b=mel_outputs_postnet_img_raw,
+      # )
+
+      # imageio.imsave("/tmp/padded_mel_orig_img_raw.png", padded_mel_orig_img_raw)
+      # imageio.imsave("/tmp/padded_mel_outputs_postnet_img_raw.png",
+      #                padded_mel_outputs_postnet_img_raw)
+
+      # padded_structural_similarity, padded_mel_diff_img_raw = calculate_structual_similarity_np(
+      #     img_a=padded_mel_orig_img_raw,
+      #     img_b=padded_mel_outputs_postnet_img_raw,
+      # )
+
+      # imageio.imsave("/tmp/padded_mel_diff_img_raw.png", padded_mel_diff_img_raw)
+
+      aligned_mel_orig_img_raw, aligned_mel_orig_img = plot_melspec_np(aligned_mel_orig)
+      aligned_mel_postnet_img_raw, aligned_mel_postnet_img = plot_melspec_np(
+        aligned_mel_postnet)
+
+      imageio.imsave("/tmp/aligned_mel_orig_img_raw.png", aligned_mel_orig_img_raw)
+      imageio.imsave("/tmp/aligned_mel_postnet_img_raw.png",
+                     aligned_mel_postnet_img_raw)
+
+      aligned_structural_similarity, aligned_mel_diff_img_raw = calculate_structual_similarity_np(
+          img_a=aligned_mel_orig_img_raw,
+          img_b=aligned_mel_postnet_img_raw,
       )
+
+      imageio.imsave("/tmp/aligned_mel_diff_img_raw.png", aligned_mel_diff_img_raw)
 
       # imageio.imsave("/tmp/mel_orig_img_raw.png", mel_orig_img_raw)
       # imageio.imsave("/tmp/mel_outputs_postnet_img_raw.png", mel_outputs_postnet_img_raw)
@@ -169,7 +231,7 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hpar
       text_original=entry.text_original,
       text=entry.text,
       wav_path=entry.wav_path,
-      wav_duration_s=entry.duration,
+      wav_duration_s=entry.duration_s,
       speaker_id=entry.speaker_id,
       speaker_name=speaker_name,
       iteration=checkpoint.iteration,
@@ -184,12 +246,17 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hpar
       predicted_frames=predicted_frames,
       target_frames=target_frames,
       diff_frames=diff_frames,
-      padded_cosine_similarity=cosine_similarity,
+      padded_cosine_similarity=padded_cosine_similarity,
+      mfcc_no_coeffs=mcd_no_of_coeffs_per_frame,
       mfcc_dtw_mcd=dtw_mcd,
       mfcc_dtw_penalty=dtw_penalty,
       mfcc_dtw_frames=dtw_frames,
-      padded_structural_similarity=structural_similarity,
-      padded_mse=mse,
+      padded_structural_similarity=padded_structural_similarity,
+      padded_mse=padded_mse,
+      msd=msd,
+      aligned_cosine_similarity=aligned_cosine_similarity,
+      aligned_mse=aligned_mse,
+      aligned_structural_similarity=aligned_structural_similarity,
     )
 
     validation_entries.append(val_entry)
@@ -202,18 +269,26 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hpar
     if not fast:
       orig_sr, orig_wav = read(entry.wav_path)
 
-      mel_orig_img_eq_width, mel_outputs_postnet_img_eq_width = make_same_width_by_filling_white(
-        img_a=mel_orig_img,
-        img_b=mel_outputs_postnet_img,
+      _, padded_mel_postnet_diff_img = calculate_structual_similarity_np(
+        img_a=padded_mel_orig_img,
+        img_b=padded_mel_outputs_postnet_img,
       )
 
-      _, mel_diff_img = calculate_structual_similarity_np(
-        img_a=mel_orig_img_eq_width,
-        img_b=mel_outputs_postnet_img_eq_width,
+      _, aligned_mel_postnet_diff_img = calculate_structual_similarity_np(
+        img_a=aligned_mel_orig_img,
+        img_b=aligned_mel_postnet_img,
       )
 
-      alignments_img = plot_alignment_np(inference_result.alignments)
+      _, mel_orig_img = plot_melspec_np(mel_orig)
+      # alignments_img = plot_alignment_np(inference_result.alignments)
       _, post_mel_img = plot_melspec_np(inference_result.mel_outputs_postnet)
+      _, mel_img = plot_melspec_np(
+        inference_result.mel_outputs)
+      _, alignments_img = plot_alignment_np_new(inference_result.alignments)
+
+      aligned_alignments = inference_result.alignments[path_mel_postnet]
+      _, aligned_alignments_img = plot_alignment_np_new(aligned_alignments)
+      # imageio.imsave("/tmp/alignments.png", alignments_img)
 
       validation_entry_output = ValidationEntryOutput(
         wav_orig=orig_wav,
@@ -222,10 +297,16 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hpar
         mel_postnet=inference_result.mel_outputs_postnet,
         mel_postnet_sr=inference_result.sampling_rate,
         mel_orig_img=mel_orig_img,
-        mel_postnet_img=mel_outputs_postnet_img,
-        mel_postnet_diff_img=mel_diff_img,
+        mel_postnet_img=post_mel_img,
+        mel_postnet_diff_img=padded_mel_postnet_diff_img,
         alignments_img=alignments_img,
-        mel_img=post_mel_img,
+        mel_img=mel_img,
+        mel_postnet_aligned_diff_img=aligned_mel_postnet_diff_img,
+        mel_orig_aligned=aligned_mel_orig,
+        mel_orig_aligned_img=aligned_mel_orig_img,
+        mel_postnet_aligned=aligned_mel_postnet,
+        mel_postnet_aligned_img=aligned_mel_postnet_img,
+        alignments_aligned_img=aligned_alignments_img,
       )
 
       assert save_callback is not None
