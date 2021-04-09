@@ -251,7 +251,7 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
         batch_iteration=batch_iteration,
         continue_batch_iteration=next_batch_iteration
       )
-      continue
+      
       if need_to_skip_batch:
         assert skip_bar is not None
         skip_bar.update(1)
