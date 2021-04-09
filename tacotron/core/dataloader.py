@@ -22,11 +22,9 @@ class SymbolsMelLoader(Dataset):
     3) computes mel-spectrograms from audio files.
   """
 
-  def __init__(self, prepare_ds_ms_data: PreparedDataList, hparams: HParams, logger: Logger):
-    data = prepare_ds_ms_data
-
-    random.seed(hparams.seed)
-    random.shuffle(data)
+  def __init__(self, data: PreparedDataList, hparams: HParams, logger: Logger):
+    # random.seed(hparams.seed)
+    # random.shuffle(data)
     self.use_saved_mels: bool = hparams.use_saved_mels
     if not hparams.use_saved_mels:
       self.mel_parser = TacotronSTFT(hparams, logger)
@@ -182,16 +180,16 @@ def prepare_valloader(hparams: HParams, collate_fn: SymbolsMelCollate, valset: P
     f"Duration valset {valset.get_total_duration_s() / 60:.2f}m / {valset.get_total_duration_s() / 60 / 60:.2f}h")
 
   val = SymbolsMelLoader(valset, hparams, logger)
-  val_sampler = None
 
   val_loader = DataLoader(
     dataset=val,
-    sampler=val_sampler,
     num_workers=1,
     shuffle=False,
+    sampler=None,
     batch_size=hparams.batch_size,
     pin_memory=False,
-    collate_fn=collate_fn
+    drop_last=False,
+    collate_fn=collate_fn,
   )
 
   return val_loader
@@ -204,18 +202,15 @@ def prepare_trainloader(hparams: HParams, collate_fn: SymbolsMelCollate, trainse
 
   trn = SymbolsMelLoader(trainset, hparams, logger)
 
-  train_sampler = None
-  shuffle = True
-
   train_loader = DataLoader(
     dataset=trn,
     num_workers=1,
-    shuffle=shuffle,
-    sampler=train_sampler,
+    shuffle=True,
+    sampler=None,
     batch_size=hparams.batch_size,
     pin_memory=False,
     drop_last=True,
-    collate_fn=collate_fn
+    collate_fn=collate_fn,
   )
 
   return train_loader

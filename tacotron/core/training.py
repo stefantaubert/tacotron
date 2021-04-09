@@ -1,7 +1,7 @@
 import logging
 import time
 from logging import Logger
-from typing import Callable, Dict, Iterator, List, Optional
+from typing import Callable, Dict, Iterator, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -37,7 +37,7 @@ class Tacotron2Loss(nn.Module):
     self.mse_criterion = nn.MSELoss()
     self.bce_criterion = nn.BCEWithLogitsLoss()
 
-  def forward(self, y_pred, y) -> torch.Tensor:
+  def forward(self, y_pred: Tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor, torch.FloatTensor], y: Tuple[torch.FloatTensor, torch.FloatTensor]) -> torch.Tensor:
     mel_target, gate_target = y[0], y[1]
     mel_target.requires_grad = False
     gate_target.requires_grad = False
@@ -238,6 +238,7 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
   model.train()
   continue_epoch = get_continue_epoch(iteration, batch_iterations)
   for epoch in range(continue_epoch, hparams.epochs):
+    logger.debug("==new epoch==")
     next_batch_iteration = get_continue_batch_iteration(iteration, batch_iterations)
     skip_bar = None
     if next_batch_iteration > 0:
@@ -245,10 +246,12 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
       logger.debug("Skipping batches...")
       skip_bar = tqdm(total=next_batch_iteration)
     for batch_iteration, batch in enumerate(train_loader):
+      logger.debug(f"Used batch with fingerprint: {sum(batch[0][0])}")
       need_to_skip_batch = skip_batch(
         batch_iteration=batch_iteration,
         continue_batch_iteration=next_batch_iteration
       )
+      continue
       if need_to_skip_batch:
         assert skip_bar is not None
         skip_bar.update(1)

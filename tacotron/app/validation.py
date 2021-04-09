@@ -24,7 +24,7 @@ from tacotron.utils import (create_parent_folder,
                             prepare_logger, save_json)
 from tqdm import tqdm
 from tts_preparation import (PreparedData, get_merged_dir, get_prep_dir,
-                             load_testset, load_valset)
+                             load_testset, load_trainset, load_valset)
 
 
 def get_repr_entries(entry_ids: Optional[Set[int]]):
@@ -187,6 +187,7 @@ def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = Non
 
   result = ValidationEntries()
   save_callback = None
+  trainset = load_trainset(prep_dir)
 
   for iteration in tqdm(sorted(iterations)):
     mel_postnet_npy_paths: List[str] = []
@@ -200,6 +201,7 @@ def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = Non
     validation_entries = validate_core(
       checkpoint=taco_checkpoint,
       data=data,
+      trainset=trainset,
       custom_hparams=custom_hparams,
       entry_ids=entry_ids,
       full_run=full_run,

@@ -1,7 +1,10 @@
 import datetime
+from collections import OrderedDict
 from dataclasses import dataclass
 from logging import Logger
-from typing import Callable, Dict, Optional, Set
+from typing import Callable, Dict, Optional
+from typing import OrderedDict as OrderedDictType
+from typing import Set
 
 import imageio
 import numpy as np
@@ -17,6 +20,8 @@ from tacotron.core.training import CheckpointTacotron
 from tacotron.utils import (GenericList, cosine_dist_mels, make_same_dim,
                             plot_alignment_np, plot_alignment_np_new)
 from text_utils import deserialize_list
+from text_utils.symbol_id_dict import SymbolIdDict
+from text_utils.text_selection import get_rarity_ngrams
 from tts_preparation import InferSentence, PreparedData, PreparedDataList
 
 
@@ -57,6 +62,14 @@ class ValidationEntry():
   mfcc_dtw_penalty: float
   mfcc_dtw_frames: int
   msd: float
+  train_one_gram_rarity: float
+  global_one_gram_rarity: float
+  train_two_gram_rarity: float
+  global_two_gram_rarity: float
+  train_three_gram_rarity: float
+  global_three_gram_rarity: float
+  train_combined_rarity: float
+  global_combined_rarity: float
 
 
 class ValidationEntries(GenericList[ValidationEntry]):
@@ -88,23 +101,42 @@ class ValidationEntryOutputs(GenericList[ValidationEntryOutput]):
   pass
 
 
-def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hparams: Optional[Dict[str, str]], entry_ids: Optional[Set[int]], speaker_name: Optional[str], train_name: str, full_run: bool, save_callback: Optional[Callable[[PreparedData, ValidationEntryOutput], None]], max_decoder_steps: int, fast: bool, mcd_no_of_coeffs_per_frame: int, logger: Logger) -> ValidationEntries:
+def get_ngram_rarity(data: PreparedDataList, corpus: PreparedDataList, symbols: SymbolIdDict, ngram: int) -> OrderedDictType[int, float]:
+  data_symbols_dict = OrderedDict({x.entry_id: symbols.get_symbols(
+    x.serialized_symbol_ids) for x in data.items()})
+  corpus_symbols_dict = OrderedDict({x.entry_id: symbols.get_symbols(
+    x.serialized_symbol_ids) for x in corpus.items()})
+
+  rarity = get_rarity_ngrams(
+    data=data_symbols_dict,
+    corpus=corpus_symbols_dict,
+    n_gram=ngram,
+    ignore_symbols=None,
+  )
+
+  return rarity
+
+
+def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: PreparedDataList, custom_hparams: Optional[Dict[str, str]], entry_ids: Optional[Set[int]], speaker_name: Optional[str], train_name: str, full_run: bool, save_callback: Optional[Callable[[PreparedData, ValidationEntryOutput], None]], max_decoder_steps: int, fast: bool, mcd_no_of_coeffs_per_frame: int, logger: Logger) -> ValidationEntries:
   model_symbols = checkpoint.get_symbols()
   model_accents = checkpoint.get_accents()
   model_speakers = checkpoint.get_speakers()
-  validation_entries = ValidationEntries()
 
   if full_run:
-    entries = data
+    validation_data = data
   else:
     speaker_id: Optional[int] = None
     if speaker_name is not None:
       speaker_id = model_speakers.get_id(speaker_name)
-    entries = PreparedDataList(data.get_for_validation(entry_ids, speaker_id))
+    validation_data = PreparedDataList(data.get_for_validation(entry_ids, speaker_id))
 
-  if len(entries) == 0:
+  if len(validation_data) == 0:
     logger.info("Nothing to synthesize!")
-    return validation_entries
+    return validation_data
+
+  train_onegram_rarities = get_ngram_rarity(validation_data, trainset, model_symbols, 1)
+  train_twogram_rarities = get_ngram_rarity(validation_data, trainset, model_symbols, 2)
+  train_threegram_rarities = get_ngram_rarity(validation_data, trainset, model_symbols, 3)
 
   synth = Synthesizer(
       checkpoint=checkpoint,
@@ -115,8 +147,9 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hpar
   # criterion = Tacotron2Loss()
 
   taco_stft = TacotronSTFT(synth.hparams, logger=logger)
+  validation_entries = ValidationEntries()
 
-  for entry in entries.items(True):
+  for entry in validation_data.items(True):
     infer_sent = InferSentence(
       sent_id=1,
       symbols=model_symbols.get_symbols(entry.serialized_symbol_ids),
@@ -171,9 +204,10 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hpar
     aligned_structural_similarity = None
 
     if not fast:
-      padded_mel_orig_img_raw_1, padded_mel_orig_img = plot_melspec_np(padded_mel_orig)
+      padded_mel_orig_img_raw_1, padded_mel_orig_img = plot_melspec_np(
+        padded_mel_orig, title="padded_mel_orig")
       padded_mel_outputs_postnet_img_raw_1, padded_mel_outputs_postnet_img = plot_melspec_np(
-        padded_mel_postnet)
+        padded_mel_postnet, title="padded_mel_postnet")
 
       imageio.imsave("/tmp/padded_mel_orig_img_raw_1.png", padded_mel_orig_img_raw_1)
       imageio.imsave("/tmp/padded_mel_outputs_postnet_img_raw_1.png",
@@ -206,9 +240,10 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hpar
 
       # imageio.imsave("/tmp/padded_mel_diff_img_raw.png", padded_mel_diff_img_raw)
 
-      aligned_mel_orig_img_raw, aligned_mel_orig_img = plot_melspec_np(aligned_mel_orig)
+      aligned_mel_orig_img_raw, aligned_mel_orig_img = plot_melspec_np(
+        aligned_mel_orig, title="aligned_mel_orig")
       aligned_mel_postnet_img_raw, aligned_mel_postnet_img = plot_melspec_np(
-        aligned_mel_postnet)
+        aligned_mel_postnet, title="aligned_mel_postnet")
 
       imageio.imsave("/tmp/aligned_mel_orig_img_raw.png", aligned_mel_orig_img_raw)
       imageio.imsave("/tmp/aligned_mel_postnet_img_raw.png",
@@ -224,6 +259,9 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hpar
       # imageio.imsave("/tmp/mel_orig_img_raw.png", mel_orig_img_raw)
       # imageio.imsave("/tmp/mel_outputs_postnet_img_raw.png", mel_outputs_postnet_img_raw)
       # imageio.imsave("/tmp/mel_diff_img_raw.png", mel_diff_img_raw)
+
+    train_combined_rarity = train_onegram_rarities[entry.entry_id] + \
+        train_twogram_rarities[entry.entry_id] + train_threegram_rarities[entry.entry_id]
 
     val_entry = ValidationEntry(
       entry_id=entry.entry_id,
@@ -257,6 +295,14 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hpar
       aligned_cosine_similarity=aligned_cosine_similarity,
       aligned_mse=aligned_mse,
       aligned_structural_similarity=aligned_structural_similarity,
+      global_one_gram_rarity=entry.one_gram_rarity,
+      global_two_gram_rarity=entry.two_gram_rarity,
+      global_three_gram_rarity=entry.three_gram_rarity,
+      global_combined_rarity=entry.combined_rarity,
+      train_one_gram_rarity=train_onegram_rarities[entry.entry_id],
+      train_two_gram_rarity=train_twogram_rarities[entry.entry_id],
+      train_three_gram_rarity=train_threegram_rarities[entry.entry_id],
+      train_combined_rarity=train_combined_rarity,
     )
 
     validation_entries.append(val_entry)
@@ -279,15 +325,16 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, custom_hpar
         img_b=aligned_mel_postnet_img,
       )
 
-      _, mel_orig_img = plot_melspec_np(mel_orig)
+      _, mel_orig_img = plot_melspec_np(mel_orig, title="mel_orig")
       # alignments_img = plot_alignment_np(inference_result.alignments)
-      _, post_mel_img = plot_melspec_np(inference_result.mel_outputs_postnet)
+      _, post_mel_img = plot_melspec_np(inference_result.mel_outputs_postnet, title="mel_postnet")
       _, mel_img = plot_melspec_np(
-        inference_result.mel_outputs)
-      _, alignments_img = plot_alignment_np_new(inference_result.alignments)
+        inference_result.mel_outputs, title="mel")
+      _, alignments_img = plot_alignment_np_new(inference_result.alignments, title="alignments")
 
       aligned_alignments = inference_result.alignments[path_mel_postnet]
-      _, aligned_alignments_img = plot_alignment_np_new(aligned_alignments)
+      _, aligned_alignments_img = plot_alignment_np_new(
+        aligned_alignments, title="aligned_alignments")
       # imageio.imsave("/tmp/alignments.png", alignments_img)
 
       validation_entry_output = ValidationEntryOutput(
