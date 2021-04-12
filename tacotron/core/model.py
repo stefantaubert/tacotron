@@ -620,6 +620,12 @@ class Tacotron2(nn.Module):
 
   def inference(self, inputs: torch.LongTensor, accents: torch.LongTensor, speaker_id: torch.LongTensor, max_decoder_steps: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     embedded_inputs = self.embedding(inputs).transpose(1, 2)
+    if torch.isnan(embedded_inputs).any():
+      # embedding_inputs can be nan if training was not good
+      msg = "Symbol embeddings returned nan!"
+      self.logger.error(msg)
+      raise Exception(msg)
+
     encoder_outputs = self.encoder.inference(embedded_inputs)
 
     merged_outputs = encoder_outputs
@@ -632,7 +638,8 @@ class Tacotron2(nn.Module):
 
       merged_outputs = torch.cat([encoder_outputs, embedded_speaker], -1)
 
-    decoder_outputs, reached_max_decoder_steps = self.decoder.inference(merged_outputs, max_decoder_steps)
+    decoder_outputs, reached_max_decoder_steps = self.decoder.inference(
+      merged_outputs, max_decoder_steps)
     mel_outputs, gate_outputs, alignments = decoder_outputs
 
     mel_outputs_postnet = self.postnet(mel_outputs)

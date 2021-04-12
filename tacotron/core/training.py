@@ -251,7 +251,7 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
       logger.debug("Skipping batches...")
       skip_bar = tqdm(total=next_batch_iteration)
     for batch_iteration, batch in enumerate(train_loader):
-      logger.debug(f"Used batch with fingerprint: {sum(batch[0][0])}")
+      # logger.debug(f"Used batch with fingerprint: {sum(batch[0][0])}")
       need_to_skip_batch = skip_batch(
         batch_iteration=batch_iteration,
         continue_batch_iteration=next_batch_iteration

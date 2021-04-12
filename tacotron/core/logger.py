@@ -1,9 +1,8 @@
 import random
-from logging import getLogger
 
 import matplotlib.pylab as plt
 import torch
-from tacotron.utils import disable_matplot_logger, figure_to_numpy_rgb
+from tacotron.utils import figure_to_numpy_rgb
 from torch.utils.tensorboard import SummaryWriter
 
 
@@ -66,7 +65,6 @@ class Tacotron2Logger(SummaryWriter):
     self.add_scalar("duration", duration, iteration)
 
   def log_validation(self, reduced_loss, model, y, y_pred, iteration):
-    logger = getLogger(__name__)
     self.add_scalar("validation.loss", reduced_loss, iteration)
     _, mel_outputs, gate_outputs, alignments = y_pred
     mel_targets, gate_targets = y
@@ -74,12 +72,8 @@ class Tacotron2Logger(SummaryWriter):
     # plot distribution of parameters
     for tag, value in model.named_parameters():
       tag = tag.replace('.', '/')
-      try:
-        self.add_histogram(tag, value.data.cpu().numpy(), iteration)
-      except ValueError as ex:
-        logger.info(ex)
-        logger.error("failed to exec: add_histogram")
-        continue
+      # if this fails, then the gradloss is too big, most likely the embeddings return nan
+      self.add_histogram(tag, value.data.cpu().numpy(), iteration)
 
     # plot alignment, mel target and predicted, gate target and predicted
     idx = random.randint(0, alignments.size(0) - 1)
