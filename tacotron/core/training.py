@@ -19,8 +19,9 @@ from tacotron.globals import DEFAULT_PADDING_ACCENT, DEFAULT_PADDING_SYMBOL
 from tacotron.utils import (SaveIterationSettings, check_save_it,
                             copy_state_dict, get_continue_batch_iteration,
                             get_continue_epoch, get_formatted_current_total,
-                            get_next_save_it, init_cuddn, init_cuddn_benchmark,
-                            init_global_seeds, log_hparams,
+                            get_last_iteration, get_next_save_it, init_cuddn,
+                            init_cuddn_benchmark, init_global_seeds,
+                            iteration_to_epoch, log_hparams,
                             overwrite_custom_hparams, skip_batch,
                             update_weights, validate_model)
 from text_utils import AccentsDict, SpeakersDict, SymbolIdDict, SymbolsMap
@@ -223,12 +224,16 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
 
   save_it_settings = SaveIterationSettings(
     epochs=hparams.epochs,
+    iterations=hparams.iterations,
     batch_iterations=batch_iterations,
     save_first_iteration=True,
     save_last_iteration=True,
     iters_per_checkpoint=hparams.iters_per_checkpoint,
     epochs_per_checkpoint=hparams.epochs_per_checkpoint
   )
+
+  last_iteration = get_last_iteration(hparams.epochs, batch_iterations, hparams.iterations)
+  last_epoch_one_based = iteration_to_epoch(last_iteration, batch_iterations) + 1
 
   criterion = Tacotron2Loss()
   batch_durations: List[float] = []
@@ -237,7 +242,7 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
   start = train_start
   model.train()
   continue_epoch = get_continue_epoch(iteration, batch_iterations)
-  for epoch in range(continue_epoch, hparams.epochs):
+  for epoch in range(continue_epoch, last_epoch_one_based):
     # logger.debug("==new epoch==")
     next_batch_iteration = get_continue_batch_iteration(iteration, batch_iterations)
     skip_bar = None
@@ -246,7 +251,7 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
       logger.debug("Skipping batches...")
       skip_bar = tqdm(total=next_batch_iteration)
     for batch_iteration, batch in enumerate(train_loader):
-      # logger.debug(f"Used batch with fingerprint: {sum(batch[0][0])}")
+      logger.debug(f"Used batch with fingerprint: {sum(batch[0][0])}")
       need_to_skip_batch = skip_batch(
         batch_iteration=batch_iteration,
         continue_batch_iteration=next_batch_iteration
@@ -286,7 +291,7 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
       batch_durations.append(duration)
       avg_batch_dur = np.mean(batch_durations)
       avg_epoch_dur = avg_batch_dur * batch_iterations
-      remaining_its = hparams.epochs * batch_iterations - iteration
+      remaining_its = last_iteration - iteration
       estimated_remaining_duration = avg_batch_dur * remaining_its
 
       next_it = get_next_save_it(iteration, save_it_settings)
@@ -295,9 +300,9 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
         next_checkpoint_save_time = (next_it - iteration) * avg_batch_dur
 
       logger.info(" | ".join([
-        f"Ep: {get_formatted_current_total(epoch + 1, hparams.epochs)}",
+        f"Ep: {get_formatted_current_total(epoch + 1, last_epoch_one_based)}",
         f"It.: {get_formatted_current_total(batch_iteration + 1, batch_iterations)}",
-        f"Tot. it.: {get_formatted_current_total(iteration, hparams.epochs * batch_iterations)} ({iteration / (hparams.epochs * batch_iterations) * 100:.2f}%)",
+        f"Tot. it.: {get_formatted_current_total(iteration, last_iteration)} ({iteration / last_iteration * 100:.2f}%)",
         f"Utts.: {iteration * hparams.batch_size}",
         f"Loss: {reduced_loss:.6f}",
         f"Grad norm: {grad_norm:.6f}",
@@ -337,6 +342,10 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
           batch_size=hparams.batch_size,
           checkpoint_logger=checkpoint_logger
         )
+
+      is_last_it = iteration == last_iteration
+      if is_last_it:
+        break
 
   duration_s = time.time() - complete_start
   logger.info(f'Finished training. Total duration: {duration_s / 60:.2f}m')

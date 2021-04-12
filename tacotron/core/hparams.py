@@ -1,12 +1,13 @@
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Optional
 
 from audio_utils.mel import TSTFTHParams
 
 
 @dataclass
 class ExperimentHParams():
-  epochs: int = 500
+  epochs: Optional[int] = 500
+  iterations: Optional[int] = field(default_factory=int)
   # 0 if no saving, 1 for each and so on...
   iters_per_checkpoint: int = 1000
   # 0 if no saving, 1 for each and so on...
@@ -19,9 +20,8 @@ class ExperimentHParams():
 
 @dataclass
 class DataHParams():
-  load_mel_from_disk: bool = False
+  use_saved_mels: bool = False
   cache_mels: bool = False
-  use_saved_mels: bool = True
 
 
 @dataclass

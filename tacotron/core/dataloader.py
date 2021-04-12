@@ -25,7 +25,7 @@ class SymbolsMelLoader(Dataset):
   def __init__(self, data: PreparedDataList, hparams: HParams, logger: Logger):
     # random.seed(hparams.seed)
     # random.shuffle(data)
-    self.use_saved_mels: bool = hparams.use_saved_mels
+    self.use_saved_mels = hparams.use_saved_mels
     if not hparams.use_saved_mels:
       self.mel_parser = TacotronSTFT(hparams, logger)
 

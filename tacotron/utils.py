@@ -203,7 +203,10 @@ def get_custom_or_last_checkpoint(checkpoint_dir: str, custom_iteration: Optiona
 
 def get_value_in_type(old_value: _T, new_value: str) -> _T:
   old_type = type(old_value)
-  new_value_with_original_type = old_type(new_value)
+  try:
+    new_value_with_original_type = old_type(new_value)
+  except ValueError:
+    new_value_with_original_type = None
   return new_value_with_original_type
 
 
@@ -335,7 +338,8 @@ def validate_model(model: nn.Module, criterion: nn.Module, val_loader: DataLoade
 
 @dataclass
 class SaveIterationSettings():
-  epochs: int
+  epochs: Optional[int]
+  iterations: Optional[int]
   batch_iterations: int
   save_first_iteration: bool
   save_last_iteration: bool
@@ -347,7 +351,10 @@ def check_save_it(epoch: int, iteration: int, settings: SaveIterationSettings) -
   if check_is_first(iteration) and settings.save_first_iteration:
     return True
 
-  if check_is_last(iteration, settings.epochs, settings.batch_iterations) and settings.save_last_iteration:
+  if settings.epochs is not None and check_is_last_epoch_based(iteration, settings.epochs, settings.batch_iterations) and settings.save_last_iteration:
+    return True
+
+  if settings.iterations is not None and check_is_last_iterations_based(iteration, settings.iterations) and settings.save_last_iteration:
     return True
 
   if check_is_save_iteration(iteration, settings.iters_per_checkpoint):
@@ -361,13 +368,23 @@ def check_save_it(epoch: int, iteration: int, settings: SaveIterationSettings) -
 
 
 def get_next_save_it(iteration: int, settings: SaveIterationSettings) -> Optional[int]:
-  result = iteration
-  while result <= settings.epochs * settings.batch_iterations:
-    epoch = iteration_to_epoch(result, settings.batch_iterations)
-    if check_save_it(epoch, result, settings):
-      return result
-    result += 1
+  current_iteration = iteration
+  last_iteration = get_last_iteration(
+    settings.epochs, settings.batch_iterations, settings.iterations)
+  while current_iteration <= last_iteration:
+    epoch = iteration_to_epoch(current_iteration, settings.batch_iterations)
+    if check_save_it(epoch, current_iteration, settings):
+      return current_iteration
+    current_iteration += 1
   return None
+
+
+def get_last_iteration(epochs: Optional[int], batch_iterations: Optional[int], iterations: Optional[int]) -> int:
+  if epochs is not None:
+    return epochs * batch_iterations
+
+  assert iterations is not None
+  return iterations
 
 
 def check_is_first(iteration: int) -> bool:
@@ -376,9 +393,14 @@ def check_is_first(iteration: int) -> bool:
   return iteration == 1
 
 
-def check_is_last(iteration: int, epochs: int, batch_iterations: int) -> bool:
+def check_is_last_epoch_based(iteration: int, epochs: int, batch_iterations: int) -> bool:
   assert iteration >= 0
   return iteration == epochs * batch_iterations
+
+
+def check_is_last_iterations_based(iteration: int, iterations: int) -> bool:
+  assert iteration >= 0
+  return iteration == iterations
 
 
 def check_is_save_iteration(iteration: int, iters_per_checkpoint: int) -> bool:
@@ -389,7 +411,6 @@ def check_is_save_iteration(iteration: int, iters_per_checkpoint: int) -> bool:
 
 def check_is_save_epoch(epoch: int, epochs_per_checkpoint: int) -> bool:
   assert epoch >= 0
-
   save_epochs = epochs_per_checkpoint > 0
   return save_epochs and ((epoch + 1) % epochs_per_checkpoint == 0)
 
@@ -453,6 +474,7 @@ def filter_checkpoints(iterations: List[int], select: Optional[int], min_it: Opt
 def init_global_seeds(seed: int) -> None:
   # torch.backends.cudnn.deterministic = True
   os.environ['PYTHONHASHSEED'] = str(seed)
+  random.seed(seed)
   np.random.seed(seed)
   torch.random.manual_seed(seed)
   torch.manual_seed(seed)
