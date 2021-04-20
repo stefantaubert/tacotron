@@ -9,7 +9,8 @@ from audio_utils.mel import mel_to_numpy
 from tacotron.core.model_symbols import get_model_symbol_ids
 from tacotron.core.training import CheckpointTacotron, load_model
 from tacotron.globals import DEFAULT_PADDING_ACCENT, DEFAULT_PADDING_SYMBOL
-from tacotron.utils import overwrite_custom_hparams, pass_lines
+from tacotron.utils import (init_global_seeds, overwrite_custom_hparams,
+                            pass_lines)
 from tts_preparation import InferSentence, InferSentenceList
 
 
@@ -62,8 +63,9 @@ class Synthesizer():
     symbols_tensor = symbols_tensor.long()
     return symbols_tensor
 
-  def infer(self, sentence: InferSentence, speaker: str, ignore_unknown_symbols: bool, max_decoder_steps: int) -> InferenceResult:
+  def infer(self, sentence: InferSentence, speaker: str, ignore_unknown_symbols: bool, max_decoder_steps: int, seed: int) -> InferenceResult:
     pass_lines(self._logger.info, sentence.get_formatted(self.accents))
+    init_global_seeds(seed)
 
     accent_ids = self.accents.get_ids(sentence.accents)
     accents_tensor = np.array([accent_ids])
@@ -116,7 +118,7 @@ class Synthesizer():
 
     return infer_res
 
-  def infer_all(self, sentences: InferSentenceList, speaker: str, ignore_unknown_symbols: bool, max_decoder_steps: int) -> List[InferenceResult]:
+  def infer_all(self, sentences: InferSentenceList, speaker: str, ignore_unknown_symbols: bool, max_decoder_steps: int, seed: int) -> List[InferenceResult]:
     self._logger.debug(f"Selected speaker: {speaker}")
 
     result: List[InferenceResult] = []
@@ -128,12 +130,12 @@ class Synthesizer():
         space_symbol=" ",
         space_accent=DEFAULT_PADDING_ACCENT,
       )
-      infer_res = self.infer(sentence, speaker, ignore_unknown_symbols, max_decoder_steps)
+      infer_res = self.infer(sentence, speaker, ignore_unknown_symbols, max_decoder_steps, seed)
       result.append(infer_res)
     else:
       # Speed is: 1min inference for 3min wav result
       for sentence in sentences.items(True):
-        infer_res = self.infer(sentence, speaker, ignore_unknown_symbols, max_decoder_steps)
+        infer_res = self.infer(sentence, speaker, ignore_unknown_symbols, max_decoder_steps, seed)
         result.append(infer_res)
 
     return result

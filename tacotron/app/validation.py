@@ -12,7 +12,7 @@ from scipy.io.wavfile import write
 from tacotron.app.defaults import (DEFAULT_MAX_DECODER_STEPS,
                                    DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME,
                                    DEFAULT_MEL_INFO_COPY_PATH,
-                                   DEFAULT_REPETITIONS)
+                                   DEFAULT_REPETITIONS, DEFAULT_SEED)
 from tacotron.app.io import (_get_validation_root_dir, get_checkpoints_dir,
                              get_mel_info_dict, get_mel_out_dict,
                              get_train_dir, load_prep_settings)
@@ -139,7 +139,7 @@ def save_results(entry: PreparedData, output: ValidationEntryOutput, val_dir: st
   mel_postnet_npy_paths.append(mel_info)
 
 
-def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = None, speaker: Optional[str] = None, ds: str = "val", custom_checkpoints: Optional[Set[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, mcd_no_of_coeffs_per_frame: int = DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME, copy_mel_info_to: Optional[str] = DEFAULT_MEL_INFO_COPY_PATH, fast: bool = False, repetitions: int = DEFAULT_REPETITIONS) -> None:
+def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = None, speaker: Optional[str] = None, ds: str = "val", custom_checkpoints: Optional[Set[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, mcd_no_of_coeffs_per_frame: int = DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME, copy_mel_info_to: Optional[str] = DEFAULT_MEL_INFO_COPY_PATH, fast: bool = False, repetitions: int = DEFAULT_REPETITIONS, seed: int = DEFAULT_SEED) -> None:
   """Param: custom checkpoints: empty => all; None => random; ids"""
   assert repetitions > 0
 
@@ -215,6 +215,7 @@ def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = Non
       save_callback=save_callback,
       mcd_no_of_coeffs_per_frame=mcd_no_of_coeffs_per_frame,
       repetitions=repetitions,
+      seed=seed,
     )
 
     result.extend(validation_entries)

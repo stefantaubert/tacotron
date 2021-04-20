@@ -1,4 +1,5 @@
 import datetime
+import random
 from collections import OrderedDict
 from dataclasses import dataclass
 from logging import Logger
@@ -17,8 +18,9 @@ from scipy.io.wavfile import read
 from sklearn.metrics import mean_squared_error
 from tacotron.core.synthesizer import Synthesizer
 from tacotron.core.training import CheckpointTacotron
-from tacotron.utils import (GenericList, cosine_dist_mels, make_same_dim,
-                            plot_alignment_np, plot_alignment_np_new)
+from tacotron.utils import (GenericList, cosine_dist_mels, init_global_seeds,
+                            make_same_dim, plot_alignment_np,
+                            plot_alignment_np_new)
 from text_utils import deserialize_list
 from text_utils.symbol_id_dict import SymbolIdDict
 from text_utils.text_selection import get_rarity_ngrams
@@ -30,6 +32,7 @@ class ValidationEntry():
   timepoint: str
   repetition: int
   repetitions: int
+  seed: int
   entry_id: int
   ds_entry_id: int
   train_name: str
@@ -120,7 +123,7 @@ def get_ngram_rarity(data: PreparedDataList, corpus: PreparedDataList, symbols: 
   return rarity
 
 
-def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: PreparedDataList, custom_hparams: Optional[Dict[str, str]], entry_ids: Optional[Set[int]], speaker_name: Optional[str], train_name: str, full_run: bool, save_callback: Optional[Callable[[PreparedData, ValidationEntryOutput], None]], max_decoder_steps: int, fast: bool, mcd_no_of_coeffs_per_frame: int, repetitions: int, logger: Logger) -> ValidationEntries:
+def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: PreparedDataList, custom_hparams: Optional[Dict[str, str]], entry_ids: Optional[Set[int]], speaker_name: Optional[str], train_name: str, full_run: bool, save_callback: Optional[Callable[[PreparedData, ValidationEntryOutput], None]], max_decoder_steps: int, fast: bool, mcd_no_of_coeffs_per_frame: int, repetitions: int, seed: int, logger: Logger) -> ValidationEntries:
   model_symbols = checkpoint.get_symbols()
   model_accents = checkpoint.get_accents()
   model_speakers = checkpoint.get_speakers()
@@ -151,6 +154,7 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
   validation_entries = ValidationEntries()
 
   for repetition in range(repetitions):
+    rep_seed = seed + repetition
     rep_human_readable = repetition + 1
     logger.info(f"Starting repetition: {rep_human_readable}/{repetitions}")
     for entry in validation_data.items(True):
@@ -167,6 +171,7 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
         speaker=speaker_name,
         ignore_unknown_symbols=False,
         max_decoder_steps=max_decoder_steps,
+        seed=rep_seed,
       )
 
       symbol_count = len(deserialize_list(entry.serialized_symbol_ids))
@@ -245,6 +250,7 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
         entry_id=entry.entry_id,
         repetition=rep_human_readable,
         repetitions=repetitions,
+        seed=rep_seed,
         ds_entry_id=entry.ds_entry_id,
         text_original=entry.text_original,
         text=entry.text,

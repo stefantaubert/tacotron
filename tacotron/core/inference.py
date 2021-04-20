@@ -43,7 +43,7 @@ class InferenceEntryOutput():
   # gate_out_img: np.ndarray = None
 
 
-def infer(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict[str, str]], sentence_ids: Optional[Set[int]], speaker_name: Optional[str], train_name: str, full_run: bool, sentences: InferSentenceList, save_callback: Callable[[InferSentence, InferenceEntryOutput], None], max_decoder_steps: int, logger: Logger) -> InferenceEntries:
+def infer(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict[str, str]], sentence_ids: Optional[Set[int]], speaker_name: Optional[str], train_name: str, full_run: bool, sentences: InferSentenceList, save_callback: Callable[[InferSentence, InferenceEntryOutput], None], max_decoder_steps: int, seed: int, logger: Logger) -> InferenceEntries:
   model_speakers = checkpoint.get_speakers()
 
   if full_run:
@@ -63,6 +63,7 @@ def infer(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict[str, str
     speaker=speaker_name,
     ignore_unknown_symbols=False,
     max_decoder_steps=max_decoder_steps,
+    seed=seed,
   )
   speaker_id = model_speakers.get_id(speaker_name)
 
