@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from tacotron.app import (DEFAULT_MAX_DECODER_STEPS, continue_train, infer,
                           plot_embeddings, restore_model, train, validate)
 from tacotron.app.defaults import (DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME,
-                                   DEFAULT_MEL_INFO_COPY_PATH)
+                                   DEFAULT_MEL_INFO_COPY_PATH, DEFAULT_REPETITIONS)
 from tacotron.utils import split_hparams_string, split_int_set_str
 
 BASE_DIR_VAR = "base_dir"
@@ -82,6 +82,7 @@ def init_validate_parser(parser: ArgumentParser):
   parser.add_argument('--mcd_no_of_coeffs_per_frame', type=int,
                       default=DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME)
   parser.add_argument('--fast', action='store_true')
+  parser.add_argument('--repetitions', type=int, default=DEFAULT_REPETITIONS)
 
   return validate_cli
 

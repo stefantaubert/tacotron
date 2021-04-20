@@ -11,7 +11,8 @@ from image_utils import stack_images_vertically
 from scipy.io.wavfile import write
 from tacotron.app.defaults import (DEFAULT_MAX_DECODER_STEPS,
                                    DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME,
-                                   DEFAULT_MEL_INFO_COPY_PATH)
+                                   DEFAULT_MEL_INFO_COPY_PATH,
+                                   DEFAULT_REPETITIONS)
 from tacotron.app.io import (_get_validation_root_dir, get_checkpoints_dir,
                              get_mel_info_dict, get_mel_out_dict,
                              get_train_dir, load_prep_settings)
@@ -82,12 +83,12 @@ def save_mel_postnet_npy_paths(val_dir: str, name: str, mel_postnet_npy_paths: L
   return path
 
 
-def get_result_name(entry: PreparedData, iteration: int):
-  return f"it={iteration}_id={entry.entry_id}"
+def get_result_name(entry: PreparedData, iteration: int, repetition: int):
+  return f"it={iteration}_id={entry.entry_id}_rep={repetition}"
 
 
 def save_results(entry: PreparedData, output: ValidationEntryOutput, val_dir: str, iteration: int, mel_postnet_npy_paths: List[Dict[str, Any]]):
-  result_name = get_result_name(entry, iteration)
+  result_name = get_result_name(entry, iteration, output.repetition)
   dest_dir = get_val_entry_dir(val_dir, result_name)
   write(os.path.join(dest_dir, "original.wav"), output.orig_sr, output.wav_orig)
   imageio.imsave(os.path.join(dest_dir, "original.png"), output.mel_orig_img)
@@ -138,8 +139,9 @@ def save_results(entry: PreparedData, output: ValidationEntryOutput, val_dir: st
   mel_postnet_npy_paths.append(mel_info)
 
 
-def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = None, speaker: Optional[str] = None, ds: str = "val", custom_checkpoints: Optional[Set[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, mcd_no_of_coeffs_per_frame: int = DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME, copy_mel_info_to: Optional[str] = DEFAULT_MEL_INFO_COPY_PATH, fast: bool = False) -> None:
+def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = None, speaker: Optional[str] = None, ds: str = "val", custom_checkpoints: Optional[Set[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, mcd_no_of_coeffs_per_frame: int = DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME, copy_mel_info_to: Optional[str] = DEFAULT_MEL_INFO_COPY_PATH, fast: bool = False, repetitions: int = DEFAULT_REPETITIONS) -> None:
   """Param: custom checkpoints: empty => all; None => random; ids"""
+  assert repetitions > 0
 
   train_dir = get_train_dir(base_dir, train_name, create=False)
   assert os.path.isdir(train_dir)
@@ -212,6 +214,7 @@ def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = Non
       fast=fast,
       save_callback=save_callback,
       mcd_no_of_coeffs_per_frame=mcd_no_of_coeffs_per_frame,
+      repetitions=repetitions,
     )
 
     result.extend(validation_entries)
