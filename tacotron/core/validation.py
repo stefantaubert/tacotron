@@ -54,6 +54,7 @@ class ValidationEntry():
   target_frames: int
   predicted_frames: int
   diff_frames: int
+  frame_deviation_percent: float
   # mcd_dtw_v2: float
   # mcd_dtw_v2_frames: int
   padded_mse: float
@@ -185,6 +186,7 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
       target_frames = mel_orig.shape[1]
       predicted_frames = inference_result.mel_outputs_postnet.shape[1]
       diff_frames = predicted_frames - target_frames
+      frame_deviation_percent = (predicted_frames / target_frames) - 1
 
       dtw_mcd, dtw_penalty, dtw_frames = get_mcd_between_mel_spectograms(
         mel_1=mel_orig,
@@ -270,6 +272,7 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
         predicted_frames=predicted_frames,
         target_frames=target_frames,
         diff_frames=diff_frames,
+        frame_deviation_percent=frame_deviation_percent,
         padded_cosine_similarity=padded_cosine_similarity,
         mfcc_no_coeffs=mcd_no_of_coeffs_per_frame,
         mfcc_dtw_mcd=dtw_mcd,
