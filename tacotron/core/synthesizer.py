@@ -117,25 +117,3 @@ class Synthesizer():
     )
 
     return infer_res
-
-  def infer_all(self, sentences: InferSentenceList, speaker: str, ignore_unknown_symbols: bool, max_decoder_steps: int, seed: int) -> List[InferenceResult]:
-    self._logger.debug(f"Selected speaker: {speaker}")
-
-    result: List[InferenceResult] = []
-
-    all_in_one = False
-
-    if all_in_one:
-      sentence = sentences.to_sentence(
-        space_symbol=" ",
-        space_accent=DEFAULT_PADDING_ACCENT,
-      )
-      infer_res = self.infer(sentence, speaker, ignore_unknown_symbols, max_decoder_steps, seed)
-      result.append(infer_res)
-    else:
-      # Speed is: 1min inference for 3min wav result
-      for sentence in sentences.items(True):
-        infer_res = self.infer(sentence, speaker, ignore_unknown_symbols, max_decoder_steps, seed)
-        result.append(infer_res)
-
-    return result

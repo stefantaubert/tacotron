@@ -7,7 +7,8 @@ import numpy as np
 from audio_utils.mel import plot_melspec_np
 from tacotron.core.synthesizer import InferenceResult, Synthesizer
 from tacotron.core.training import CheckpointTacotron
-from tacotron.utils import GenericList, plot_alignment_np
+from tacotron.utils import (GenericList, plot_alignment_np,
+                            plot_alignment_np_new)
 from tts_preparation import InferSentence, InferSentenceList
 
 
@@ -52,23 +53,23 @@ def infer(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict[str, str
     sents = InferSentenceList(sentences.get_subset(sentence_ids))
 
   synth = Synthesizer(
-      checkpoint=checkpoint,
-      custom_hparams=custom_hparams,
-      logger=logger,
+    checkpoint=checkpoint,
+    custom_hparams=custom_hparams,
+    logger=logger,
   )
 
-  result = InferenceEntries()
-  inf_res = synth.infer_all(
-    sentences=sents,
-    speaker=speaker_name,
-    ignore_unknown_symbols=False,
-    max_decoder_steps=max_decoder_steps,
-    seed=seed,
-  )
   speaker_id = model_speakers.get_id(speaker_name)
 
-  tmp: List[Tuple[InferSentence, InferenceResult]] = zip(sents, inf_res)
-  for inf_sent_input, inf_sent_output in tmp:
+  result = InferenceEntries()
+  for inf_sent_input in sents:
+    inf_sent_output = synth.infer(
+      sentence=inf_sent_input,
+      speaker=speaker_name,
+      ignore_unknown_symbols=False,
+      max_decoder_steps=max_decoder_steps,
+      seed=seed,
+    )
+
     symbol_count = len(inf_sent_input.symbols)
     unique_symbols = set(inf_sent_input.symbols)
     unique_symbols_str = " ".join(list(sorted(unique_symbols)))
@@ -95,7 +96,7 @@ def infer(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict[str, str
 
     _, mel_img = plot_melspec_np(inf_sent_output.mel_outputs)
     _, postnet_img = plot_melspec_np(inf_sent_output.mel_outputs_postnet)
-    alignments_img = plot_alignment_np(inf_sent_output.alignments)
+    _, alignments_img = plot_alignment_np_new(inf_sent_output.alignments)
 
     inference_data_output = InferenceEntryOutput(
       postnet_mel=inf_sent_output.mel_outputs_postnet,
