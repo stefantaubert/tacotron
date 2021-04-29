@@ -3,7 +3,7 @@ import os
 from functools import partial
 from logging import getLogger
 from shutil import copyfile
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import imageio
 import numpy as np
@@ -78,8 +78,8 @@ def save_mel_postnet_npy_paths(val_dir: str, name: str, mel_postnet_npy_paths: L
 
   path = os.path.join(val_dir, "mel_postnet_npy.json")
   save_json(path, info_json)
-  #text = '\n'.join(mel_postnet_npy_paths)
-  #save_txt(path, text)
+  # text = '\n'.join(mel_postnet_npy_paths)
+  # save_txt(path, text)
   return path
 
 
@@ -139,7 +139,7 @@ def save_results(entry: PreparedData, output: ValidationEntryOutput, val_dir: st
   mel_postnet_npy_paths.append(mel_info)
 
 
-def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = None, speaker: Optional[str] = None, ds: str = "val", custom_checkpoints: Optional[Set[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, mcd_no_of_coeffs_per_frame: int = DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME, copy_mel_info_to: Optional[str] = DEFAULT_MEL_INFO_COPY_PATH, fast: bool = False, repetitions: int = DEFAULT_REPETITIONS, seed: int = DEFAULT_SEED) -> None:
+def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = None, entry_ids_w_seed: Optional[List[Tuple[int, int]]] = None, speaker: Optional[str] = None, ds: str = "val", custom_checkpoints: Optional[Set[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, mcd_no_of_coeffs_per_frame: int = DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME, copy_mel_info_to: Optional[str] = DEFAULT_MEL_INFO_COPY_PATH, fast: bool = False, repetitions: int = DEFAULT_REPETITIONS, seed: int = DEFAULT_SEED) -> None:
   """Param: custom checkpoints: empty => all; None => random; ids"""
   assert repetitions > 0
 
@@ -206,6 +206,7 @@ def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = Non
       trainset=trainset,
       custom_hparams=custom_hparams,
       entry_ids=entry_ids,
+      entry_ids_w_seed=entry_ids_w_seed,
       full_run=full_run,
       speaker_name=speaker,
       train_name=train_name,

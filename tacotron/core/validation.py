@@ -3,9 +3,9 @@ import random
 from collections import OrderedDict
 from dataclasses import dataclass
 from logging import Logger
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, List, Optional
 from typing import OrderedDict as OrderedDictType
-from typing import Set
+from typing import Set, Tuple
 
 import imageio
 import numpy as np
@@ -124,18 +124,41 @@ def get_ngram_rarity(data: PreparedDataList, corpus: PreparedDataList, symbols: 
   return rarity
 
 
-def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: PreparedDataList, custom_hparams: Optional[Dict[str, str]], entry_ids: Optional[Set[int]], speaker_name: Optional[str], train_name: str, full_run: bool, save_callback: Optional[Callable[[PreparedData, ValidationEntryOutput], None]], max_decoder_steps: int, fast: bool, mcd_no_of_coeffs_per_frame: int, repetitions: int, seed: int, logger: Logger) -> ValidationEntries:
+def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: PreparedDataList, custom_hparams: Optional[Dict[str, str]], entry_ids: Optional[Set[int]], entry_ids_w_seed: Optional[List[Tuple[int, int]]], speaker_name: Optional[str], train_name: str, full_run: bool, save_callback: Optional[Callable[[PreparedData, ValidationEntryOutput], None]], max_decoder_steps: int, fast: bool, mcd_no_of_coeffs_per_frame: int, repetitions: int, seed: int, logger: Logger) -> ValidationEntries:
   model_symbols = checkpoint.get_symbols()
   model_accents = checkpoint.get_accents()
   model_speakers = checkpoint.get_speakers()
 
+  seeds: List[int]
+  validation_data: PreparedDataList
+
   if full_run:
     validation_data = data
+    seeds = [seed for _ in data]
+  elif entry_ids_w_seed is not None:
+    entry_ids = [entry_id for entry_id, _ in entry_ids_w_seed]
+    have_no_double_entries = len(set(entry_ids)) == len(entry_ids)
+    assert have_no_double_entries
+    validation_data = PreparedDataList([x for x in data.items() if x.entry_id in entry_ids])
+    seeds = [s for _, s in entry_ids_w_seed]
+  elif entry_ids is not None:
+    validation_data = PreparedDataList([x for x in data.items() if x.entry_id in entry_ids])
+    seeds = [seed for _ in validation_data]
+  elif speaker_name is not None:
+    speaker_id = model_speakers.get_id(speaker_name)
+    relevant_entries = [x for x in data.items() if x.speaker_id == speaker_id]
+    assert len(relevant_entries) > 0
+    random.seed(seed)
+    entry = random.choice(relevant_entries)
+    validation_data = PreparedDataList([entry])
+    seeds = [seed]
   else:
-    speaker_id: Optional[int] = None
-    if speaker_name is not None:
-      speaker_id = model_speakers.get_id(speaker_name)
-    validation_data = PreparedDataList(data.get_for_validation(entry_ids, speaker_id))
+    random.seed(seed)
+    entry = random.choice(data)
+    validation_data = PreparedDataList([entry])
+    seeds = [seed]
+
+  assert len(seeds) == len(validation_data)
 
   if len(validation_data) == 0:
     logger.info("Nothing to synthesize!")
@@ -155,10 +178,12 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
   validation_entries = ValidationEntries()
 
   for repetition in range(repetitions):
-    rep_seed = seed + repetition
+    #rep_seed = seed + repetition
     rep_human_readable = repetition + 1
     logger.info(f"Starting repetition: {rep_human_readable}/{repetitions}")
-    for entry in validation_data.items(True):
+    for entry, entry_seed in zip(validation_data.items(True), seeds):
+      rep_seed = entry_seed + repetition
+
       infer_sent = InferSentence(
         sent_id=1,
         symbols=model_symbols.get_symbols(entry.serialized_symbol_ids),
