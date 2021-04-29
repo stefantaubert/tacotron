@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import imageio
 import numpy as np
+import pandas as pd
 from image_utils import stack_images_vertically
 from scipy.io.wavfile import write
 from tacotron.app.defaults import (DEFAULT_MAX_DECODER_STEPS,
@@ -139,7 +140,7 @@ def save_results(entry: PreparedData, output: ValidationEntryOutput, val_dir: st
   mel_postnet_npy_paths.append(mel_info)
 
 
-def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = None, entry_ids_w_seed: Optional[List[Tuple[int, int]]] = None, speaker: Optional[str] = None, ds: str = "val", custom_checkpoints: Optional[Set[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, mcd_no_of_coeffs_per_frame: int = DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME, copy_mel_info_to: Optional[str] = DEFAULT_MEL_INFO_COPY_PATH, fast: bool = False, repetitions: int = DEFAULT_REPETITIONS, seed: Optional[int] = DEFAULT_SEED) -> None:
+def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = None, speaker: Optional[str] = None, ds: str = "val", custom_checkpoints: Optional[Set[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, mcd_no_of_coeffs_per_frame: int = DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME, copy_mel_info_to: Optional[str] = DEFAULT_MEL_INFO_COPY_PATH, fast: bool = False, repetitions: int = DEFAULT_REPETITIONS, select_best_from: Optional[str] = None, seed: Optional[int] = DEFAULT_SEED) -> None:
   """Param: custom checkpoints: empty => all; None => random; ids"""
   assert repetitions > 0
 
@@ -191,6 +192,10 @@ def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = Non
   save_callback = None
   trainset = load_trainset(prep_dir)
 
+  select_best_from_df = None
+  if select_best_from is not None:
+    select_best_from_df = pd.read_csv(select_best_from, sep="\t")
+
   for iteration in tqdm(sorted(iterations)):
     mel_postnet_npy_paths: List[str] = []
     logger.info(f"Current checkpoint: {iteration}")
@@ -206,7 +211,6 @@ def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = Non
       trainset=trainset,
       custom_hparams=custom_hparams,
       entry_ids=entry_ids,
-      entry_ids_w_seed=entry_ids_w_seed,
       full_run=full_run,
       speaker_name=speaker,
       train_name=train_name,
@@ -217,6 +221,7 @@ def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = Non
       mcd_no_of_coeffs_per_frame=mcd_no_of_coeffs_per_frame,
       repetitions=repetitions,
       seed=seed,
+      select_best_from=select_best_from_df,
     )
 
     result.extend(validation_entries)

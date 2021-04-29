@@ -2,18 +2,20 @@ import datetime
 import random
 from collections import OrderedDict
 from dataclasses import dataclass
-from logging import Logger
+from logging import Logger, getLogger
 from typing import Callable, Dict, List, Optional
 from typing import OrderedDict as OrderedDictType
 from typing import Set, Tuple
 
 import imageio
 import numpy as np
+import pandas as pd
 from audio_utils.mel import (TacotronSTFT, align_mels_with_dtw, get_msd,
                              plot_melspec_np)
 from image_utils import (calculate_structual_similarity_np,
                          make_same_width_by_filling_white)
 from mcd import get_mcd_between_mel_spectograms
+from ordered_set import OrderedSet
 from scipy.io.wavfile import read
 from sklearn.metrics import mean_squared_error
 from tacotron.core.synthesizer import Synthesizer
@@ -124,7 +126,48 @@ def get_ngram_rarity(data: PreparedDataList, corpus: PreparedDataList, symbols: 
   return rarity
 
 
-def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: PreparedDataList, custom_hparams: Optional[Dict[str, str]], entry_ids: Optional[Set[int]], entry_ids_w_seed: Optional[List[Tuple[int, int]]], speaker_name: Optional[str], train_name: str, full_run: bool, save_callback: Optional[Callable[[PreparedData, ValidationEntryOutput], None]], max_decoder_steps: int, fast: bool, mcd_no_of_coeffs_per_frame: int, repetitions: int, seed: Optional[int], logger: Logger) -> ValidationEntries:
+def get_best_seeds(select_best_from: pd.DataFrame, entry_ids: OrderedSet[int], iteration: int) -> List[int]:
+  df = select_best_from.loc[select_best_from['iteration'] == iteration]
+  logger = getLogger(__name__)
+  result = []
+  for entry_id in entry_ids:
+    logger.info(f"Entry {entry_id}")
+    entry_df = df.loc[df['entry_id'] == entry_id]
+    # best_row = entry_df.iloc[[entry_df["mfcc_dtw_mcd"].argmin()]]
+    # worst_row = entry_df.iloc[[entry_df["mfcc_dtw_mcd"].argmax()]]
+
+    metric_values = []
+
+    for _, row in entry_df.iterrows():
+      best_value = row['mfcc_dtw_mcd'] + row['mfcc_dtw_penalty']
+      metric_values.append(best_value)
+
+    logger.info(f"Mean mcd: {entry_df['mfcc_dtw_mcd'].mean()}")
+    logger.info(f"Mean penalty: {entry_df['mfcc_dtw_penalty'].mean()}")
+    logger.info(f"Mean metric: {np.mean(metric_values)}")
+
+    best_idx = np.argmin(metric_values)
+    best_row = entry_df.iloc[best_idx]
+    test_x = best_row['mfcc_dtw_mcd'] + best_row['mfcc_dtw_penalty']
+    assert test_x == metric_values[best_idx]
+
+    worst_idx = np.argmax(metric_values)
+    worst_row = entry_df.iloc[worst_idx]
+    test_x = worst_row['mfcc_dtw_mcd'] + worst_row['mfcc_dtw_penalty']
+    assert test_x == metric_values[worst_idx]
+
+    seed = int(best_row["seed"])
+    logger.info(
+      f"The best seed was {seed} with a mcd of {float(best_row['mfcc_dtw_mcd']):.2f} with penalty {float(best_row['mfcc_dtw_penalty']):.5f} -> {metric_values[best_idx]:.5f}")
+    logger.info(
+      f"The worst seed was {int(worst_row['seed'])} with a mcd was {float(worst_row['mfcc_dtw_mcd']):.2f} with penalty {float(worst_row['mfcc_dtw_penalty']):.5f} -> {metric_values[worst_idx]:.5f}")
+    # print(f"The worst mcd was {}")
+    logger.info("------")
+    result.append(seed)
+  return result
+
+
+def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: PreparedDataList, custom_hparams: Optional[Dict[str, str]], entry_ids: Optional[Set[int]], speaker_name: Optional[str], train_name: str, full_run: bool, save_callback: Optional[Callable[[PreparedData, ValidationEntryOutput], None]], max_decoder_steps: int, fast: bool, mcd_no_of_coeffs_per_frame: int, repetitions: int, seed: Optional[int], select_best_from: Optional[pd.DataFrame], logger: Logger) -> ValidationEntries:
   model_symbols = checkpoint.get_symbols()
   model_accents = checkpoint.get_accents()
   model_speakers = checkpoint.get_speakers()
@@ -136,15 +179,23 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
     validation_data = data
     assert seed is not None
     seeds = [seed for _ in data]
-  elif entry_ids_w_seed is not None:
-    entry_ids = [entry_id for entry_id, _ in entry_ids_w_seed]
-    have_no_double_entries = len(set(entry_ids)) == len(entry_ids)
-    assert have_no_double_entries
+  elif select_best_from is not None:
+    assert entry_ids is not None
+    logger.info("Finding best seeds...")
     validation_data = PreparedDataList([x for x in data.items() if x.entry_id in entry_ids])
-    seeds = [s for _, s in entry_ids_w_seed]
     if len(validation_data) != len(entry_ids):
       logger.error("Not all entry_id's were found!")
       assert False
+    entry_ids_order_from_valdata = OrderedSet([x.entry_id for x in validation_data.items()])
+    seeds = get_best_seeds(select_best_from, entry_ids_order_from_valdata, checkpoint.iteration)
+  #   entry_ids = [entry_id for entry_id, _ in entry_ids_w_seed]
+  #   have_no_double_entries = len(set(entry_ids)) == len(entry_ids)
+  #   assert have_no_double_entries
+  #   validation_data = PreparedDataList([x for x in data.items() if x.entry_id in entry_ids])
+  #   seeds = [s for _, s in entry_ids_w_seed]
+  #   if len(validation_data) != len(entry_ids):
+  #     logger.error("Not all entry_id's were found!")
+  #     assert False
   elif entry_ids is not None:
     validation_data = PreparedDataList([x for x in data.items() if x.entry_id in entry_ids])
     if len(validation_data) != len(entry_ids):
@@ -188,7 +239,7 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
   validation_entries = ValidationEntries()
 
   for repetition in range(repetitions):
-    #rep_seed = seed + repetition
+    # rep_seed = seed + repetition
     rep_human_readable = repetition + 1
     logger.info(f"Starting repetition: {rep_human_readable}/{repetitions}")
     for entry, entry_seed in zip(validation_data.items(True), seeds):
@@ -257,30 +308,30 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
         padded_mel_outputs_postnet_img_raw_1, padded_mel_outputs_postnet_img = plot_melspec_np(
           padded_mel_postnet, title="padded_mel_postnet")
 
-        #imageio.imsave("/tmp/padded_mel_orig_img_raw_1.png", padded_mel_orig_img_raw_1)
-        #imageio.imsave("/tmp/padded_mel_outputs_postnet_img_raw_1.png", padded_mel_outputs_postnet_img_raw_1)
+        # imageio.imsave("/tmp/padded_mel_orig_img_raw_1.png", padded_mel_orig_img_raw_1)
+        # imageio.imsave("/tmp/padded_mel_outputs_postnet_img_raw_1.png", padded_mel_outputs_postnet_img_raw_1)
 
         padded_structural_similarity, padded_mel_postnet_diff_img_raw = calculate_structual_similarity_np(
             img_a=padded_mel_orig_img_raw_1,
             img_b=padded_mel_outputs_postnet_img_raw_1,
         )
 
-        #imageio.imsave("/tmp/padded_mel_diff_img_raw_1.png", padded_mel_postnet_diff_img_raw)
+        # imageio.imsave("/tmp/padded_mel_diff_img_raw_1.png", padded_mel_postnet_diff_img_raw)
 
         aligned_mel_orig_img_raw, aligned_mel_orig_img = plot_melspec_np(
           aligned_mel_orig, title="aligned_mel_orig")
         aligned_mel_postnet_img_raw, aligned_mel_postnet_img = plot_melspec_np(
           aligned_mel_postnet, title="aligned_mel_postnet")
 
-        #imageio.imsave("/tmp/aligned_mel_orig_img_raw.png", aligned_mel_orig_img_raw)
-        #imageio.imsave("/tmp/aligned_mel_postnet_img_raw.png", aligned_mel_postnet_img_raw)
+        # imageio.imsave("/tmp/aligned_mel_orig_img_raw.png", aligned_mel_orig_img_raw)
+        # imageio.imsave("/tmp/aligned_mel_postnet_img_raw.png", aligned_mel_postnet_img_raw)
 
         aligned_structural_similarity, aligned_mel_diff_img_raw = calculate_structual_similarity_np(
             img_a=aligned_mel_orig_img_raw,
             img_b=aligned_mel_postnet_img_raw,
         )
 
-        #imageio.imsave("/tmp/aligned_mel_diff_img_raw.png", aligned_mel_diff_img_raw)
+        # imageio.imsave("/tmp/aligned_mel_diff_img_raw.png", aligned_mel_diff_img_raw)
 
       train_combined_rarity = train_onegram_rarities[entry.entry_id] + \
           train_twogram_rarities[entry.entry_id] + train_threegram_rarities[entry.entry_id]
