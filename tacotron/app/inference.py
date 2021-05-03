@@ -8,7 +8,8 @@ import imageio
 import numpy as np
 from image_utils import stack_images_horizontally, stack_images_vertically
 from tacotron.app.defaults import (DEFAULT_MAX_DECODER_STEPS,
-                                   DEFAULT_MEL_INFO_COPY_PATH, DEFAULT_SEED)
+                                   DEFAULT_SAVE_MEL_INFO_COPY_PATH,
+                                   DEFAULT_SEED)
 from tacotron.app.io import (get_checkpoints_dir, get_inference_root_dir,
                              get_mel_info_dict, get_mel_out_dict,
                              get_train_dir, load_prep_settings)
@@ -114,7 +115,7 @@ def get_infer_log_new(infer_dir: str):
   return os.path.join(infer_dir, "log.txt")
 
 
-def infer(base_dir: str, train_name: str, text_name: str, speaker: str, sentence_ids: Optional[Set[int]] = None, custom_checkpoint: Optional[int] = None, full_run: bool = True, custom_hparams: Optional[Dict[str, str]] = None, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, seed: int = DEFAULT_SEED, copy_mel_info_to: Optional[str] = DEFAULT_MEL_INFO_COPY_PATH):
+def infer(base_dir: str, train_name: str, text_name: str, speaker: str, sentence_ids: Optional[Set[int]] = None, custom_checkpoint: Optional[int] = None, full_run: bool = True, custom_hparams: Optional[Dict[str, str]] = None, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, seed: int = DEFAULT_SEED, copy_mel_info_to: Optional[str] = DEFAULT_SAVE_MEL_INFO_COPY_PATH):
   train_dir = get_train_dir(base_dir, train_name, create=False)
   assert os.path.isdir(train_dir)
 
@@ -200,10 +201,11 @@ def infer(base_dir: str, train_name: str, text_name: str, speaker: str, sentence
 def save_mel_postnet_npy_paths(infer_dir: str, name: str, mel_postnet_npy_paths: List[Dict[str, Any]]) -> str:
   info_json = get_mel_out_dict(
     name=name,
+    root_dir=infer_dir,
     mel_info_dict=mel_postnet_npy_paths,
   )
 
-  path = os.path.join(infer_dir, "mel_postnet_npy.json")
+  path = os.path.join(infer_dir, "mel_out.json")
   save_json(path, info_json)
   #text = '\n'.join(mel_postnet_npy_paths)
   #save_txt(path, text)

@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from tacotron.app import (DEFAULT_MAX_DECODER_STEPS, continue_train, infer,
                           plot_embeddings, restore_model, train, validate)
 from tacotron.app.defaults import (DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME,
-                                   DEFAULT_MEL_INFO_COPY_PATH,
+                                   DEFAULT_SAVE_MEL_INFO_COPY_PATH,
                                    DEFAULT_REPETITIONS, DEFAULT_SEED)
 from tacotron.utils import parse_tuple_list, split_hparams_string, split_int_set_str
 
@@ -78,7 +78,7 @@ def init_validate_parser(parser: ArgumentParser):
   parser.add_argument('--custom_checkpoints', type=str)
   parser.add_argument('--full_run', action='store_true')
   parser.add_argument('--max_decoder_steps', type=int, default=DEFAULT_MAX_DECODER_STEPS)
-  parser.add_argument('--copy_mel_info_to', type=str, default=DEFAULT_MEL_INFO_COPY_PATH)
+  parser.add_argument('--copy_mel_info_to', type=str, default=DEFAULT_SAVE_MEL_INFO_COPY_PATH)
   parser.add_argument('--custom_hparams', type=str)
   parser.add_argument('--select_best_from', type=str)
   parser.add_argument('--mcd_no_of_coeffs_per_frame', type=int,
@@ -107,7 +107,7 @@ def init_inference_parser(parser: ArgumentParser):
   parser.add_argument('--full_run', action='store_true')
   parser.add_argument('--max_decoder_steps', type=int, default=DEFAULT_MAX_DECODER_STEPS)
   parser.add_argument('--seed', type=int, default=DEFAULT_SEED)
-  parser.add_argument('--copy_mel_info_to', type=str, default=DEFAULT_MEL_INFO_COPY_PATH)
+  parser.add_argument('--copy_mel_info_to', type=str, default=DEFAULT_SAVE_MEL_INFO_COPY_PATH)
 
   return infer_cli
 

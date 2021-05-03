@@ -100,9 +100,10 @@ def get_mel_info_dict(identifier: int, path: str, sr: int) -> Dict[str, Any]:
   return mel_info
 
 
-def get_mel_out_dict(name: str, mel_info_dict: Dict[str, Any]) -> Dict[str, Any]:
+def get_mel_out_dict(name: str, root_dir: str, mel_info_dict: Dict[str, Any]) -> Dict[str, Any]:
   info_json = {
     "name": name,
+    "root_dir": root_dir,
     "mels": mel_info_dict,
   }
 
