@@ -27,8 +27,8 @@ def init_plot_emb_parser(parser):
 #   return eval_checkpoints_main_cli
 
 
-# def eval_checkpoints_main_cli(**args):
-#   args["custom_hparams"] = split_hparams_string(args["custom_hparams"])
+# def evaeckpoints_main_cli(**args):
+#   argsl_ch["custom_hparams"] = split_hparams_string(args["custom_hparams"])
 #   eval_checkpoints(**args)
 
 
