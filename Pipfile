@@ -37,7 +37,6 @@ speech-dataset-preprocessing = {editable = true, ref = "master", git = "https://
 speech-dataset-parser = {editable = true, ref = "master", git = "https://github.com/stefantaubert/speech-dataset-parser.git"}
 tts-preparation = {editable = true, ref = "master", git = "https://github.com/stefantaubert/tts-preparation.git"}
 mcd = {editable = true, ref = "main", git = "https://github.com/jasminsternkopf/mel_cepstral_distance.git"}
-tacotron = {editable = true, ref = "master", git = "https://github.com/stefantaubert/tacotron.git"}
 
 [requires]
 python_version = "3.8"
