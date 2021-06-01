@@ -21,14 +21,8 @@ matplotlib = "*"
 tqdm = "*"
 wget = "*"
 numpy = "*"
-gdown = "*"
 scikit-learn = "*"
 scipy = "*"
-tensorboard = "*"
-Unidecode = "*"
-Pillow = "*"
-pysptk = "*"
-fastdtw = "*"
 text_utils = {editable = true, ref = "master", git = "https://github.com/stefantaubert/text-utils.git"}
 audio_utils = {editable = true, ref = "master", git = "https://github.com/stefantaubert/audio-utils.git"}
 image_utils = {editable = true, ref = "master", git = "https://github.com/stefantaubert/image-utils.git"}
