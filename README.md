@@ -1,2 +1,5 @@
-# tacotron
-pipenv install -e git+https://github.com/stefantaubert/tacotron.git@master#egg=tacotron --skip-lock
+# Tacotron
+
+![Python](https://img.shields.io/github/license/stefantaubert/tacotron)
+![Python](https://img.shields.io/badge/python-3.8.6-green.svg)
+
