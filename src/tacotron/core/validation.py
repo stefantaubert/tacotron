@@ -24,8 +24,8 @@ from tacotron.utils import (GenericList, cosine_dist_mels, init_global_seeds,
                             make_same_dim, plot_alignment_np,
                             plot_alignment_np_new)
 from text_utils import deserialize_list
-from text_utils.symbol_id_dict import SymbolIdDict
-from text_utils.text_selection import get_rarity_ngrams
+from text_utils import SymbolIdDict
+from text_selection import get_rarity_ngrams
 from tts_preparation import InferSentence, PreparedData, PreparedDataList
 
 
