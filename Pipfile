@@ -23,6 +23,7 @@ wget = "*"
 numpy = "*"
 scikit-learn = "*"
 scipy = "*"
+tensorboard = "*"
 cmudict_parser = {editable = true, path = "./../cmudict-parser"}
 text_utils = {editable = true, path = "./../text-utils"}
 text_selection = {editable = true, path = "./../text-selection"}
