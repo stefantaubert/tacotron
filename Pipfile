@@ -23,6 +23,7 @@ wget = "*"
 numpy = "*"
 scikit-learn = "*"
 scipy = "*"
+cmudict_parser = {editable = true, path = "./../cmudict-parser"}
 text_utils = {editable = true, path = "./../text-utils"}
 text_selection = {editable = true, path = "./../text-selection"}
 audio_utils = {editable = true, path = "./../audio-utils"}
