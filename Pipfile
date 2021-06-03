@@ -29,6 +29,7 @@ text_selection = {editable = true, path = "./../text-selection"}
 audio_utils = {editable = true, path = "./../audio-utils"}
 image_utils = {editable = true, path = "./../image-utils"}
 speech-dataset-preprocessing = {editable = true, path = "./../speech-dataset-preprocessing"}
+speech-dataset-parser = {editable = true, path = "./../speech-dataset-parser"}
 tts-preparation = {editable = true, path = "./../tts-preparation"}
 mcd = {editable = true, path = "./../mel_cepstral_distance"}
 
