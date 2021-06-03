@@ -23,9 +23,8 @@ from tacotron.core.training import CheckpointTacotron
 from tacotron.utils import (GenericList, cosine_dist_mels, init_global_seeds,
                             make_same_dim, plot_alignment_np,
                             plot_alignment_np_new)
-from text_utils import deserialize_list
-from text_utils import SymbolIdDict
 from text_selection import get_rarity_ngrams
+from text_utils import SymbolIdDict, deserialize_list
 from tts_preparation import InferSentence, PreparedData, PreparedDataList
 
 
@@ -141,8 +140,8 @@ def get_best_seeds(select_best_from: pd.DataFrame, entry_ids: OrderedSet[int], i
       best_value = row['mfcc_dtw_mcd'] + row['mfcc_dtw_penalty']
       metric_values.append(best_value)
 
-    logger.info(f"Mean mcd: {entry_df['mfcc_dtw_mcd'].mean()}")
-    logger.info(f"Mean penalty: {entry_df['mfcc_dtw_penalty'].mean()}")
+    logger.info(f"Mean MCD: {entry_df['mfcc_dtw_mcd'].mean()}")
+    logger.info(f"Mean PEN: {entry_df['mfcc_dtw_penalty'].mean()}")
     logger.info(f"Mean metric: {np.mean(metric_values)}")
 
     best_idx = np.argmin(metric_values)
@@ -157,9 +156,9 @@ def get_best_seeds(select_best_from: pd.DataFrame, entry_ids: OrderedSet[int], i
 
     seed = int(best_row["seed"])
     logger.info(
-      f"The best seed was {seed} with a mcd of {float(best_row['mfcc_dtw_mcd']):.2f} with penalty {float(best_row['mfcc_dtw_penalty']):.5f} -> {metric_values[best_idx]:.5f}")
+      f"The best seed was {seed} with an MCD of {float(best_row['mfcc_dtw_mcd']):.2f} and a PEN of {float(best_row['mfcc_dtw_penalty']):.5f} -> {metric_values[best_idx]:.5f}")
     logger.info(
-      f"The worst seed was {int(worst_row['seed'])} with a mcd was {float(worst_row['mfcc_dtw_mcd']):.2f} with penalty {float(worst_row['mfcc_dtw_penalty']):.5f} -> {metric_values[worst_idx]:.5f}")
+      f"The worst seed was {int(worst_row['seed'])} with an MCD of {float(worst_row['mfcc_dtw_mcd']):.2f} and a PEN of {float(worst_row['mfcc_dtw_penalty']):.5f} -> {metric_values[worst_idx]:.5f}")
     # print(f"The worst mcd was {}")
     logger.info("------")
     result.append(seed)
@@ -186,7 +185,8 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
       logger.error("Not all entry_id's were found!")
       assert False
     entry_ids_order_from_valdata = OrderedSet([x.entry_id for x in validation_data.items()])
-    seeds = get_best_seeds(select_best_from, entry_ids_order_from_valdata, checkpoint.iteration, logger)
+    seeds = get_best_seeds(select_best_from, entry_ids_order_from_valdata,
+                           checkpoint.iteration, logger)
   #   entry_ids = [entry_id for entry_id, _ in entry_ids_w_seed]
   #   have_no_double_entries = len(set(entry_ids)) == len(entry_ids)
   #   assert have_no_double_entries

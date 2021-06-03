@@ -145,7 +145,7 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
       n_speakers=len(speakers),
       n_symbols=len(symbols)
     )
-  # is it problematic to change the batch size on a trained model?
+  # TODO: it should not be recommended to change the batch size on a trained model
   hparams = overwrite_custom_hparams(hparams, custom_hparams)
 
   assert hparams.n_accents > 0

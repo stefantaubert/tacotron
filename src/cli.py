@@ -157,6 +157,5 @@ if __name__ == "__main__":
   main_parser = _init_parser()
 
   received_args = main_parser.parse_args()
-  #args = main_parser.parse_args("ljs-text --base_dir=/datasets/models/taco2pt_v2 --mel_name=ljs --ds_name=test_ljs --convert_to_ipa".split())
 
   _process_args(received_args)
