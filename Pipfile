@@ -23,6 +23,7 @@ wget = "*"
 numpy = "*"
 scikit-learn = "*"
 scipy = "*"
+tensorboard = "*"
 text_utils = {editable = true, ref = "master", git = "https://github.com/stefantaubert/text-utils.git"}
 text_selection = {editable = true, ref = "master", git = "https://github.com/stefantaubert/text-selection.git"}
 audio_utils = {editable = true, ref = "master", git = "https://github.com/stefantaubert/audio-utils.git"}
