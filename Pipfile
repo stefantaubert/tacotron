@@ -23,13 +23,13 @@ wget = "*"
 numpy = "*"
 scikit-learn = "*"
 scipy = "*"
-text_utils = {editable = true, ref = "master", git = "https://github.com/stefantaubert/text-utils.git"}
-text_selection = {editable = true, ref = "master", git = "https://github.com/stefantaubert/text-selection.git"}
-audio_utils = {editable = true, ref = "master", git = "https://github.com/stefantaubert/audio-utils.git"}
-image_utils = {editable = true, ref = "master", git = "https://github.com/stefantaubert/image-utils.git"}
-speech-dataset-preprocessing = {editable = true, ref = "master", git = "https://github.com/stefantaubert/speech-dataset-preprocessing.git"}
-tts-preparation = {editable = true, ref = "master", git = "https://github.com/stefantaubert/tts-preparation.git"}
-mcd = {editable = true, ref = "main", git = "https://github.com/jasminsternkopf/mel_cepstral_distance.git"}
+text_utils = {editable = true, path = "./../text-utils"}
+text_selection = {editable = true, path = "./../text-selection"}
+audio_utils = {editable = true, path = "./../audio-utils"}
+image_utils = {editable = true, path = "./../image-utils"}
+speech-dataset-preprocessing = {editable = true, path = "./../speech-dataset-preprocessing"}
+tts-preparation = {editable = true, path = "./../tts-preparation"}
+mcd = {editable = true, path = "./../mcd"}
 
 [requires]
 python_version = "3.8"
