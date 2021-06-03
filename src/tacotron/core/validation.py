@@ -126,9 +126,8 @@ def get_ngram_rarity(data: PreparedDataList, corpus: PreparedDataList, symbols: 
   return rarity
 
 
-def get_best_seeds(select_best_from: pd.DataFrame, entry_ids: OrderedSet[int], iteration: int) -> List[int]:
+def get_best_seeds(select_best_from: pd.DataFrame, entry_ids: OrderedSet[int], iteration: int, logger: Logger) -> List[int]:
   df = select_best_from.loc[select_best_from['iteration'] == iteration]
-  logger = getLogger(__name__)
   result = []
   for entry_id in entry_ids:
     logger.info(f"Entry {entry_id}")
@@ -187,7 +186,7 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
       logger.error("Not all entry_id's were found!")
       assert False
     entry_ids_order_from_valdata = OrderedSet([x.entry_id for x in validation_data.items()])
-    seeds = get_best_seeds(select_best_from, entry_ids_order_from_valdata, checkpoint.iteration)
+    seeds = get_best_seeds(select_best_from, entry_ids_order_from_valdata, checkpoint.iteration, logger)
   #   entry_ids = [entry_id for entry_id, _ in entry_ids_w_seed]
   #   have_no_double_entries = len(set(entry_ids)) == len(entry_ids)
   #   assert have_no_double_entries

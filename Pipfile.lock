@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "df85f555087e8d843c3ba8faa641c73543d7636767323954dc4fc204b909d028"
+            "sha256": "69f1a5395b23945dbf19087e76ab3060585c3cad609e65a2bf7eb8377fcba666"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -26,7 +26,7 @@
         "audio-utils": {
             "editable": true,
             "git": "https://github.com/stefantaubert/audio-utils.git",
-            "ref": "0fa70f58a0a6b246a83b26a6c2f895d47f08815b"
+            "ref": "f1cb01be979db70ad9bfbd095c1db6991693687c"
         },
         "audioread": {
             "hashes": [
@@ -304,7 +304,7 @@
                 "sha256:f7918dbac02b1ebbfd7302ad8e8307d7877ab57d782d5f04b70ff9696b53c21b",
                 "sha256:ff52fb9c2be66b95b0e67d56fce11038397e5be1ea410ee53f5f1175fdbb107a"
             ],
-            "markers": "python_version < '3.10' and python_version >= '3.6'",
+            "markers": "python_version >= '3.6'",
             "version": "==0.36.0"
         },
         "marisa-trie-m": {
@@ -467,6 +467,13 @@
             ],
             "index": "pypi",
             "version": "==1.20.3"
+        },
+        "ordered-set": {
+            "hashes": [
+                "sha256:ba93b2df055bca202116ec44b9bead3df33ea63a7d5827ff8e16738b97f33a95"
+            ],
+            "markers": "python_version >= '3.5'",
+            "version": "==4.0.2"
         },
         "packaging": {
             "hashes": [
@@ -710,7 +717,6 @@
             "version": "==2021.4.4"
         },
         "requests": {
-            "extras": [],
             "hashes": [
                 "sha256:27973dd4a904a4f13b263a19c866c13b92a39ed1c964655f025f3f8d3d75b804",
                 "sha256:c210084e36a42ae6b9219e00e48287def368a26d03a048ddad7bfee44f75871e"
@@ -824,6 +830,12 @@
             "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
             "version": "==1.16.0"
         },
+        "sklearn": {
+            "hashes": [
+                "sha256:e23001573aa194b834122d2b9562459bf5ae494a2d59ca6b8aa22c85a44c0e31"
+            ],
+            "version": "==0.0"
+        },
         "soundfile": {
             "hashes": [
                 "sha256:2d17e0a6fc2af0d6c1d868bafa5ec80aae6e186a97fec8db07ad6af29842fbc7",
@@ -834,10 +846,23 @@
             ],
             "version": "==0.10.3.post1"
         },
+        "speech-dataset-parser": {
+            "git": "https://github.com/stefantaubert/speech-dataset-parser.git",
+            "ref": "144650033e4091e04ab372c3d7afabe4242892de"
+        },
+        "speech-dataset-preprocessing": {
+            "editable": true,
+            "git": "https://github.com/stefantaubert/speech-dataset-preprocessing.git",
+            "ref": "f4e214d521824b93c0309848f06d214a5a1852a6"
+        },
+        "text-selection": {
+            "git": "https://github.com/stefantaubert/text-selection.git",
+            "ref": "4ada7b4342e2925df7661485532ac01382a00c45"
+        },
         "text-utils": {
             "editable": true,
             "git": "https://github.com/stefantaubert/text-utils.git",
-            "ref": "08e10d4895a8af19c8856d32405589a58bf16e98"
+            "ref": "5becc2a59a75e513c3d49dbbf725b98c5f0b9103"
         },
         "threadpoolctl": {
             "hashes": [
@@ -880,6 +905,11 @@
             ],
             "index": "pypi",
             "version": "==4.61.0"
+        },
+        "tts-preparation": {
+            "editable": true,
+            "git": "https://github.com/stefantaubert/tts-preparation.git",
+            "ref": "24eb63f79d8ffb2f899bcd8cb9c1fa1c595508c7"
         },
         "typing-extensions": {
             "hashes": [
@@ -1207,7 +1237,6 @@
             "version": "==2021.4.4"
         },
         "requests": {
-            "extras": [],
             "hashes": [
                 "sha256:27973dd4a904a4f13b263a19c866c13b92a39ed1c964655f025f3f8d3d75b804",
                 "sha256:c210084e36a42ae6b9219e00e48287def368a26d03a048ddad7bfee44f75871e"
