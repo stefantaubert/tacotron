@@ -5,9 +5,9 @@ from typing import OrderedDict as OrderedDictType
 
 from tacotron.core.hparams import HParams
 from tacotron.core.model import get_speaker_weights, get_symbol_weights
-from tacotron.core.accent_symbols import get_accent_symbol_id
 from tacotron.globals import SHARED_SYMBOLS_COUNT
-from text_utils import SpeakersDict, SymbolIdDict, SymbolsMap
+from text_utils import (SpeakersDict, SymbolIdDict, SymbolsMap,
+                        get_accent_symbol_id)
 from torch import Tensor
 
 
