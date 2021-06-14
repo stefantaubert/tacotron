@@ -5,7 +5,7 @@ from typing import Dict, List, Tuple
 import torch
 from audio_utils.mel import TacotronSTFT
 from tacotron.core.hparams import HParams
-from tacotron.core.model_symbols import get_accent_symbol_ids
+from tacotron.core.accent_symbols import get_accent_symbol_ids
 from tacotron.globals import SHARED_SYMBOLS_COUNT
 from tacotron.utils import to_gpu
 from text_utils import deserialize_list

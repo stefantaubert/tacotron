@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 import numpy as np
 import torch
 from audio_utils.mel import mel_to_numpy
-from tacotron.core.model_symbols import get_accent_symbol_ids
+from tacotron.core.accent_symbols import get_accent_symbol_ids
 from tacotron.core.training import CheckpointTacotron, load_model
 from tacotron.globals import DEFAULT_PADDING_ACCENT, DEFAULT_PADDING_SYMBOL, SHARED_SYMBOLS_COUNT
 from tacotron.utils import (init_global_seeds, overwrite_custom_hparams,

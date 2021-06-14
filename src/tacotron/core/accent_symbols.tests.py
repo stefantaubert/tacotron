@@ -1,8 +1,8 @@
 import unittest
 
-from tacotron.core.model_symbols import (get_accent_symbol_id,
-                                         get_accent_symbols_count,
-                                         get_symbol_id)
+from tacotron.core.accent_symbols import (get_accent_symbol_id,
+                                          get_accent_symbols_count,
+                                          get_symbol_id)
 
 
 class UnitTests(unittest.TestCase):

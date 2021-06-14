@@ -4,7 +4,7 @@ from typing import Tuple
 import torch
 from tacotron.core.hparams import HParams
 from tacotron.core.layers import ConvNorm, LinearNorm
-from tacotron.core.model_symbols import get_accent_symbols_count
+from tacotron.core.accent_symbols import get_accent_symbols_count
 from tacotron.globals import SHARED_SYMBOLS_COUNT
 from tacotron.utils import (get_mask_from_lengths, get_uniform_weights,
                             get_xavier_weights, weights_to_embedding)
