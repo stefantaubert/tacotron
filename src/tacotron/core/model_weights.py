@@ -3,14 +3,12 @@ from logging import Logger
 from typing import Optional
 from typing import OrderedDict as OrderedDictType
 
-from torch import Tensor
-
-from text_utils import SpeakersDict
-from text_utils import SymbolIdDict
-from text_utils import SymbolsMap
 from tacotron.core.hparams import HParams
 from tacotron.core.model import get_speaker_weights, get_symbol_weights
-from tacotron.core.model_symbols import get_model_symbol_id
+from tacotron.core.model_symbols import get_accent_symbol_id
+from tacotron.globals import SHARED_SYMBOLS_COUNT
+from text_utils import SpeakersDict, SymbolIdDict, SymbolsMap
+from torch import Tensor
 
 
 def symbols_ids_map_to_model_symbols_ids_map(symbols_id_map: OrderedDictType[int, int], n_accents: int, n_symbols: int, accents_use_own_symbols: bool) -> OrderedDictType[int, int]:
@@ -19,11 +17,12 @@ def symbols_ids_map_to_model_symbols_ids_map(symbols_id_map: OrderedDictType[int
   for accent_id in range(n_accents):
     for map_to_symbol_id, map_from_symbol_id in symbols_id_map.items():
 
-      map_to_model_id = get_model_symbol_id(
+      map_to_model_id = get_accent_symbol_id(
         map_to_symbol_id,
         accent_id,
         n_symbols,
-        accents_use_own_symbols
+        accents_use_own_symbols,
+        SHARED_SYMBOLS_COUNT
       )
 
       res[map_to_model_id] = map_from_symbol_id

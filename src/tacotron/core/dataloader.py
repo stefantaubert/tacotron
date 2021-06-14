@@ -5,7 +5,8 @@ from typing import Dict, List, Tuple
 import torch
 from audio_utils.mel import TacotronSTFT
 from tacotron.core.hparams import HParams
-from tacotron.core.model_symbols import get_model_symbol_ids
+from tacotron.core.model_symbols import get_accent_symbol_ids
+from tacotron.globals import SHARED_SYMBOLS_COUNT
 from tacotron.utils import to_gpu
 from text_utils import deserialize_list
 from torch import (FloatTensor, IntTensor,  # pylint: disable=no-name-in-module
@@ -35,8 +36,8 @@ class SymbolsMelLoader(Dataset):
       symbol_ids = deserialize_list(values.serialized_symbol_ids)
       accent_ids = deserialize_list(values.serialized_accent_ids)
 
-      model_symbol_ids = get_model_symbol_ids(
-        symbol_ids, accent_ids, hparams.n_symbols, hparams.accents_use_own_symbols)
+      model_symbol_ids = get_accent_symbol_ids(
+        symbol_ids, accent_ids, hparams.n_symbols, hparams.accents_use_own_symbols, SHARED_SYMBOLS_COUNT)
 
       symbols_tensor = IntTensor(model_symbol_ids)
       accents_tensor = IntTensor(accent_ids)

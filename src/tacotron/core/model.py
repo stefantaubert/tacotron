@@ -4,7 +4,8 @@ from typing import Tuple
 import torch
 from tacotron.core.hparams import HParams
 from tacotron.core.layers import ConvNorm, LinearNorm
-from tacotron.core.model_symbols import get_model_symbols_count
+from tacotron.core.model_symbols import get_accent_symbols_count
+from tacotron.globals import SHARED_SYMBOLS_COUNT
 from tacotron.utils import (get_mask_from_lengths, get_uniform_weights,
                             get_xavier_weights, weights_to_embedding)
 from torch import nn
@@ -524,10 +525,11 @@ def get_speaker_weights(hparams: HParams) -> torch.Tensor:
 
 
 def get_symbol_weights(hparams: HParams) -> torch.Tensor:
-  model_symbols_count = get_model_symbols_count(
+  model_symbols_count = get_accent_symbols_count(
     hparams.n_symbols,
     hparams.n_accents,
-    hparams.accents_use_own_symbols
+    hparams.accents_use_own_symbols,
+    SHARED_SYMBOLS_COUNT
   )
 
   model_weights = get_uniform_weights(model_symbols_count, hparams.symbols_embedding_dim)
@@ -538,10 +540,11 @@ class Tacotron2(nn.Module):
   def __init__(self, hparams: HParams, logger: Logger):
     super(Tacotron2, self).__init__()
     self.use_speaker_embedding = hparams.use_speaker_embedding
-    model_symbols_count = get_model_symbols_count(
+    model_symbols_count = get_accent_symbols_count(
       hparams.n_symbols,
       hparams.n_accents,
-      hparams.accents_use_own_symbols
+      hparams.accents_use_own_symbols,
+      SHARED_SYMBOLS_COUNT
     )
 
     if hparams.accents_use_own_symbols:

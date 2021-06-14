@@ -6,9 +6,9 @@ from typing import Dict, List, Optional
 import numpy as np
 import torch
 from audio_utils.mel import mel_to_numpy
-from tacotron.core.model_symbols import get_model_symbol_ids
+from tacotron.core.model_symbols import get_accent_symbol_ids
 from tacotron.core.training import CheckpointTacotron, load_model
-from tacotron.globals import DEFAULT_PADDING_ACCENT, DEFAULT_PADDING_SYMBOL
+from tacotron.globals import DEFAULT_PADDING_ACCENT, DEFAULT_PADDING_SYMBOL, SHARED_SYMBOLS_COUNT
 from tacotron.utils import (init_global_seeds, overwrite_custom_hparams,
                             pass_lines)
 from tts_preparation import InferSentence, InferSentenceList
@@ -52,8 +52,8 @@ class Synthesizer():
     return self.hparams.sampling_rate
 
   def _get_model_symbols_tensor(self, symbol_ids: List[int], accent_ids: List[int]) -> torch.LongTensor:
-    model_symbol_ids = get_model_symbol_ids(
-      symbol_ids, accent_ids, self.hparams.n_symbols, self.hparams.accents_use_own_symbols)
+    model_symbol_ids = get_accent_symbol_ids(
+      symbol_ids, accent_ids, self.hparams.n_symbols, self.hparams.accents_use_own_symbols, SHARED_SYMBOLS_COUNT)
     #self._logger.debug(f"Symbol ids:\n{symbol_ids}")
     #self._logger.debug(f"Model symbol ids:\n{model_symbol_ids}")
     symbols_tensor = np.array([model_symbol_ids])
