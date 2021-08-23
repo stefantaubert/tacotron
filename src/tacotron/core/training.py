@@ -27,6 +27,10 @@ from tacotron.utils import (SaveIterationSettings, check_save_it,
 from text_utils import AccentsDict, SpeakersDict, SymbolIdDict, SymbolsMap
 from torch import nn
 from torch.nn import Parameter
+from torch.nn.utils.clip_grad import clip_grad_norm_
+from torch.optim.adam import Adam
+from torch.optim.lr_scheduler import ExponentialLR
+from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from tts_preparation import PreparedDataList
@@ -159,7 +163,7 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
   init_global_seeds(hparams.seed)
   init_torch(hparams)
 
-  model, optimizer = load_model_and_optimizer(
+  model, optimizer, scheduler = load_model_and_optimizer_and_scheduler(
     hparams=hparams,
     checkpoint=checkpoint,
     logger=logger,
@@ -218,7 +222,7 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
   batch_iterations = len(train_loader)
   enough_traindata = batch_iterations > 0
   if not enough_traindata:
-    msg = "Not enough trainingdata."
+    msg = "Not enough training data!"
     logger.error(msg)
     raise Exception(msg)
 
@@ -226,7 +230,7 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
     epochs=hparams.epochs,
     iterations=hparams.iterations,
     batch_iterations=batch_iterations,
-    save_first_iteration=True,
+    save_first_iteration=hparams.save_first_iteration,
     save_last_iteration=True,
     iters_per_checkpoint=hparams.iters_per_checkpoint,
     epochs_per_checkpoint=hparams.epochs_per_checkpoint
@@ -242,7 +246,10 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
   start = train_start
   model.train()
   continue_epoch = get_continue_epoch(iteration, batch_iterations)
+
   for epoch in range(continue_epoch, last_epoch_one_based):
+    current_lr = get_lr(optimizer)
+    logger.info(f"The learning rate for epoch {epoch + 1} is: {current_lr}")
     # logger.debug("==new epoch==")
     next_batch_iteration = get_continue_batch_iteration(iteration, batch_iterations)
     skip_bar = None
@@ -260,7 +267,7 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
       if need_to_skip_batch:
         assert skip_bar is not None
         skip_bar.update(1)
-        #debug_logger.debug(f"Skipped batch {batch_iteration + 1}/{next_batch_iteration + 1}.")
+        # debug_logger.debug(f"Skipped batch {batch_iteration + 1}/{next_batch_iteration + 1}.")
         continue
       # debug_logger.debug(f"Current batch: {batch[0][0]}")
 
@@ -275,9 +282,10 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
 
       loss.backward()
 
-      grad_norm = torch.nn.utils.clip_grad_norm_(
+      grad_norm = clip_grad_norm_(
         parameters=model.parameters(),
-        max_norm=hparams.grad_clip_thresh
+        max_norm=hparams.grad_clip_thresh,
+        norm_type=2.0,
       )
 
       optimizer.step()
@@ -306,7 +314,7 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
         f"Utts.: {iteration * hparams.batch_size}",
         f"Loss: {reduced_loss:.6f}",
         f"Grad norm: {grad_norm:.6f}",
-        #f"Dur.: {duration:.2f}s/it",
+        # f"Dur.: {duration:.2f}s/it",
         f"Avg. dur.: {avg_batch_dur:.2f}s/it & {avg_epoch_dur / 60:.0f}m/epoch",
         f"Tot. dur.: {(time.perf_counter() - train_start) / 60 / 60:.2f}h/{estimated_remaining_duration / 60 / 60:.0f}h ({estimated_remaining_duration / 60 / 60 / 24:.1f}days)",
         f"Next ckp.: {next_checkpoint_save_time / 60:.0f}m",
@@ -314,6 +322,17 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
 
       taco_logger.log_training(reduced_loss, grad_norm, hparams.learning_rate,
                                duration, iteration)
+      was_last_batch_in_epoch = batch_iteration + 1 == len(train_loader)
+
+      if was_last_batch_in_epoch and scheduler is not None:
+        # TODO is not on the logical optimal position. should be done after saving and then after loading (but only if saving was done after the last batch iteration)!
+        adjust_lr(
+          hparams=hparams,
+          optimizer=optimizer,
+          epoch=epoch,
+          scheduler=scheduler,
+          logger=logger,
+        )
 
       save_it = check_save_it(epoch, iteration, save_it_settings)
       if save_it:
@@ -324,7 +343,8 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
           iteration=iteration,
           symbols=symbols,
           accents=accents,
-          speakers=speakers
+          speakers=speakers,
+          scheduler=scheduler,
         )
 
         save_callback(checkpoint)
@@ -351,7 +371,40 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
   logger.info(f'Finished training. Total duration: {duration_s / 60:.2f}m')
 
 
-def load_model(hparams: HParams, state_dict: Optional[dict], logger: logging.Logger):
+def adjust_lr(hparams, optimizer, epoch, scheduler, logger) -> None:
+  assert hparams.lr_decay_start_after_epoch is not None
+  assert hparams.lr_decay_start_after_epoch >= 1
+  assert hparams.lr_decay_min is not None
+  assert 0 < hparams.lr_decay_min <= hparams.learning_rate
+
+  decrease_lr = epoch + 1 >= hparams.lr_decay_start_after_epoch
+  if decrease_lr:
+    new_lr_would_be_too_small = scheduler.get_lr()[0] < hparams.lr_decay_min
+    if new_lr_would_be_too_small:
+      if get_lr(optimizer) != hparams.lr_decay_min:
+        set_lr(optimizer, hparams.lr_decay_min)
+        logger.info(f"Reached closest value to min_lr {hparams.lr_decay_min}")
+    else:
+      scheduler.step()
+
+  #logger.info(f"After adj: Epoch: {epoch + 1}, Current LR: {get_lr(optimizer)}, Scheduler next LR would be: {scheduler.get_lr()[0]}")
+
+
+def get_lr(optimizer: Optimizer) -> float:
+  vals = []
+  for g in optimizer.param_groups:
+    vals.append(g['lr'])
+  divergend_lrs = set(vals)
+  assert len(divergend_lrs) == 1
+  return divergend_lrs.pop()
+
+
+def set_lr(optimizer: Optimizer, lr: float) -> None:
+  for g in optimizer.param_groups:
+    g['lr'] = lr
+
+
+def load_model(hparams: HParams, state_dict: Optional[Dict], logger: logging.Logger):
   model = Tacotron2(hparams, logger).cuda()
   if state_dict is not None:
     model.load_state_dict(state_dict)
@@ -359,11 +412,14 @@ def load_model(hparams: HParams, state_dict: Optional[dict], logger: logging.Log
   return model
 
 
-def load_optimizer(model_parameters: Iterator[Parameter], hparams: OptimizerHParams, state_dict: Optional[dict]) -> torch.optim.Adam:
-  optimizer = torch.optim.Adam(
+def load_optimizer(model_parameters: Iterator[Parameter], hparams: OptimizerHParams, state_dict: Optional[Dict]) -> Adam:
+  optimizer = Adam(
     params=model_parameters,
     lr=hparams.learning_rate,
+    betas=(hparams.beta1, hparams.beta2),
+    eps=hparams.eps,
     weight_decay=hparams.weight_decay,
+    amsgrad=hparams.amsgrad,
   )
 
   if state_dict is not None:
@@ -372,20 +428,62 @@ def load_optimizer(model_parameters: Iterator[Parameter], hparams: OptimizerHPar
   return optimizer
 
 
-def load_model_and_optimizer(hparams: HParams, checkpoint: Optional[Checkpoint], logger: Logger):
+def load_scheduler(optimizer: Adam, hparams: OptimizerHParams, state_dict: Optional[Dict]) -> ExponentialLR:
+  scheduler: ExponentialLR
+  if state_dict is not None:
+    scheduler = ExponentialLR(
+      optimizer=optimizer,
+      gamma=state_dict["gamma"],
+      last_epoch=state_dict["last_epoch"],
+      verbose=state_dict["verbose"],
+    )
+    scheduler.load_state_dict(state_dict)
+  else:
+    assert hparams.lr_decay_gamma is not None
+
+    scheduler = ExponentialLR(
+      optimizer=optimizer,
+      gamma=hparams.lr_decay_gamma,
+      last_epoch=-1,
+      verbose=True,
+    )
+
+  return scheduler
+
+
+def load_model_and_optimizer_and_scheduler(hparams: HParams, checkpoint: Optional[Checkpoint], logger: Logger) -> Tuple[Tacotron2, Adam, Optional[ExponentialLR]]:
   model = load_model(
     hparams=hparams,
     logger=logger,
-    state_dict=checkpoint.state_dict if checkpoint is not None else None,
+    #state_dict=checkpoint.state_dict if checkpoint is not None else None,
+    state_dict=None,
   )
 
   optimizer = load_optimizer(
     model_parameters=model.parameters(),
     hparams=hparams,
-    state_dict=checkpoint.optimizer if checkpoint is not None else None
+    #state_dict=checkpoint.optimizer if checkpoint is not None else None
+    state_dict=None,
   )
 
-  return model, optimizer
+  scheduler = None
+
+  if hparams.use_exponential_lr_decay:
+    scheduler = load_scheduler(
+      optimizer=optimizer,
+      hparams=hparams,
+      #state_dict=checkpoint.scheduler_state_dict if checkpoint is not None else None
+        state_dict=None,
+    )
+
+  if checkpoint is not None:
+    model.load_state_dict(checkpoint.state_dict)
+    optimizer.load_state_dict(checkpoint.optimizer)
+
+    if hparams.use_exponential_lr_decay:
+      scheduler.load_state_dict(checkpoint.scheduler_state_dict)
+
+  return model, optimizer, scheduler
 
 
 def warm_start_model(model: nn.Module, warm_model: CheckpointTacotron, hparams: HParams, logger: Logger):

@@ -1,7 +1,7 @@
 import os
 from dataclasses import asdict, dataclass
 from logging import Logger
-from typing import Optional, Type, TypeVar
+from typing import Any, Dict, Optional, Type, TypeVar
 
 import torch
 
@@ -13,11 +13,15 @@ _HParamsType = TypeVar("_HParamsType")
 @dataclass
 class Checkpoint():
   # Renaming of any of these fields will destroy previous models!
-  state_dict: dict
-  optimizer: dict
+  ## TODO rename to model_state_dict
+  state_dict: Dict[str, Any]
+  ## TODO rename to optimizer_state_dict
+  optimizer: Dict[str, Any]
+  ## TODO remove
   learning_rate: float
   iteration: int
-  hparams: dict
+  hparams: Dict[str, Any]
+  scheduler_state_dict: Optional[Dict[str, Any]]
 
   def get_hparams(self, logger: Logger, hparam_type: Type[_HParamsType]) -> _HParamsType:
     res, ignored = get_dataclass_from_dict(self.hparams, hparam_type)
@@ -37,9 +41,12 @@ class Checkpoint():
     assert os.path.isfile(checkpoint_path)
     logger.info(f"Loading model '{checkpoint_path}'...")
     checkpoint_dict = torch.load(checkpoint_path, map_location='cpu')
+    if "scheduler_state_dict" not in checkpoint_dict:
+      checkpoint_dict["scheduler_state_dict"] = None
     result = cls(**checkpoint_dict)
     logger.info(f"Loaded model at iteration {result.iteration}.")
     return result
+
 
 def get_iteration(checkpoint: Optional[Checkpoint]) -> int:
   return checkpoint.iteration if checkpoint is not None else 0

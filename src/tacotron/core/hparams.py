@@ -15,6 +15,7 @@ class ExperimentHParams():
   seed: int = 1234
   cudnn_enabled: bool = True
   cudnn_benchmark: bool = False
+  save_first_iteration: bool = True
   ignore_layers: List[str] = field(default_factory=list)
 
 
@@ -65,12 +66,34 @@ class ModelHParams():
 @dataclass
 class OptimizerHParams():
   use_saved_learning_rate: bool = False
-  learning_rate: float = 1e-3
-  weight_decay: float = 1e-6
+  learning_rate: float = 1e-03
   grad_clip_thresh: float = 1.0
   batch_size: int = 64
+
   # set model's padded outputs to padded values
   mask_padding: bool = True
+
+  # coefficients used for computing running averages of gradient and its square
+  beta1: float = 0.9
+  beta2: float = 0.999
+
+  # term added to the denominator to improve numerical stability
+  eps: float = 1e-08
+
+  # L2 penalty (L2 regularization)
+  weight_decay: float = 1e-06
+
+  # whether to use the AMSGrad variant of adam from the paper "On the Convergence of Adam and Beyond"
+  amsgrad: bool = False
+
+  use_exponential_lr_decay: bool = False
+
+  # One-based epoch after which the LR decaying is started, i.e., int in range [1, epochs)
+  lr_decay_start_after_epoch: Optional[int] = 250
+  lr_decay_gamma: Optional[float] = 0.97
+
+  # is in range (0, learning_rate]
+  lr_decay_min: Optional[float] = 1e-05
 
 
 @dataclass
