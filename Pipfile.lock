@@ -25,7 +25,7 @@
         },
         "accent-analyser": {
             "git": "https://github.com/stefantaubert/accent-analyser.git",
-            "ref": "95a33853e7150a2622f96e30405dae0d27adb11f"
+            "ref": "281866d78202b99f5b687ef072b03eb16f326541"
         },
         "appdirs": {
             "hashes": [
@@ -37,7 +37,7 @@
         "audio-utils": {
             "editable": true,
             "git": "https://github.com/stefantaubert/audio-utils.git",
-            "ref": "cc9936845940e26b366f9d731e4eaa3d6485429d"
+            "ref": "ecf916a39cbe376bfbb1075f4d876965a0dddfc9"
         },
         "audioread": {
             "hashes": [
@@ -128,7 +128,7 @@
         },
         "cmudict-parser": {
             "git": "https://github.com/stefantaubert/cmudict-parser.git",
-            "ref": "fe83d5e5cba490e67d346fd23ef7d7c30c5d6dbf"
+            "ref": "8711962fa89433b3cbc7fd31c36cd4023dbb6bf0"
         },
         "cycler": {
             "hashes": [
@@ -290,7 +290,7 @@
         "image-utils": {
             "editable": true,
             "git": "https://github.com/stefantaubert/image-utils.git",
-            "ref": "d5278055c53abf6885d101548e231d17f0f1b1cc"
+            "ref": "afc405d20c1cfd7ec5686ab1ff1fafde0edf5bc5"
         },
         "imageio": {
             "hashes": [
@@ -672,11 +672,11 @@
         },
         "pooch": {
             "hashes": [
-                "sha256:54c9321a1cab8cd056ced497649eac69891066038319b31bebf13ec8ac79862b",
-                "sha256:9eaf36caccb78fbf1fd42acbeda9890b81de4d7e5823686ba49dc3010c21e1cf"
+                "sha256:0548f1875de9aef22bef328388dd5e7e1df3985c5e5f575737327cb9a2f430b5",
+                "sha256:57ab0c43e9c5bd81227b08b9931435d71c118cd53339cc5925123a740f40b312"
             ],
             "markers": "python_version >= '3.6'",
-            "version": "==1.5.0"
+            "version": "==1.5.1"
         },
         "protobuf": {
             "hashes": [
@@ -1039,12 +1039,12 @@
         },
         "speech-dataset-parser": {
             "git": "https://github.com/stefantaubert/speech-dataset-parser.git",
-            "ref": "0b0039029088db58dd339a3571b176d8b7313a74"
+            "ref": "b21a695a923fa1beee7204f0ab649eb72cc73b12"
         },
         "speech-dataset-preprocessing": {
             "editable": true,
             "git": "https://github.com/stefantaubert/speech-dataset-preprocessing.git",
-            "ref": "0897d9d1705831633f959d9bb34dd4ea87f02e1c"
+            "ref": "8ac614643d1af8a490abf4ddf2ec765d4a7a1a1a"
         },
         "tenacity": {
             "hashes": [
@@ -1079,12 +1079,12 @@
         "text-selection": {
             "editable": true,
             "git": "https://github.com/stefantaubert/text-selection.git",
-            "ref": "2687933b74fc91fbb466be9958ed995032b7e23d"
+            "ref": "72f78dbfb07315c407aa2c7b66d82ab1cd54820f"
         },
         "text-utils": {
             "editable": true,
             "git": "https://github.com/stefantaubert/text-utils.git",
-            "ref": "39bc3d5f580f6ece261d472824db88f4f24fd3ed"
+            "ref": "46c49f94fa188bbe73b90e71ff9f05a7b10c0f51"
         },
         "threadpoolctl": {
             "hashes": [
@@ -1131,7 +1131,7 @@
         "tts-preparation": {
             "editable": true,
             "git": "https://github.com/stefantaubert/tts-preparation.git",
-            "ref": "ffd4049fd5e02c652c4f412e835a580e4efb1039"
+            "ref": "2d9822da8c88ed032b033d7e04ff7f7867b09e20"
         },
         "typing-extensions": {
             "hashes": [
