@@ -1131,7 +1131,7 @@
         "tts-preparation": {
             "editable": true,
             "git": "https://github.com/stefantaubert/tts-preparation.git",
-            "ref": "2d9822da8c88ed032b033d7e04ff7f7867b09e20"
+            "ref": "b357f27d10ff5c8f1939168fe3e502d1d71d77bd"
         },
         "typing-extensions": {
             "hashes": [
