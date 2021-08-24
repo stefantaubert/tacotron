@@ -13,11 +13,11 @@ _HParamsType = TypeVar("_HParamsType")
 @dataclass
 class Checkpoint():
   # Renaming of any of these fields will destroy previous models!
-  ## TODO rename to model_state_dict
+  # TODO rename to model_state_dict
   state_dict: Dict[str, Any]
-  ## TODO rename to optimizer_state_dict
+  # TODO rename to optimizer_state_dict
   optimizer: Dict[str, Any]
-  ## TODO remove
+  # TODO remove
   learning_rate: float
   iteration: int
   hparams: Dict[str, Any]

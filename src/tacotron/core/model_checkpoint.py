@@ -5,16 +5,15 @@ from typing import Dict, Optional
 from typing import OrderedDict as OrderedDictType
 
 import torch
-from torch.optim.lr_scheduler import ExponentialLR
 from tacotron.checkpoint import Checkpoint
-from tacotron.utils import (get_pytorch_filename,
-                            overwrite_custom_hparams)
 from tacotron.core.hparams import HParams
 from tacotron.core.model import (SPEAKER_EMBEDDING_LAYER_NAME,
                                  SYMBOL_EMBEDDING_LAYER_NAME, Tacotron2)
+from tacotron.utils import get_pytorch_filename, overwrite_custom_hparams
 from text_utils import AccentsDict, SpeakersDict, SymbolIdDict
 from torch import Tensor
 from torch.optim.adam import Adam  # pylint: disable=no-name-in-module
+from torch.optim.lr_scheduler import ExponentialLR
 
 
 @dataclass
@@ -25,7 +24,7 @@ class CheckpointTacotron(Checkpoint):
   accents: OrderedDictType[str, int]
 
   @classmethod
-  def from_instances(cls, model: Tacotron2, optimizer: Adam, hparams: HParams, iteration: int, symbols: SymbolIdDict, accents: AccentsDict, speakers: SpeakersDict, scheduler: ExponentialLR):
+  def from_instances(cls, model: Tacotron2, optimizer: Adam, hparams: HParams, iteration: int, symbols: SymbolIdDict, accents: AccentsDict, speakers: SpeakersDict, scheduler: Optional[ExponentialLR]):
     result = cls(
       state_dict=model.state_dict(),
       optimizer=optimizer.state_dict(),
@@ -35,7 +34,7 @@ class CheckpointTacotron(Checkpoint):
       symbols=symbols.raw(),
       accents=accents.raw(),
       speakers=speakers.raw(),
-      scheduler_state_dict=scheduler.state_dict(),
+      scheduler_state_dict=scheduler.state_dict() if scheduler else None,
     )
     return result
 
