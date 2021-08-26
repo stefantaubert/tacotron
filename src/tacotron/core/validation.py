@@ -7,7 +7,10 @@ from typing import Callable, Dict, List, Optional
 from typing import OrderedDict as OrderedDictType
 from typing import Set, Tuple
 
+import automatic_speech_recognition as asr
 import imageio
+import jiwer
+import jiwer.transforms as tr
 import numpy as np
 import pandas as pd
 from audio_utils.mel import (TacotronSTFT, align_mels_with_dtw, get_msd,
@@ -69,6 +72,10 @@ class ValidationEntry():
   mfcc_dtw_penalty: float
   mfcc_dtw_frames: int
   msd: float
+  wer: float
+  mer: float
+  wil: float
+  wip: float
   train_one_gram_rarity: float
   global_one_gram_rarity: float
   train_two_gram_rarity: float
@@ -165,6 +172,10 @@ def get_best_seeds(select_best_from: pd.DataFrame, entry_ids: OrderedSet[int], i
   return result
 
 
+def wav_to_text(wav: np.ndarray) -> str:
+  return ""
+
+
 def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: PreparedDataList, custom_hparams: Optional[Dict[str, str]], entry_ids: Optional[Set[int]], speaker_name: Optional[str], train_name: str, full_run: bool, save_callback: Optional[Callable[[PreparedData, ValidationEntryOutput], None]], max_decoder_steps: int, fast: bool, mcd_no_of_coeffs_per_frame: int, repetitions: int, seed: Optional[int], select_best_from: Optional[pd.DataFrame], logger: Logger) -> ValidationEntries:
   model_symbols = checkpoint.get_symbols()
   model_accents = checkpoint.get_accents()
@@ -237,6 +248,19 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
   taco_stft = TacotronSTFT(synth.hparams, logger=logger)
   validation_entries = ValidationEntries()
 
+  jiwer_ground_truth_transform = tr.Compose([
+    tr.ToLowerCase(),
+    tr.SentencesToListOfWords(),
+  ])
+
+  jiwer_inferred_asr_transform = tr.Compose([
+    tr.ToLowerCase(),
+    tr.SentencesToListOfWords(),
+  ])
+
+  #asr_pipeline = asr.load('deepspeech2', lang='en')
+  # asr_pipeline.model.summary()
+
   for repetition in range(repetitions):
     # rep_seed = seed + repetition
     rep_human_readable = repetition + 1
@@ -300,6 +324,22 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
 
       padded_structural_similarity = None
       aligned_structural_similarity = None
+
+      ground_truth = entry.text_original
+      #hypothesis = asr_pipeline.predict([inference_result.mel_outputs_postnet])[0]
+      hypothesis = ""
+
+      measures = jiwer.compute_measures(
+        truth=ground_truth,
+        truth_transform=jiwer_ground_truth_transform,
+        hypothesis=hypothesis,
+        hypothesis_transform=jiwer_inferred_asr_transform,
+      )
+
+      wer = measures['wer']
+      mer = measures['mer']
+      wil = measures['wil']
+      wip = measures['wip']
 
       if not fast:
         padded_mel_orig_img_raw_1, padded_mel_orig_img = plot_melspec_np(
@@ -368,6 +408,10 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
         padded_structural_similarity=padded_structural_similarity,
         padded_mse=padded_mse,
         msd=msd,
+        wer=wer,
+        mer=mer,
+        wil=wil,
+        wip=wip,
         aligned_cosine_similarity=aligned_cosine_similarity,
         aligned_mse=aligned_mse,
         aligned_structural_similarity=aligned_structural_similarity,
