@@ -24,6 +24,7 @@ numpy = "*"
 scikit-learn = "*"
 scipy = "*"
 tensorboard = "*"
+automatic-speech-recognition = "*"
 text_utils = {editable = true, ref = "master", git = "https://github.com/stefantaubert/text-utils.git"}
 text_selection = {editable = true, ref = "master", git = "https://github.com/stefantaubert/text-selection.git"}
 audio_utils = {editable = true, ref = "master", git = "https://github.com/stefantaubert/audio-utils.git"}
@@ -32,7 +33,6 @@ speech-dataset-preprocessing = {editable = true, ref = "master", git = "https://
 tts-preparation = {editable = true, ref = "master", git = "https://github.com/stefantaubert/tts-preparation.git"}
 mcd = {editable = true, ref = "main", git = "https://github.com/jasminsternkopf/mel_cepstral_distance.git"}
 jiwer = "*"
-automatic-speech-recognition = "*"
 
 [requires]
 python_version = "3.8"
