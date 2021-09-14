@@ -1,5 +1,6 @@
 import datetime
 import os
+from pathlib import Path
 from shutil import copyfile
 from typing import Any, Dict, Optional, Tuple
 
@@ -13,7 +14,7 @@ from tacotron.utils import (get_parent_dirname, get_subdir, parse_json,
 from tts_preparation import PreparedData
 
 
-def get_train_dir(base_dir: str, train_name: str, create: bool):
+def get_train_dir(base_dir: Path, train_name: str, create: bool):
   return get_subdir(base_dir, train_name, create)
 
 
@@ -24,23 +25,23 @@ def get_train_dir(base_dir: str, train_name: str, create: bool):
 _settings_json = "settings.json"
 
 
-def get_train_root_dir(base_dir: str, model_name: str, create: bool):
+def get_train_root_dir(base_dir: Path, model_name: str, create: bool) -> Path:
   return get_subdir(base_dir, model_name, create)
 
 
-def get_train_logs_dir(train_dir: str):
+def get_train_logs_dir(train_dir: Path) -> Path:
   return get_subdir(train_dir, "logs", create=True)
 
 
-def get_train_log_file(logs_dir: str):
-  return os.path.join(logs_dir, "log.txt")
+def get_train_log_file(logs_dir: Path) -> Path:
+  return Path(os.path.join(logs_dir, "log.txt"))
 
 
-def get_train_checkpoints_log_file(logs_dir: str):
+def get_train_checkpoints_log_file(logs_dir: Path) -> Path:
   return os.path.join(logs_dir, "log_checkpoints.txt")
 
 
-def get_checkpoints_dir(train_dir: str):
+def get_checkpoints_dir(train_dir: Path) -> Path:
   return get_subdir(train_dir, "checkpoints", create=True)
 
 
@@ -74,15 +75,15 @@ def get_checkpoints_dir(train_dir: str):
 #   return PreparedDataList.load(PreparedData, path)
 
 
-def load_prep_settings(train_dir: str) -> Tuple[str, str, str]:
+def load_prep_settings(train_dir: Path) -> Tuple[Path, str, str]:
   path = os.path.join(train_dir, _settings_json)
   res = parse_json(path)
-  return res["ttsp_dir"], res["merge_name"], res["prep_name"]
+  return Path(res["ttsp_dir"]), res["merge_name"], res["prep_name"]
 
 
-def save_prep_settings(train_dir: str, ttsp_dir: str, merge_name: Optional[str], prep_name: Optional[str]):
+def save_prep_settings(train_dir: Path, ttsp_dir: Path, merge_name: Optional[str], prep_name: Optional[str]) -> None:
   settings = {
-    "ttsp_dir": ttsp_dir,
+    "ttsp_dir": str(ttsp_dir),
     "merge_name": merge_name,
     "prep_name": prep_name,
   }
@@ -90,20 +91,20 @@ def save_prep_settings(train_dir: str, ttsp_dir: str, merge_name: Optional[str],
   save_json(path, settings)
 
 
-def get_mel_info_dict(identifier: int, path: str, sr: int) -> Dict[str, Any]:
+def get_mel_info_dict(identifier: int, path: Path, sr: int) -> Dict[str, Any]:
   mel_info = {
     "id": identifier,
-    "path": path,
+    "path": str(path),
     "sr": sr,
   }
 
   return mel_info
 
 
-def get_mel_out_dict(name: str, root_dir: str, mel_info_dict: Dict[str, Any]) -> Dict[str, Any]:
+def get_mel_out_dict(name: str, root_dir: Path, mel_info_dict: Dict[str, Any]) -> Dict[str, Any]:
   info_json = {
     "name": name,
-    "root_dir": root_dir,
+    "root_dir": str(root_dir),
     "mels": mel_info_dict,
   }
 
@@ -124,20 +125,20 @@ def get_mel_out_dict(name: str, root_dir: str, mel_info_dict: Dict[str, Any]) ->
 # region Inference
 
 
-def get_inference_root_dir(train_dir: str):
+def get_inference_root_dir(train_dir: Path) -> Path:
   return get_subdir(train_dir, "inference", create=True)
 
 
-def get_infer_log(infer_dir: str):
+def get_infer_log(infer_dir: Path) -> Path:
   return os.path.join(infer_dir, f"{get_parent_dirname(infer_dir)}.txt")
 
 
-def save_infer_wav(infer_dir: str, sampling_rate: int, wav: np.ndarray):
+def save_infer_wav(infer_dir: Path, sampling_rate: int, wav: np.ndarray) -> None:
   path = os.path.join(infer_dir, f"{get_parent_dirname(infer_dir)}.wav")
   float_to_wav(wav, path, sample_rate=sampling_rate)
 
 
-def save_infer_plot(infer_dir: str, mel: np.ndarray):
+def save_infer_plot(infer_dir: Path, mel: np.ndarray) -> Path:
   plot_melspec(mel, title=get_parent_dirname(infer_dir))
   path = os.path.join(infer_dir, f"{get_parent_dirname(infer_dir)}.png")
   plt.savefig(path, bbox_inches='tight')
@@ -149,16 +150,16 @@ def save_infer_plot(infer_dir: str, mel: np.ndarray):
 # region Validation
 
 
-def _get_validation_root_dir(train_dir: str):
+def _get_validation_root_dir(train_dir: Path) -> Path:
   return get_subdir(train_dir, "validation", create=True)
 
 
-def get_val_dir(train_dir: str, entry: PreparedData, iteration: int):
+def get_val_dir(train_dir: Path, entry: PreparedData, iteration: int) -> Path:
   subdir_name = f"{datetime.datetime.now():%Y-%m-%d,%H-%M-%S},id={entry.entry_id},speaker={entry.speaker_id},it={iteration}"
   return get_subdir(_get_validation_root_dir(train_dir), subdir_name, create=True)
 
 
-def save_val_plot(val_dir: str, mel):
+def save_val_plot(val_dir: Path, mel) -> None:
   parent_dir = get_parent_dirname(val_dir)
   plot_melspec(mel, title=parent_dir)
   path = os.path.join(val_dir, f"{parent_dir}.png")
@@ -166,7 +167,7 @@ def save_val_plot(val_dir: str, mel):
   plt.close()
 
 
-def save_val_orig_plot(val_dir: str, mel):
+def save_val_orig_plot(val_dir: Path, mel) -> None:
   parent_dir = get_parent_dirname(val_dir)
   plot_melspec(mel, title=parent_dir)
   path = os.path.join(val_dir, f"{parent_dir}_orig.png")
@@ -174,7 +175,7 @@ def save_val_orig_plot(val_dir: str, mel):
   plt.close()
 
 
-def save_val_comparison(val_dir: str):
+def save_val_comparison(val_dir: Path) -> None:
   parent_dir = get_parent_dirname(val_dir)
   path1 = os.path.join(val_dir, f"{parent_dir}_orig.png")
   path2 = os.path.join(val_dir, f"{parent_dir}.png")
@@ -184,28 +185,28 @@ def save_val_comparison(val_dir: str):
   stack_images_vertically([path1, path2], path)
 
 
-def get_val_wav_path(val_dir: str):
+def get_val_wav_path(val_dir: Path) -> Path:
   path = os.path.join(val_dir, f"{get_parent_dirname(val_dir)}.wav")
   return path
 
 
-def save_val_wav(val_dir: str, sampling_rate: int, wav) -> str:
+def save_val_wav(val_dir: Path, sampling_rate: int, wav) -> Path:
   path = get_val_wav_path(val_dir)
   float_to_wav(wav, path, sample_rate=sampling_rate)
   return path
 
 
-def get_val_orig_wav_path(val_dir: str):
+def get_val_orig_wav_path(val_dir: Path) -> Path:
   path = os.path.join(val_dir, f"{get_parent_dirname(val_dir)}_orig.wav")
   return path
 
 
-def save_val_orig_wav(val_dir: str, wav_path: str):
+def save_val_orig_wav(val_dir: Path, wav_path: Path) -> None:
   path = get_val_orig_wav_path(val_dir)
   copyfile(wav_path, path)
 
 
-def get_val_log(val_dir: str):
+def get_val_log(val_dir: Path) -> Path:
   return os.path.join(val_dir, f"{get_parent_dirname(val_dir)}.txt")
 
 # endregion

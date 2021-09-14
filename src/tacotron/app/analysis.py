@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Optional
 
 import pandas as pd
@@ -10,26 +11,26 @@ from tacotron.utils import (get_custom_or_last_checkpoint, get_subdir,
                             prepare_logger, save_df)
 
 
-def get_analysis_root_dir(train_dir: str):
+def get_analysis_root_dir(train_dir: Path) -> Path:
   return get_subdir(train_dir, "analysis", create=True)
 
 
-def _save_similarities_csv(analysis_dir: str, checkpoint_it: int, df: pd.DataFrame):
+def _save_similarities_csv(analysis_dir: Path, checkpoint_it: int, df: pd.DataFrame):
   path = os.path.join(analysis_dir, f"{checkpoint_it}.csv")
   save_df(df, path, header_columns=None)
 
 
-def _save_2d_plot(analysis_dir: str, checkpoint_it: int, fig):
+def _save_2d_plot(analysis_dir: Path, checkpoint_it: int, fig):
   path = os.path.join(analysis_dir, f"{checkpoint_it}_2d.html")
   plt.plot(fig, filename=path, auto_open=False)
 
 
-def _save_3d_plot(analysis_dir: str, checkpoint_it: int, fig):
+def _save_3d_plot(analysis_dir: Path, checkpoint_it: int, fig):
   path = os.path.join(analysis_dir, f"{checkpoint_it}_3d.html")
   plt.plot(fig, filename=path, auto_open=False)
 
 
-def plot_embeddings(base_dir: str, train_name: str, custom_checkpoint: Optional[int] = None):
+def plot_embeddings(base_dir: Path, train_name: str, custom_checkpoint: Optional[int] = None):
   train_dir = get_train_dir(base_dir, train_name, create=False)
   assert os.path.isdir(train_dir)
   analysis_dir = get_analysis_root_dir(train_dir)

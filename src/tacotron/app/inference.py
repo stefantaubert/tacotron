@@ -1,6 +1,7 @@
 import datetime
 import os
 from functools import partial
+from pathlib import Path
 from shutil import copyfile
 from typing import Any, Dict, List, Optional, Set
 
@@ -42,39 +43,39 @@ MEL_POSTNET_PNG = "mel_postnet.png"
 ALIGNMENTS_PNG = "alignments.png"
 
 
-def save_mel_v_plot(infer_dir: str, sentences: InferSentenceList):
+def save_mel_v_plot(infer_dir: Path, sentences: InferSentenceList):
   paths = [os.path.join(get_infer_sent_dir(infer_dir, get_result_name(x)), MEL_PNG)
            for x in sentences]
   path = os.path.join(infer_dir, "mel_v.png")
   stack_images_vertically(paths, path)
 
 
-def save_alignments_v_plot(infer_dir: str, sentences: InferSentenceList):
+def save_alignments_v_plot(infer_dir: Path, sentences: InferSentenceList):
   paths = [os.path.join(get_infer_sent_dir(infer_dir, get_result_name(x)),
                         ALIGNMENTS_PNG) for x in sentences]
   path = os.path.join(infer_dir, "alignments_v.png")
   stack_images_vertically(paths, path)
 
 
-def save_mel_postnet_v_plot(infer_dir: str, sentences: InferSentenceList):
+def save_mel_postnet_v_plot(infer_dir: Path, sentences: InferSentenceList):
   paths = [os.path.join(get_infer_sent_dir(infer_dir, get_result_name(x)),
                         MEL_POSTNET_PNG) for x in sentences]
   path = os.path.join(infer_dir, "mel_postnet_v.png")
   stack_images_vertically(paths, path)
 
 
-def save_mel_postnet_h_plot(infer_dir: str, sentences: InferSentenceList):
+def save_mel_postnet_h_plot(infer_dir: Path, sentences: InferSentenceList):
   paths = [os.path.join(get_infer_sent_dir(infer_dir, get_result_name(x)),
                         MEL_POSTNET_PNG) for x in sentences]
   path = os.path.join(infer_dir, "mel_postnet_h.png")
   stack_images_horizontally(paths, path)
 
 
-def get_infer_sent_dir(infer_dir: str, result_name: str) -> str:
+def get_infer_sent_dir(infer_dir: Path, result_name: str) -> Path:
   return get_subdir(infer_dir, result_name, create=True)
 
 
-def save_stats(infer_dir: str, stats: InferenceEntries) -> None:
+def save_stats(infer_dir: Path, stats: InferenceEntries) -> None:
   path = os.path.join(infer_dir, "total.csv")
   stats.save(path, header=True)
 
@@ -115,7 +116,7 @@ def get_infer_log_new(infer_dir: str):
   return os.path.join(infer_dir, "log.txt")
 
 
-def infer(base_dir: str, train_name: str, text_name: str, speaker: str, sentence_ids: Optional[Set[int]] = None, custom_checkpoint: Optional[int] = None, full_run: bool = True, custom_hparams: Optional[Dict[str, str]] = None, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, seed: int = DEFAULT_SEED, copy_mel_info_to: Optional[str] = DEFAULT_SAVE_MEL_INFO_COPY_PATH):
+def infer(base_dir: Path, train_name: str, text_name: str, speaker: str, sentence_ids: Optional[Set[int]] = None, custom_checkpoint: Optional[int] = None, full_run: bool = True, custom_hparams: Optional[Dict[str, str]] = None, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, seed: int = DEFAULT_SEED, copy_mel_info_to: Optional[str] = DEFAULT_SAVE_MEL_INFO_COPY_PATH) -> None:
   train_dir = get_train_dir(base_dir, train_name, create=False)
   assert os.path.isdir(train_dir)
 
@@ -198,7 +199,7 @@ def infer(base_dir: str, train_name: str, text_name: str, speaker: str, sentence
   logger.info(f"Saved output to: {infer_dir}")
 
 
-def save_mel_postnet_npy_paths(infer_dir: str, name: str, mel_postnet_npy_paths: List[Dict[str, Any]]) -> str:
+def save_mel_postnet_npy_paths(infer_dir: Path, name: str, mel_postnet_npy_paths: List[Dict[str, Any]]) -> str:
   info_json = get_mel_out_dict(
     name=name,
     root_dir=infer_dir,

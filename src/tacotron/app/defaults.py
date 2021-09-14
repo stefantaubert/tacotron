@@ -1,6 +1,9 @@
+from pathlib import Path
+
+
 DEFAULT_SEED = 1111
 DEFAULT_REPETITIONS = 1
 DEFAULT_MAX_DECODER_STEPS = 3000
-DEFAULT_SAVE_MEL_INFO_COPY_PATH = "/tmp/mel_out.json"
+DEFAULT_SAVE_MEL_INFO_COPY_PATH = Path("/tmp/mel_out.json")
 # from paper
 DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME = 16

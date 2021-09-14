@@ -2,6 +2,7 @@ import datetime
 import os
 from functools import partial
 from logging import getLogger
+from pathlib import Path
 from shutil import copyfile
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -12,8 +13,9 @@ from image_utils import stack_images_vertically
 from scipy.io.wavfile import write
 from tacotron.app.defaults import (DEFAULT_MAX_DECODER_STEPS,
                                    DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME,
+                                   DEFAULT_REPETITIONS,
                                    DEFAULT_SAVE_MEL_INFO_COPY_PATH,
-                                   DEFAULT_REPETITIONS, DEFAULT_SEED)
+                                   DEFAULT_SEED)
 from tacotron.app.io import (_get_validation_root_dir, get_checkpoints_dir,
                              get_mel_info_dict, get_mel_out_dict,
                              get_train_dir, load_prep_settings)
@@ -53,25 +55,25 @@ def get_run_name(ds: str, iterations: Set[int], full_run: bool, entry_ids: Optio
   return subdir_name
 
 
-def get_val_dir(train_dir: str, run_name: str) -> str:
+def get_val_dir(train_dir: Path, run_name: str) -> str:
   return get_subdir(_get_validation_root_dir(train_dir), run_name, create=True)
 
 
-# def get_val_dir_new(train_dir: str):
+# def get_val_dir_new(train_dir: Path):
 #   subdir_name = f"{datetime.datetime.now():%Y-%m-%d__%H-%M-%S}"
 #   return get_subdir(_get_validation_root_dir(train_dir), subdir_name, create=True)
 
 
-def get_val_entry_dir(val_dir: str, result_name: str) -> None:
+def get_val_entry_dir(val_dir: Path, result_name: str) -> None:
   return get_subdir(val_dir, result_name, create=True)
 
 
-def save_stats(val_dir: str, validation_entries: ValidationEntries) -> None:
+def save_stats(val_dir: Path, validation_entries: ValidationEntries) -> None:
   path = os.path.join(val_dir, "total.csv")
   validation_entries.save(path, header=True)
 
 
-def save_mel_postnet_npy_paths(val_dir: str, name: str, mel_postnet_npy_paths: List[Dict[str, Any]]) -> str:
+def save_mel_postnet_npy_paths(val_dir: Path, name: str, mel_postnet_npy_paths: List[Dict[str, Any]]) -> str:
   info_json = get_mel_out_dict(
     name=name,
     root_dir=val_dir,
@@ -89,7 +91,7 @@ def get_result_name(entry: PreparedData, iteration: int, repetition: int):
   return f"it={iteration}_id={entry.entry_id}_rep={repetition}"
 
 
-def save_results(entry: PreparedData, output: ValidationEntryOutput, val_dir: str, iteration: int, mel_postnet_npy_paths: List[Dict[str, Any]]):
+def save_results(entry: PreparedData, output: ValidationEntryOutput, val_dir: Path, iteration: int, mel_postnet_npy_paths: List[Dict[str, Any]]):
   result_name = get_result_name(entry, iteration, output.repetition)
   dest_dir = get_val_entry_dir(val_dir, result_name)
   write(os.path.join(dest_dir, "original.wav"), output.orig_sr, output.wav_orig)
@@ -141,7 +143,7 @@ def save_results(entry: PreparedData, output: ValidationEntryOutput, val_dir: st
   mel_postnet_npy_paths.append(mel_info)
 
 
-def validate(base_dir: str, train_name: str, entry_ids: Optional[Set[int]] = None, speaker: Optional[str] = None, ds: str = "val", custom_checkpoints: Optional[Set[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, mcd_no_of_coeffs_per_frame: int = DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME, copy_mel_info_to: Optional[str] = DEFAULT_SAVE_MEL_INFO_COPY_PATH, fast: bool = False, repetitions: int = DEFAULT_REPETITIONS, select_best_from: Optional[str] = None, seed: Optional[int] = DEFAULT_SEED) -> None:
+def validate(base_dir: Path, train_name: str, entry_ids: Optional[Set[int]] = None, speaker: Optional[str] = None, ds: str = "val", custom_checkpoints: Optional[Set[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, mcd_no_of_coeffs_per_frame: int = DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME, copy_mel_info_to: Optional[Path] = DEFAULT_SAVE_MEL_INFO_COPY_PATH, fast: bool = False, repetitions: int = DEFAULT_REPETITIONS, select_best_from: Optional[Path] = None, seed: Optional[int] = DEFAULT_SEED) -> None:
   """Param: custom checkpoints: empty => all; None => random; ids"""
   assert repetitions > 0
 

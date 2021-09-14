@@ -3,6 +3,7 @@ import os
 import shutil
 from functools import partial
 from logging import Logger
+from pathlib import Path
 from typing import Dict, Optional
 
 from tacotron.app.io import (get_checkpoints_dir,
@@ -21,7 +22,7 @@ from tts_preparation import (get_merged_dir, get_prep_dir,
                              load_valset, load_weights_map)
 
 
-def try_load_checkpoint(base_dir: str, train_name: Optional[str], checkpoint: Optional[int], logger: Logger) -> Optional[CheckpointTacotron]:
+def try_load_checkpoint(base_dir: Path, train_name: Optional[str], checkpoint: Optional[int], logger: Logger) -> Optional[CheckpointTacotron]:
   result = None
   if train_name:
     train_dir = get_train_dir(base_dir, train_name, False)
@@ -32,13 +33,13 @@ def try_load_checkpoint(base_dir: str, train_name: Optional[str], checkpoint: Op
   return result
 
 
-def save_checkpoint(checkpoint: CheckpointTacotron, save_checkpoint_dir: str, logger: Logger) -> None:
+def save_checkpoint(checkpoint: CheckpointTacotron, save_checkpoint_dir: Path, logger: Logger) -> None:
   checkpoint_path = os.path.join(
     save_checkpoint_dir, get_pytorch_filename(checkpoint.iteration))
   checkpoint.save(checkpoint_path, logger)
 
 
-def restore_model(base_dir: str, train_name: str, checkpoint_dir: str) -> None:
+def restore_model(base_dir: Path, train_name: str, checkpoint_dir: Path) -> None:
   train_dir = get_train_dir(base_dir, train_name, create=True)
   logs_dir = get_train_logs_dir(train_dir)
   logger = prepare_logger(get_train_log_file(logs_dir), reset=True)
@@ -49,7 +50,7 @@ def restore_model(base_dir: str, train_name: str, checkpoint_dir: str) -> None:
   logger.info("Restoring done.")
 
 
-def train(base_dir: str, ttsp_dir: str, train_name: str, merge_name: str, prep_name: str, warm_start_train_name: Optional[str] = None, warm_start_checkpoint: Optional[int] = None, custom_hparams: Optional[Dict[str, str]] = None, weights_train_name: Optional[str] = None, weights_checkpoint: Optional[int] = None, use_weights_map: Optional[bool] = None, map_from_speaker: Optional[str] = None) -> None:
+def train(base_dir: Path, ttsp_dir: Path, train_name: str, merge_name: str, prep_name: str, warm_start_train_name: Optional[str] = None, warm_start_checkpoint: Optional[int] = None, custom_hparams: Optional[Dict[str, str]] = None, weights_train_name: Optional[str] = None, weights_checkpoint: Optional[int] = None, use_weights_map: Optional[bool] = None, map_from_speaker: Optional[str] = None) -> None:
   merge_dir = get_merged_dir(ttsp_dir, merge_name, create=False)
   prep_dir = get_prep_dir(merge_dir, prep_name, create=False)
 
@@ -113,7 +114,7 @@ def train(base_dir: str, ttsp_dir: str, train_name: str, merge_name: str, prep_n
   )
 
 
-def continue_train(base_dir: str, train_name: str, custom_hparams: Optional[Dict[str, str]] = None) -> None:
+def continue_train(base_dir: Path, train_name: str, custom_hparams: Optional[Dict[str, str]] = None) -> None:
   train_dir = get_train_dir(base_dir, train_name, create=False)
   assert os.path.isdir(train_dir)
 
