@@ -8,7 +8,7 @@ import torch
 from scipy.spatial.distance import cosine
 from sklearn.manifold import TSNE
 from sklearn.preprocessing import normalize
-from text_utils import SymbolIdDict
+from text_utils import SymbolIdDict, Symbols
 
 
 def norm2emb(emb: torch.Tensor) -> np.ndarray:
@@ -49,7 +49,7 @@ def sims_to_csv(sims: Dict[int, List[Tuple[int, float]]], symbols: SymbolIdDict)
   return df
 
 
-def emb_plot_3d(emb: np.ndarray, symbols: List[str]) -> go.Figure:
+def emb_plot_3d(emb: np.ndarray, symbols: Symbols) -> go.Figure:
   np.set_printoptions(suppress=True)
 
   tsne = TSNE(n_components=3, random_state=0)

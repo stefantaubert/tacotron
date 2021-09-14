@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Set
 import imageio
 import numpy as np
 from image_utils import stack_images_horizontally, stack_images_vertically
+from text_utils.types import Speaker
 from tacotron.app.defaults import (DEFAULT_MAX_DECODER_STEPS,
                                    DEFAULT_SAVE_MEL_INFO_COPY_PATH,
                                    DEFAULT_SEED)
@@ -20,8 +21,8 @@ from tacotron.utils import (add_console_out_to_logger, add_file_out_to_logger,
                             create_parent_folder,
                             get_custom_or_last_checkpoint, get_default_logger,
                             get_subdir, init_logger, parse_json, save_json)
-from tts_preparation import (InferSentence, InferSentenceList,
-                             get_infer_sentences)
+from tts_preparation import (InferableUtterance, InferableUtterances,
+                             get_merged_dir, get_text_dir, load_utterances)
 
 
 def get_run_name(input_name: str, iteration: int, speaker_name: str, full_run: bool) -> str:
@@ -42,26 +43,26 @@ MEL_POSTNET_PNG = "mel_postnet.png"
 ALIGNMENTS_PNG = "alignments.png"
 
 
-def save_mel_v_plot(infer_dir: Path, sentences: InferSentenceList) -> None:
-  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) / MEL_PNG for x in sentences]
+def save_mel_v_plot(infer_dir: Path, sentences: InferableUtterances) -> None:
+  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) / MEL_PNG for x in sentences.items()]
   path = infer_dir / "mel_v.png"
   stack_images_vertically(paths, path)
 
 
-def save_alignments_v_plot(infer_dir: Path, sentences: InferSentenceList) -> None:
-  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) / ALIGNMENTS_PNG for x in sentences]
+def save_alignments_v_plot(infer_dir: Path, sentences: InferableUtterances) -> None:
+  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) / ALIGNMENTS_PNG for x in sentences.items()]
   path = infer_dir / "alignments_v.png"
   stack_images_vertically(paths, path)
 
 
-def save_mel_postnet_v_plot(infer_dir: Path, sentences: InferSentenceList) -> None:
-  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) / MEL_POSTNET_PNG for x in sentences]
+def save_mel_postnet_v_plot(infer_dir: Path, sentences: InferableUtterances) -> None:
+  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) / MEL_POSTNET_PNG for x in sentences.items()]
   path = infer_dir / "mel_postnet_v.png"
   stack_images_vertically(paths, path)
 
 
-def save_mel_postnet_h_plot(infer_dir: Path, sentences: InferSentenceList) -> None:
-  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) / MEL_POSTNET_PNG for x in sentences]
+def save_mel_postnet_h_plot(infer_dir: Path, sentences: InferableUtterances) -> None:
+  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) / MEL_POSTNET_PNG for x in sentences.items()]
   path = infer_dir / "mel_postnet_h.png"
   stack_images_horizontally(paths, path)
 
@@ -75,11 +76,11 @@ def save_stats(infer_dir: Path, stats: InferenceEntries) -> None:
   stats.save(path, header=True)
 
 
-def get_result_name(entry: InferSentence) -> str:
+def get_result_name(entry: InferableUtterance) -> str:
   return str(entry.sent_id)
 
 
-def save_results(entry: InferSentence, output: InferenceEntryOutput, infer_dir: Path, mel_postnet_npy_paths: List[Dict[str, Any]]) -> None:
+def save_results(entry: InferableUtterance, output: InferenceEntryOutput, infer_dir: Path, mel_postnet_npy_paths: List[Dict[str, Any]]) -> None:
   result_name = get_result_name(entry)
   dest_dir = get_infer_sent_dir(infer_dir, result_name)
   imageio.imsave(dest_dir / MEL_PNG, output.mel_img)
@@ -111,7 +112,7 @@ def get_infer_log_new(infer_dir: Path) -> None:
   return infer_dir / "log.txt"
 
 
-def infer(base_dir: Path, train_name: str, text_name: str, speaker: str, sentence_ids: Optional[Set[int]] = None, custom_checkpoint: Optional[int] = None, full_run: bool = True, custom_hparams: Optional[Dict[str, str]] = None, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, seed: int = DEFAULT_SEED, copy_mel_info_to: Optional[str] = DEFAULT_SAVE_MEL_INFO_COPY_PATH) -> None:
+def infer(base_dir: Path, train_name: str, text_name: str, speaker: Speaker, utterance_ids: Optional[Set[int]] = None, custom_checkpoint: Optional[int] = None, full_run: bool = True, custom_hparams: Optional[Dict[str, str]] = None, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, seed: int = DEFAULT_SEED, copy_mel_info_to: Optional[Path] = DEFAULT_SAVE_MEL_INFO_COPY_PATH) -> None:
   train_dir = get_train_dir(base_dir, train_name, create=False)
   assert train_dir.is_dir()
 
@@ -128,7 +129,9 @@ def infer(base_dir: Path, train_name: str, text_name: str, speaker: str, sentenc
   ttsp_dir, merge_name, _ = load_prep_settings(train_dir)
   # merge_dir = get_merged_dir(ttsp_dir, merge_name, create=False)
 
-  infer_sents = get_infer_sentences(ttsp_dir, merge_name, text_name)
+  merge_dir = get_merged_dir(ttsp_dir, merge_name)
+  text_dir = get_text_dir(merge_dir, text_name, create=False)
+  utterances = load_utterances(text_dir)
 
   run_name = get_run_name(
     input_name=text_name,
@@ -150,11 +153,11 @@ def infer(base_dir: Path, train_name: str, text_name: str, speaker: str, sentenc
 
   inference_results = infer_core(
     checkpoint=taco_checkpoint,
-    utterances=infer_sents,
+    utterances=utterances,
     custom_hparams=custom_hparams,
     full_run=full_run,
     save_callback=save_callback,
-    utterance_ids=sentence_ids,
+    utterance_ids=utterance_ids,
     speaker_name=speaker,
     train_name=train_name,
     max_decoder_steps=max_decoder_steps,

@@ -10,8 +10,8 @@ from torch import nn
 from torch.autograd import Variable
 from torch.nn import functional as F
 
-SYMBOL_EMBEDDING_LAYER_NAME = "embedding.weight"
-SPEAKER_EMBEDDING_LAYER_NAME = "speakers_embedding.weight"
+SYMBOL_EMBEDDING_LAYER_NAME = "symbol_embeddings.weight"
+SPEAKER_EMBEDDING_LAYER_NAME = "speakers_embeddings.weight"
 
 
 class LocationLayer(nn.Module):
@@ -537,14 +537,14 @@ class Tacotron2(nn.Module):
     self.mask_padding = hparams.mask_padding
     self.n_mel_channels = hparams.n_mel_channels
 
-    # TODO rename to symbol_embeddings but it will destroy all previous trained models
     symbol_emb_weights = get_symbol_weights(hparams)
-    self.embedding = weights_to_embedding(symbol_emb_weights)
-    logger.debug(f"is cuda: {self.embedding.weight.is_cuda}")
+    # rename will destroy all previous trained models
+    self.symbol_embeddings = weights_to_embedding(symbol_emb_weights)
+    logger.debug(f"is cuda: {self.symbol_embeddings.weight.is_cuda}")
 
     if self.use_speaker_embedding:
       speaker_emb_weights = get_speaker_weights(hparams)
-      self.speakers_embedding = weights_to_embedding(speaker_emb_weights)
+      self.speakers_embeddings = weights_to_embedding(speaker_emb_weights)
 
     self.encoder = Encoder(hparams)
     self.decoder = Decoder(hparams, logger)
@@ -554,7 +554,7 @@ class Tacotron2(nn.Module):
     text_inputs, text_lengths, mels, max_len, output_lengths, speaker_ids = inputs
     text_lengths, output_lengths = text_lengths.data, output_lengths.data
 
-    embedded_inputs = self.embedding(input=text_inputs)
+    embedded_inputs = self.symbol_embeddings(input=text_inputs)
     # from [20, 133, 512]) to [20, 512, 133]
     embedded_inputs = embedded_inputs.transpose(1, 2)
 
@@ -569,7 +569,7 @@ class Tacotron2(nn.Module):
       # Extract speaker embeddings
       # From [20] to [20, 1]
       speaker_ids = speaker_ids.unsqueeze(1)
-      embedded_speakers = self.speakers_embedding(input=speaker_ids)
+      embedded_speakers = self.speakers_embeddings(input=speaker_ids)
       # From [20, 1, 16] to [20, 133, 16]
       # copies the values from one speaker to all max_len dimension arrays
       embedded_speakers = embedded_speakers.expand(-1, max_len, -1)
@@ -598,7 +598,7 @@ class Tacotron2(nn.Module):
     return mel_outputs, mel_outputs_postnet, gate_outputs, alignments
 
   def inference(self, inputs: torch.LongTensor, speaker_id: torch.LongTensor, max_decoder_steps: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    embedded_inputs = self.embedding(inputs).transpose(1, 2)
+    embedded_inputs = self.symbol_embeddings(inputs).transpose(1, 2)
     if torch.isnan(embedded_inputs).any():
       # embedding_inputs can be nan if training was not good
       msg = "Symbol embeddings returned nan!"
@@ -612,7 +612,7 @@ class Tacotron2(nn.Module):
     # Extract speaker embeddings
     if self.use_speaker_embedding:
       speaker_id = speaker_id.unsqueeze(1)
-      embedded_speaker = self.speakers_embedding(input=speaker_id)
+      embedded_speaker = self.speakers_embeddings(input=speaker_id)
       embedded_speaker = embedded_speaker.expand(-1, encoder_outputs.shape[1], -1)
 
       merged_outputs = torch.cat([encoder_outputs, embedded_speaker], -1)

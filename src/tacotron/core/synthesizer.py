@@ -39,7 +39,7 @@ class Synthesizer():
 
     model = load_model(
       hparams=hparams,
-      state_dict=checkpoint.state_dict,
+      state_dict=checkpoint.model_state_dict,
       logger=logger
     )
 
@@ -51,19 +51,13 @@ class Synthesizer():
   def get_sampling_rate(self) -> int:
     return self.hparams.sampling_rate
 
-  def infer(self, utterance: InferableUtterance, speaker: Speaker, ignore_unknown_symbols: bool, max_decoder_steps: int, seed: int) -> InferenceResult:
+  def infer(self, utterance: InferableUtterance, speaker: Speaker, max_decoder_steps: int, seed: int) -> InferenceResult:
+    same_symbol_id_dict_was_used = self.symbol_id_dict.get_ids(
+      utterance.symbols) == utterance.symbol_ids
+    assert same_symbol_id_dict_was_used
+
     log_utterances(InferableUtterances([utterance]), marker=NOT_INFERABLE_SYMBOL_MARKER)
     init_global_seeds(seed)
-
-    # symbols = utterance.symbols
-    # if self.symbol_id_dict.has_unknown_symbols(symbols):
-    #   if ignore_unknown_symbols:
-    #     symbols = self.symbol_id_dict.replace_unknown_symbols_with_pad(
-    #      symbols, pad_symbol=DEFAULT_PADDING_SYMBOL)
-    #     self._logger.info(f"After ignoring unknown symbols: {''.join(symbols)}")
-    #   else:
-    #     self._logger.exception("Unknown symbols are not allowed!")
-    #     raise Exception()
 
     inferable_symbol_ids = [
       symbol_id for symbol_id in utterance.symbol_ids if symbol_id is not None]

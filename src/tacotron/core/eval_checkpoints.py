@@ -44,7 +44,7 @@ def eval_checkpoints(custom_hparams: Optional[Dict[str, str]], checkpoint_dir: P
     torch.manual_seed(hparams.seed)
     torch.cuda.manual_seed(hparams.seed)
     full_checkpoint_path = get_checkpoint(checkpoint_dir, checkpoint_iteration)
-    state_dict = CheckpointTacotron.load(full_checkpoint_path, logger).state_dict
+    state_dict = CheckpointTacotron.load(full_checkpoint_path, logger).model_state_dict
     model = load_model(hparams, state_dict, logger)
     val_loss, _ = validate_model(model, criterion, val_loader, parse_batch)
     result.append((checkpoint_iteration, val_loss))

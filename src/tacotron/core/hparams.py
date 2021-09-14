@@ -62,7 +62,6 @@ class ModelHParams():
 
 @dataclass
 class OptimizerHParams():
-  use_saved_learning_rate: bool = False
   learning_rate: float = 1e-03
   grad_clip_thresh: float = 1.0
   batch_size: int = 64

@@ -1,14 +1,13 @@
 import datetime
 from dataclasses import dataclass
 from logging import Logger
-from typing import Callable, Dict, List, Optional, Set, Tuple
+from typing import Callable, Dict, Optional, Set
 
 import numpy as np
 from audio_utils.mel import plot_melspec_np
-from tacotron.core.synthesizer import InferenceResult, Synthesizer
+from tacotron.core.synthesizer import Synthesizer
 from tacotron.core.training import CheckpointTacotron
-from tacotron.utils import (GenericList, plot_alignment_np,
-                            plot_alignment_np_new)
+from tacotron.utils import GenericList, plot_alignment_np_new
 from text_utils.types import Speaker, SpeakerId
 from tts_preparation import InferableUtterance, InferableUtterances
 
@@ -16,7 +15,6 @@ from tts_preparation import InferableUtterance, InferableUtterances
 @dataclass
 class InferenceEntry():
   utterance_id: int = None
-  text_original: str = None
   text: str = None
   speaker_id: SpeakerId = None
   speaker_name: Speaker = None
@@ -71,25 +69,23 @@ def infer(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict[str, str
   speaker_id = model_speakers.get_id(speaker_name)
 
   result = InferenceEntries()
-  for utterance in utterances:
+  for utterance in utterances.items():
     inf_sent_output = synth.infer(
       utterance=utterance,
       speaker=speaker_name,
-      ignore_unknown_symbols=False,
       max_decoder_steps=max_decoder_steps,
       seed=seed,
     )
 
     symbol_count = len(utterance.symbols)
     unique_symbols = set(utterance.symbols)
-    unique_symbols_str = " ".join(list(sorted(unique_symbols)))
+    unique_symbols_str = " ".join(sorted(unique_symbols))
     unique_symbols_count = len(unique_symbols)
     timepoint = f"{datetime.datetime.now():%Y/%m/%d %H:%M:%S}"
     text = "".join(utterance.symbols)
 
     infer_entry_output = InferenceEntry(
       utterance_id=utterance.sent_id,
-      text_original=utterance.original_text,
       text=text,
       speaker_id=speaker_id,
       speaker_name=speaker_name,

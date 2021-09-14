@@ -5,30 +5,27 @@ from dataclasses import dataclass
 from logging import Logger, getLogger
 from typing import Callable, Dict, List, Optional
 from typing import OrderedDict as OrderedDictType
-from typing import Set, Tuple
+from typing import Set
 
-import automatic_speech_recognition as asr
-import imageio
 import jiwer
 import jiwer.transforms as tr
 import numpy as np
 import pandas as pd
 from audio_utils.mel import (TacotronSTFT, align_mels_with_dtw, get_msd,
                              plot_melspec_np)
-from image_utils import (calculate_structual_similarity_np,
-                         make_same_width_by_filling_white)
+from image_utils import calculate_structual_similarity_np
 from mcd import get_mcd_between_mel_spectograms
 from ordered_set import OrderedSet
 from scipy.io.wavfile import read
 from sklearn.metrics import mean_squared_error
 from tacotron.core.synthesizer import Synthesizer
 from tacotron.core.training import CheckpointTacotron
-from tacotron.utils import (GenericList, cosine_dist_mels, init_global_seeds,
-                            make_same_dim, plot_alignment_np,
+from tacotron.utils import (GenericList, cosine_dist_mels, make_same_dim,
                             plot_alignment_np_new)
 from text_selection import get_rarity_ngrams
-from text_utils import SymbolIdDict, deserialize_list
-from tts_preparation import InferSentence, PreparedData, PreparedDataList
+from text_utils import SymbolIdDict
+from tts_preparation import (InferableUtterance, InferableUtterances,
+                             PreparedData, PreparedDataList)
 
 
 @dataclass
@@ -269,24 +266,25 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
       logger.info(
         f"Current --> entry_id: {entry.entry_id}; seed: {rep_seed}; iteration: {checkpoint.iteration}; rep: {rep_human_readable}/{repetitions}")
 
-      infer_sent = InferSentence(
-        sent_id=1,
-        symbols=model_symbols.get_symbols(entry.serialized_symbol_ids),
-        original_text=entry.text_original,
+      infer_sent = InferableUtterance(
+        utterance_id=1,
+        symbols=entry.symbols,
+        language=entry.symbols_language,
+        symbol_ids=entry.symbol_ids,
+        symbols_format=entry.symbols_format,
       )
 
-      speaker_name = model_speakers.get_speaker(entry.speaker_id)
       inference_result = synth.infer(
         utterance=infer_sent,
-        speaker=speaker_name,
-        ignore_unknown_symbols=False,
+        speaker=entry.speaker_name,
         max_decoder_steps=max_decoder_steps,
         seed=rep_seed,
       )
 
-      symbol_count = len(deserialize_list(entry.serialized_symbol_ids))
+      # TODO consider only inferable symbols
+      symbol_count = len(entry.symbol_ids)
       unique_symbols = set(model_symbols.get_symbols(entry.serialized_symbol_ids))
-      unique_symbols_str = " ".join(list(sorted(unique_symbols)))
+      unique_symbols_str = " ".join(sorted(unique_symbols))
       unique_symbols_count = len(unique_symbols)
       timepoint = f"{datetime.datetime.now():%Y/%m/%d %H:%M:%S}"
 

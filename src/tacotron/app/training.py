@@ -6,6 +6,8 @@ from logging import Logger
 from pathlib import Path
 from typing import Dict, Optional
 
+from tts_preparation.app.io import load_merged_symbol_converter
+
 from tacotron.app.io import (get_checkpoints_dir,
                              get_train_checkpoints_log_file, get_train_dir,
                              get_train_log_file, get_train_logs_dir,
@@ -99,7 +101,6 @@ def train(base_dir: Path, ttsp_dir: Path, train_name: str, merge_name: str, prep
     taco_logger=taco_logger,
     symbols=load_merged_symbol_converter(merge_dir),
     speakers=load_merged_speakers_json(merge_dir),
-    accents=load_merged_accents_ids(merge_dir),
     trainset=trainset,
     valset=valset,
     save_callback=save_callback,

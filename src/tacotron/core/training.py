@@ -15,7 +15,7 @@ from tacotron.core.model import (SPEAKER_EMBEDDING_LAYER_NAME,
 from tacotron.core.model_checkpoint import CheckpointTacotron
 from tacotron.core.model_weights import (get_mapped_speaker_weights,
                                          get_mapped_symbol_weights)
-from tacotron.globals import DEFAULT_PADDING_ACCENT, DEFAULT_PADDING_SYMBOL
+from tacotron.globals import DEFAULT_PADDING_SYMBOL
 from tacotron.utils import (SaveIterationSettings, check_save_it,
                             copy_state_dict, get_continue_batch_iteration,
                             get_continue_epoch, get_formatted_current_total,
@@ -24,7 +24,7 @@ from tacotron.utils import (SaveIterationSettings, check_save_it,
                             iteration_to_epoch, log_hparams,
                             overwrite_custom_hparams, skip_batch,
                             update_weights, validate_model)
-from text_utils import AccentsDict, SpeakersDict, SymbolIdDict, SymbolsMap
+from text_utils import SpeakersDict, SymbolIdDict, SymbolsMap
 from torch import nn
 from torch.nn import Parameter
 from torch.nn.utils.clip_grad import clip_grad_norm_
@@ -152,9 +152,6 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
   assert hparams.n_speakers > 0
   assert hparams.n_symbols > 0
 
-  if hparams.use_saved_learning_rate and checkpoint is not None:
-    hparams.learning_rate = checkpoint.learning_rate
-
   log_hparams(hparams, logger)
   init_global_seeds(hparams.seed)
   init_torch(hparams)
@@ -184,7 +181,7 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
         logger=logger
       )
 
-      update_weights(model.embedding, pretrained_symbol_weights)
+      update_weights(model.symbol_embeddings, pretrained_symbol_weights)
 
       logger.info("Checking if mapping speaker embeddings...")
       weights_checkpoint_hparams = weights_checkpoint.get_hparams(
@@ -193,7 +190,7 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
       if map_speaker_weights:
         logger.info("Mapping speaker embeddings...")
         pretrained_speaker_weights = get_mapped_speaker_weights(
-          model_speakers=speakers,
+          model_speaker_id_dict=speakers,
           trained_weights=weights_checkpoint.get_speaker_embedding_weights(),
           trained_speaker=weights_checkpoint.get_speakers(),
           map_from_speaker_name=map_from_speaker_name,
@@ -201,7 +198,7 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
           logger=logger,
         )
 
-        update_weights(model.speakers_embedding, pretrained_speaker_weights)
+        update_weights(model.speakers_embeddings, pretrained_speaker_weights)
       logger.info(f"Done. Mapped speaker weights: {map_speaker_weights}")
 
   log_symbol_weights(model, logger)
@@ -471,8 +468,8 @@ def load_model_and_optimizer_and_scheduler(hparams: HParams, checkpoint: Optiona
     )
 
   if checkpoint is not None:
-    model.load_state_dict(checkpoint.state_dict)
-    optimizer.load_state_dict(checkpoint.optimizer)
+    model.load_state_dict(checkpoint.model_state_dict)
+    optimizer.load_state_dict(checkpoint.optimizer_state_dict)
 
     if hparams.use_exponential_lr_decay:
       scheduler.load_state_dict(checkpoint.scheduler_state_dict)
@@ -499,11 +496,10 @@ def warm_start_model(model: nn.Module, warm_model: CheckpointTacotron, hparams: 
     raise Exception(msg)
 
   copy_state_dict(
-    state_dict=warm_model.state_dict,
+    state_dict=warm_model.model_state_dict,
     to_model=model,
     ignore=hparams.ignore_layers + [
       SYMBOL_EMBEDDING_LAYER_NAME,
-      # ACCENT_EMBEDDING_LAYER_NAME,
       SPEAKER_EMBEDDING_LAYER_NAME
     ]
   )
