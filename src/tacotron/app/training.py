@@ -16,9 +16,7 @@ from tacotron.core import train as train_core
 from tacotron.utils import (get_custom_or_last_checkpoint, get_last_checkpoint,
                             get_pytorch_filename, prepare_logger)
 from tts_preparation import (get_merged_dir, get_prep_dir,
-                             load_merged_accents_ids,
-                             load_merged_speakers_json,
-                             load_merged_symbol_converter, load_trainset,
+                             load_merged_speakers_json, load_trainset,
                              load_valset, load_weights_map)
 
 

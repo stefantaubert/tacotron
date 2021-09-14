@@ -14,7 +14,7 @@ from tqdm import tqdm
 from tts_preparation import PreparedDataList
 
 
-def eval_checkpoints(custom_hparams: Optional[Dict[str, str]], checkpoint_dir: Path, select: int, min_it: int, max_it: int, n_symbols: int, n_accents: int, n_speakers: int, valset: PreparedDataList, logger: Logger) -> None:
+def eval_checkpoints(custom_hparams: Optional[Dict[str, str]], checkpoint_dir: Path, select: int, min_it: int, max_it: int, n_symbols: int, n_speakers: int, valset: PreparedDataList, logger: Logger) -> None:
   its = get_all_checkpoint_iterations(checkpoint_dir)
   logger.info(f"Available iterations {its}")
   filtered_its = filter_checkpoints(its, select, min_it, max_it)
@@ -27,7 +27,6 @@ def eval_checkpoints(custom_hparams: Optional[Dict[str, str]], checkpoint_dir: P
   hparams = HParams(
     n_speakers=n_speakers,
     n_symbols=n_symbols,
-    n_accents=n_accents
   )
 
   hparams = overwrite_custom_hparams(hparams, custom_hparams)
@@ -35,9 +34,7 @@ def eval_checkpoints(custom_hparams: Optional[Dict[str, str]], checkpoint_dir: P
   collate_fn = SymbolsMelCollate(
     hparams.n_frames_per_step,
     padding_symbol_id=0,  # TODO: refactor
-    padding_accent_id=0  # TODO: refactor
     # padding_symbol_id=symbols.get_id(PADDING_SYMBOL),
-    # padding_accent_id=accents.get_id(PADDING_ACCENT)
   )
   val_loader = prepare_valloader(hparams, collate_fn, valset, logger)
 

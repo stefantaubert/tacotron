@@ -4,8 +4,6 @@ from typing import Tuple
 import torch
 from tacotron.core.hparams import HParams
 from tacotron.core.layers import ConvNorm, LinearNorm
-from text_utils import get_accent_symbols_count
-from tacotron.globals import SHARED_SYMBOLS_COUNT
 from tacotron.utils import (get_mask_from_lengths, get_uniform_weights,
                             get_xavier_weights, weights_to_embedding)
 from torch import nn
@@ -525,13 +523,7 @@ def get_speaker_weights(hparams: HParams) -> torch.Tensor:
 
 
 def get_symbol_weights(hparams: HParams) -> torch.Tensor:
-  model_symbols_count = get_accent_symbols_count(
-    hparams.n_symbols,
-    hparams.n_accents,
-    hparams.accents_use_own_symbols,
-    SHARED_SYMBOLS_COUNT
-  )
-
+  model_symbols_count = len(hparams.n_symbols)
   model_weights = get_uniform_weights(model_symbols_count, hparams.symbols_embedding_dim)
   return model_weights
 
@@ -540,19 +532,6 @@ class Tacotron2(nn.Module):
   def __init__(self, hparams: HParams, logger: Logger):
     super(Tacotron2, self).__init__()
     self.use_speaker_embedding = hparams.use_speaker_embedding
-    model_symbols_count = get_accent_symbols_count(
-      hparams.n_symbols,
-      hparams.n_accents,
-      hparams.accents_use_own_symbols,
-      SHARED_SYMBOLS_COUNT
-    )
-
-    if hparams.accents_use_own_symbols:
-      logger.info(
-        f"All {hparams.n_accents} accent(s) use an own symbolset. The number of total symbols increased from {hparams.n_symbols} to {model_symbols_count}.")
-    else:
-      logger.info(
-        f"All {hparams.n_accents} accent(s) share the same symbolset. The number of total symbols is {model_symbols_count}.")
 
     self.logger = logger
     self.mask_padding = hparams.mask_padding
@@ -567,15 +546,12 @@ class Tacotron2(nn.Module):
       speaker_emb_weights = get_speaker_weights(hparams)
       self.speakers_embedding = weights_to_embedding(speaker_emb_weights)
 
-    #self.accent_embedding = nn.Embedding(hparams.n_accents, hparams.accents_embedding_dim)
-    # torch.nn.init.xavier_uniform_(self.accent_embedding.weight)
-
     self.encoder = Encoder(hparams)
     self.decoder = Decoder(hparams, logger)
     self.postnet = Postnet(hparams)
 
   def forward(self, inputs: Tuple[torch.LongTensor, torch.LongTensor, torch.LongTensor, torch.FloatTensor, torch.LongTensor, torch.LongTensor, torch.LongTensor]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    text_inputs, accent_inputs, text_lengths, mels, max_len, output_lengths, speaker_ids = inputs
+    text_inputs, text_lengths, mels, max_len, output_lengths, speaker_ids = inputs
     text_lengths, output_lengths = text_lengths.data, output_lengths.data
 
     embedded_inputs = self.embedding(input=text_inputs)
@@ -621,7 +597,7 @@ class Tacotron2(nn.Module):
 
     return mel_outputs, mel_outputs_postnet, gate_outputs, alignments
 
-  def inference(self, inputs: torch.LongTensor, accents: torch.LongTensor, speaker_id: torch.LongTensor, max_decoder_steps: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+  def inference(self, inputs: torch.LongTensor, speaker_id: torch.LongTensor, max_decoder_steps: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     embedded_inputs = self.embedding(inputs).transpose(1, 2)
     if torch.isnan(embedded_inputs).any():
       # embedding_inputs can be nan if training was not good

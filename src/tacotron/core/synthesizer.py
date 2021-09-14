@@ -1,22 +1,23 @@
 import logging
 import time
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 import numpy as np
 import torch
 from audio_utils.mel import mel_to_numpy
-from text_utils import get_accent_symbol_ids
 from tacotron.core.training import CheckpointTacotron, load_model
-from tacotron.globals import DEFAULT_PADDING_ACCENT, DEFAULT_PADDING_SYMBOL, SHARED_SYMBOLS_COUNT
+from tacotron.globals import NOT_INFERABLE_SYMBOL_MARKER
 from tacotron.utils import (init_global_seeds, overwrite_custom_hparams,
                             pass_lines)
-from tts_preparation import InferSentence, InferSentenceList
+from text_utils.types import Speaker
+from tts_preparation import InferableUtterance, InferableUtterances
+from tts_preparation.core.inference import log_utterances
 
 
 @dataclass
 class InferenceResult():
-  sentence: InferSentence
+  utterance: InferableUtterance
   sampling_rate: int
   reached_max_decoder_steps: bool
   inference_duration_s: float
@@ -31,9 +32,8 @@ class Synthesizer():
     super().__init__()
     self._logger = logger
 
-    self.accents = checkpoint.get_accents()
-    self.symbols = checkpoint.get_symbols()
-    self.speakers = checkpoint.get_speakers()
+    self.symbol_id_dict = checkpoint.get_symbols()
+    self.speaker_id_dict = checkpoint.get_speakers()
     hparams = checkpoint.get_hparams(logger)
     hparams = overwrite_custom_hparams(hparams, custom_hparams)
 
@@ -51,43 +51,29 @@ class Synthesizer():
   def get_sampling_rate(self) -> int:
     return self.hparams.sampling_rate
 
-  def _get_model_symbols_tensor(self, symbol_ids: List[int], accent_ids: List[int]) -> torch.LongTensor:
-    model_symbol_ids = get_accent_symbol_ids(
-      symbol_ids, accent_ids, self.hparams.n_symbols, self.hparams.accents_use_own_symbols, SHARED_SYMBOLS_COUNT)
-    #self._logger.debug(f"Symbol ids:\n{symbol_ids}")
-    #self._logger.debug(f"Model symbol ids:\n{model_symbol_ids}")
-    symbols_tensor = np.array([model_symbol_ids])
+  def infer(self, utterance: InferableUtterance, speaker: Speaker, ignore_unknown_symbols: bool, max_decoder_steps: int, seed: int) -> InferenceResult:
+    log_utterances(InferableUtterances([utterance]), marker=NOT_INFERABLE_SYMBOL_MARKER)
+    init_global_seeds(seed)
+
+    # symbols = utterance.symbols
+    # if self.symbol_id_dict.has_unknown_symbols(symbols):
+    #   if ignore_unknown_symbols:
+    #     symbols = self.symbol_id_dict.replace_unknown_symbols_with_pad(
+    #      symbols, pad_symbol=DEFAULT_PADDING_SYMBOL)
+    #     self._logger.info(f"After ignoring unknown symbols: {''.join(symbols)}")
+    #   else:
+    #     self._logger.exception("Unknown symbols are not allowed!")
+    #     raise Exception()
+
+    inferable_symbol_ids = [
+      symbol_id for symbol_id in utterance.symbol_ids if symbol_id is not None]
+    symbols_tensor = np.array([inferable_symbol_ids])
     symbols_tensor = torch.from_numpy(symbols_tensor)
     symbols_tensor = torch.autograd.Variable(symbols_tensor)
     symbols_tensor = symbols_tensor.cuda()
     symbols_tensor = symbols_tensor.long()
-    return symbols_tensor
 
-  def infer(self, sentence: InferSentence, speaker: str, ignore_unknown_symbols: bool, max_decoder_steps: int, seed: int) -> InferenceResult:
-    pass_lines(self._logger.info, sentence.get_formatted(self.accents))
-    init_global_seeds(seed)
-
-    accent_ids = self.accents.get_ids(sentence.accents)
-    accents_tensor = np.array([accent_ids])
-    accents_tensor = torch.from_numpy(accents_tensor)
-    accents_tensor = torch.autograd.Variable(accents_tensor)
-    accents_tensor = accents_tensor.cuda()
-    accents_tensor = accents_tensor.long()
-
-    symbols = sentence.symbols
-    if self.symbols.has_unknown_symbols(symbols):
-      if ignore_unknown_symbols:
-        symbols = self.symbols.replace_unknown_symbols_with_pad(
-         symbols, pad_symbol=DEFAULT_PADDING_SYMBOL)
-        self._logger.info(f"After ignoring unknown symbols: {''.join(symbols)}")
-      else:
-        self._logger.exception("Unknown symbols are not allowed!")
-        raise Exception()
-
-    symbol_ids = self.symbols.get_ids(symbols)
-    symbols_tensor = self._get_model_symbols_tensor(symbol_ids, accent_ids)
-
-    speaker_id = self.speakers[speaker]
+    speaker_id = self.speaker_id_dict[speaker]
     speaker_tensor = torch.IntTensor([speaker_id])
     speaker_tensor = speaker_tensor.cuda()
     speaker_tensor = speaker_tensor.long()
@@ -97,7 +83,6 @@ class Synthesizer():
     with torch.no_grad():
       mel_outputs, mel_outputs_postnet, gate_outputs, alignments, reached_max_decoder_steps = self.model.inference(
         inputs=symbols_tensor,
-        accents=accents_tensor,
         speaker_id=speaker_tensor,
         max_decoder_steps=max_decoder_steps,
       )
@@ -106,7 +91,7 @@ class Synthesizer():
     inference_duration_s = end - start
 
     infer_res = InferenceResult(
-      sentence=sentence,
+      utterance=utterance,
       sampling_rate=self.hparams.sampling_rate,
       reached_max_decoder_steps=reached_max_decoder_steps,
       inference_duration_s=inference_duration_s,

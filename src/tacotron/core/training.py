@@ -75,7 +75,7 @@ def validate(model: nn.Module, criterion: nn.Module, val_loader: DataLoader, ite
   return avg_val_loss
 
 
-def train(warm_model: Optional[CheckpointTacotron], custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, symbols: SymbolIdDict, speakers: SpeakersDict, accents: AccentsDict, trainset: PreparedDataList, valset: PreparedDataList, save_callback: Callable[[str], None], weights_checkpoint: Optional[CheckpointTacotron], weights_map: Optional[SymbolsMap], map_from_speaker_name: Optional[str], logger: Logger, checkpoint_logger: Logger) -> None:
+def train(warm_model: Optional[CheckpointTacotron], custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, symbols: SymbolIdDict, speakers: SpeakersDict, trainset: PreparedDataList, valset: PreparedDataList, save_callback: Callable[[str], None], weights_checkpoint: Optional[CheckpointTacotron], weights_map: Optional[SymbolsMap], map_from_speaker_name: Optional[str], logger: Logger, checkpoint_logger: Logger) -> None:
   logger.info("Starting new model...")
   _train(
     custom_hparams=custom_hparams,
@@ -84,7 +84,6 @@ def train(warm_model: Optional[CheckpointTacotron], custom_hparams: Optional[Dic
     valset=valset,
     save_callback=save_callback,
     speakers=speakers,
-    accents=accents,
     symbols=symbols,
     weights_checkpoint=weights_checkpoint,
     weights_map=weights_map,
@@ -105,7 +104,6 @@ def continue_train(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict
     valset=valset,
     save_callback=save_callback,
     speakers=checkpoint.get_speakers(),
-    accents=checkpoint.get_accents(),
     symbols=checkpoint.get_symbols(),
     weights_checkpoint=None,
     weights_map=None,
@@ -127,7 +125,7 @@ def log_symbol_weights(model: nn.Module, logger: Logger) -> None:
   logger.info(str(model.state_dict()[SYMBOL_EMBEDDING_LAYER_NAME]))
 
 
-def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, trainset: PreparedDataList, valset: PreparedDataList, save_callback: Callable[[str], None], speakers: SpeakersDict, accents: AccentsDict, symbols: SymbolIdDict, checkpoint: Optional[CheckpointTacotron], warm_model: Optional[CheckpointTacotron], weights_checkpoint: Optional[CheckpointTacotron], weights_map: SymbolsMap, map_from_speaker_name: Optional[str], logger: Logger, checkpoint_logger: Logger) -> None:
+def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, trainset: PreparedDataList, valset: PreparedDataList, save_callback: Callable[[str], None], speakers: SpeakersDict, symbols: SymbolIdDict, checkpoint: Optional[CheckpointTacotron], warm_model: Optional[CheckpointTacotron], weights_checkpoint: Optional[CheckpointTacotron], weights_map: SymbolsMap, map_from_speaker_name: Optional[str], logger: Logger, checkpoint_logger: Logger) -> None:
   """Training and validation logging results to tensorboard and stdout
   Params
   ------
@@ -145,14 +143,12 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
     hparams = checkpoint.get_hparams(logger)
   else:
     hparams = HParams(
-      n_accents=len(accents),
       n_speakers=len(speakers),
       n_symbols=len(symbols)
     )
   # TODO: it should not be recommended to change the batch size on a trained model
   hparams = overwrite_custom_hparams(hparams, custom_hparams)
 
-  assert hparams.n_accents > 0
   assert hparams.n_speakers > 0
   assert hparams.n_symbols > 0
 
@@ -213,7 +209,6 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
   collate_fn = SymbolsMelCollate(
     n_frames_per_step=hparams.n_frames_per_step,
     padding_symbol_id=symbols.get_id(DEFAULT_PADDING_SYMBOL),
-    padding_accent_id=accents.get_id(DEFAULT_PADDING_ACCENT)
   )
 
   val_loader = prepare_valloader(hparams, collate_fn, valset, logger)
@@ -342,7 +337,6 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
           hparams=hparams,
           iteration=iteration,
           symbols=symbols,
-          accents=accents,
           speakers=speakers,
           scheduler=scheduler,
         )

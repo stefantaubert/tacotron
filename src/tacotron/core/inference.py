@@ -9,16 +9,17 @@ from tacotron.core.synthesizer import InferenceResult, Synthesizer
 from tacotron.core.training import CheckpointTacotron
 from tacotron.utils import (GenericList, plot_alignment_np,
                             plot_alignment_np_new)
-from tts_preparation import InferSentence, InferSentenceList
+from text_utils.types import Speaker, SpeakerId
+from tts_preparation import InferableUtterance, InferableUtterances
 
 
 @dataclass
 class InferenceEntry():
-  sent_id: int = None
+  utterance_id: int = None
   text_original: str = None
   text: str = None
-  speaker_id: int = None
-  speaker_name: str = None
+  speaker_id: SpeakerId = None
+  speaker_name: Speaker = None
   iteration: int = None
   reached_max_decoder_steps: bool = None
   inference_duration_s: float = None
@@ -44,13 +45,22 @@ class InferenceEntryOutput():
   # gate_out_img: np.ndarray = None
 
 
-def infer(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict[str, str]], sentence_ids: Optional[Set[int]], speaker_name: Optional[str], train_name: str, full_run: bool, sentences: InferSentenceList, save_callback: Callable[[InferSentence, InferenceEntryOutput], None], max_decoder_steps: int, seed: int, logger: Logger) -> InferenceEntries:
+def get_subset(utterances: InferableUtterances, sent_ids: Set[int]) -> InferableUtterances:
+  result = InferableUtterances(utterance for utterance in utterances.items()
+                               if utterance.utterance_id in sent_ids)
+  return result
+
+
+def infer(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict[str, str]], speaker_name: Optional[Speaker], train_name: str, utterances: InferableUtterances, utterance_ids: Optional[Set[int]], full_run: bool, save_callback: Callable[[InferableUtterance, InferenceEntryOutput], None], max_decoder_steps: int, seed: int, logger: Logger) -> InferenceEntries:
   model_speakers = checkpoint.get_speakers()
 
   if full_run:
-    sents = sentences
+    pass
+  elif utterance_ids is not None:
+    utterances = InferableUtterances(get_subset(utterances, utterance_ids))
   else:
-    sents = InferSentenceList(sentences.get_subset(sentence_ids))
+    assert seed is not None
+    utterances = InferableUtterances([utterances.get_random_entry(seed)])
 
   synth = Synthesizer(
     checkpoint=checkpoint,
@@ -61,25 +71,25 @@ def infer(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict[str, str
   speaker_id = model_speakers.get_id(speaker_name)
 
   result = InferenceEntries()
-  for inf_sent_input in sents:
+  for utterance in utterances:
     inf_sent_output = synth.infer(
-      sentence=inf_sent_input,
+      utterance=utterance,
       speaker=speaker_name,
       ignore_unknown_symbols=False,
       max_decoder_steps=max_decoder_steps,
       seed=seed,
     )
 
-    symbol_count = len(inf_sent_input.symbols)
-    unique_symbols = set(inf_sent_input.symbols)
+    symbol_count = len(utterance.symbols)
+    unique_symbols = set(utterance.symbols)
     unique_symbols_str = " ".join(list(sorted(unique_symbols)))
     unique_symbols_count = len(unique_symbols)
     timepoint = f"{datetime.datetime.now():%Y/%m/%d %H:%M:%S}"
-    text = "".join(inf_sent_input.symbols)
+    text = "".join(utterance.symbols)
 
     infer_entry_output = InferenceEntry(
-      sent_id=inf_sent_input.sent_id,
-      text_original=inf_sent_input.original_text,
+      utterance_id=utterance.sent_id,
+      text_original=utterance.original_text,
       text=text,
       speaker_id=speaker_id,
       speaker_name=speaker_name,
@@ -106,7 +116,7 @@ def infer(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict[str, str
       postnet_img=postnet_img,
     )
 
-    save_callback(inf_sent_input, inference_data_output)
+    save_callback(utterance, inference_data_output)
     result.append(infer_entry_output)
 
   return result

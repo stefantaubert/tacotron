@@ -178,7 +178,6 @@ def wav_to_text(wav: np.ndarray) -> str:
 
 def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: PreparedDataList, custom_hparams: Optional[Dict[str, str]], entry_ids: Optional[Set[int]], speaker_name: Optional[str], train_name: str, full_run: bool, save_callback: Optional[Callable[[PreparedData, ValidationEntryOutput], None]], max_decoder_steps: int, fast: bool, mcd_no_of_coeffs_per_frame: int, repetitions: int, seed: Optional[int], select_best_from: Optional[pd.DataFrame], logger: Logger) -> ValidationEntries:
   model_symbols = checkpoint.get_symbols()
-  model_accents = checkpoint.get_accents()
   model_speakers = checkpoint.get_speakers()
 
   seeds: List[int]
@@ -273,13 +272,12 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
       infer_sent = InferSentence(
         sent_id=1,
         symbols=model_symbols.get_symbols(entry.serialized_symbol_ids),
-        accents=model_accents.get_accents(entry.serialized_accent_ids),
         original_text=entry.text_original,
       )
 
       speaker_name = model_speakers.get_speaker(entry.speaker_id)
       inference_result = synth.infer(
-        sentence=infer_sent,
+        utterance=infer_sent,
         speaker=speaker_name,
         ignore_unknown_symbols=False,
         max_decoder_steps=max_decoder_steps,

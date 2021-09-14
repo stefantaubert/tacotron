@@ -21,10 +21,9 @@ class CheckpointTacotron(Checkpoint):
   # Renaming of any of these fields will destroy previous models!
   speakers: OrderedDictType[str, int]
   symbols: OrderedDictType[str, int]
-  accents: OrderedDictType[str, int]
 
   @classmethod
-  def from_instances(cls, model: Tacotron2, optimizer: Adam, hparams: HParams, iteration: int, symbols: SymbolIdDict, accents: AccentsDict, speakers: SpeakersDict, scheduler: Optional[ExponentialLR]):
+  def from_instances(cls, model: Tacotron2, optimizer: Adam, hparams: HParams, iteration: int, symbols: SymbolIdDict, speakers: SpeakersDict, scheduler: Optional[ExponentialLR]):
     result = cls(
       state_dict=model.state_dict(),
       optimizer=optimizer.state_dict(),
@@ -32,7 +31,6 @@ class CheckpointTacotron(Checkpoint):
       iteration=iteration,
       hparams=asdict(hparams),
       symbols=symbols.raw(),
-      accents=accents.raw(),
       speakers=speakers.raw(),
       scheduler_state_dict=scheduler.state_dict() if scheduler else None,
     )
@@ -44,9 +42,6 @@ class CheckpointTacotron(Checkpoint):
 
   def get_symbols(self) -> SymbolIdDict:
     return SymbolIdDict.from_raw(self.symbols)
-
-  def get_accents(self) -> AccentsDict:
-    return AccentsDict.from_raw(self.accents)
 
   def get_speakers(self) -> SpeakersDict:
     return SpeakersDict.from_raw(self.speakers)
@@ -66,32 +61,5 @@ class CheckpointTacotron(Checkpoint):
     result = super().load(checkpoint_path, logger)
     # pylint: disable=no-member
     logger.info(f'Including {len(result.symbols)} symbols.')
-    logger.info(f'Including {len(result.accents)} accents.')
     logger.info(f'Including {len(result.speakers)} speaker(s).')
     return result
-
-
-def convert_v1_to_v2_model(old_model_path: str, custom_hparams: Optional[Dict[str, str]], speakers: SpeakersDict, accents: AccentsDict, symbols: SymbolIdDict) -> None:
-  checkpoint_dict = torch.load(old_model_path, map_location='cpu')
-  hparams = HParams(
-    n_speakers=len(speakers),
-    n_accents=len(accents),
-    n_symbols=len(symbols)
-  )
-
-  hparams = overwrite_custom_hparams(hparams, custom_hparams)
-
-  chp = CheckpointTacotron(
-    state_dict=checkpoint_dict["state_dict"],
-    optimizer=checkpoint_dict["optimizer"],
-    learning_rate=checkpoint_dict["learning_rate"],
-    iteration=checkpoint_dict["iteration"] + 1,
-    hparams=asdict(hparams),
-    speakers=speakers.raw(),
-    symbols=symbols.raw(),
-    accents=accents.raw()
-  )
-
-  new_model_path = f"{old_model_path}_{get_pytorch_filename(chp.iteration)}"
-
-  chp.save(new_model_path, logging.getLogger())

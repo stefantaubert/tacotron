@@ -1,14 +1,10 @@
-import random
 from logging import Logger
 from typing import Dict, List, Tuple
 
 import torch
 from audio_utils.mel import TacotronSTFT
 from tacotron.core.hparams import HParams
-from text_utils import get_accent_symbol_ids
-from tacotron.globals import SHARED_SYMBOLS_COUNT
 from tacotron.utils import to_gpu
-from text_utils import deserialize_list
 from torch import (FloatTensor, IntTensor,  # pylint: disable=no-name-in-module
                    LongTensor, Tensor)
 from torch.utils.data import DataLoader, Dataset
@@ -32,20 +28,13 @@ class SymbolsMelLoader(Dataset):
 
     logger.info("Reading files...")
     self.data: Dict[int, Tuple[IntTensor, IntTensor, str, int]] = {}
-    for i, values in enumerate(data.items(True)):
-      symbol_ids = deserialize_list(values.serialized_symbol_ids)
-      accent_ids = deserialize_list(values.serialized_accent_ids)
-
-      model_symbol_ids = get_accent_symbol_ids(
-        symbol_ids, accent_ids, hparams.n_symbols, hparams.accents_use_own_symbols, SHARED_SYMBOLS_COUNT)
-
-      symbols_tensor = IntTensor(model_symbol_ids)
-      accents_tensor = IntTensor(accent_ids)
+    for i, entry in enumerate(data.items(True)):
+      symbols_tensor = IntTensor(entry.symbol_ids)
 
       if hparams.use_saved_mels:
-        self.data[i] = (symbols_tensor, accents_tensor, values.mel_path, values.speaker_id)
+        self.data[i] = (symbols_tensor, entry.mel_path, entry.speaker_id)
       else:
-        self.data[i] = (symbols_tensor, accents_tensor, values.wav_path, values.speaker_id)
+        self.data[i] = (symbols_tensor, entry.wav_path, entry.speaker_id)
 
     if hparams.use_saved_mels and hparams.cache_mels:
       logger.info("Loading mels into memory...")
@@ -59,7 +48,7 @@ class SymbolsMelLoader(Dataset):
   def __getitem__(self, index: int) -> Tuple[IntTensor, IntTensor, Tensor, int]:
     # return self.cache[index]
     # debug_logger.debug(f"getitem called {index}")
-    symbols_tensor, accents_tensor, path, speaker_id = self.data[index]
+    symbols_tensor, path, speaker_id = self.data[index]
     if self.use_saved_mels:
       if self.use_cache:
         mel_tensor = self.cache[index].clone().detach()
@@ -69,9 +58,8 @@ class SymbolsMelLoader(Dataset):
       mel_tensor = self.mel_parser.get_mel_tensor_from_file(path)
 
     symbols_tensor_cloned = symbols_tensor.clone().detach()
-    accents_tensor_cloned = accents_tensor.clone().detach()
     # debug_logger.debug(f"getitem finished {index}")
-    return symbols_tensor_cloned, accents_tensor_cloned, mel_tensor, speaker_id
+    return symbols_tensor_cloned, mel_tensor, speaker_id
 
   def __len__(self):
     return len(self.data)
@@ -81,10 +69,9 @@ class SymbolsMelCollate():
   """ Zero-pads model inputs and targets based on number of frames per step
   """
 
-  def __init__(self, n_frames_per_step: int, padding_symbol_id: int, padding_accent_id: int):
+  def __init__(self, n_frames_per_step: int, padding_symbol_id: int):
     self.n_frames_per_step = n_frames_per_step
     self.padding_symbol_id = padding_symbol_id
-    self.padding_accent_id = padding_accent_id
 
   def __call__(self, batch: List[Tuple[IntTensor, IntTensor, Tensor, int]]):
     """Collate's training batch from normalized text and mel-spectrogram
@@ -100,15 +87,9 @@ class SymbolsMelCollate():
     symbols_padded = LongTensor(len(batch), max_input_len)
     torch.nn.init.constant_(symbols_padded, self.padding_symbol_id)
 
-    accents_padded = LongTensor(len(batch), max_input_len)
-    torch.nn.init.constant_(accents_padded, self.padding_accent_id)
-
     for i, batch_id in enumerate(ids_sorted_decreasing):
       symbols = batch[batch_id][0]
       symbols_padded[i, :symbols.size(0)] = symbols
-
-      accents = batch[batch_id][1]
-      accents_padded[i, :accents.size(0)] = accents
 
     # Right zero-pad mel-spec
     _, _, first_mel, _ = batch[0]
@@ -146,7 +127,6 @@ class SymbolsMelCollate():
 
     return make_batch(
       symbols_padded,
-      accents_padded,
       input_lengths,
       mel_padded,
       gate_padded,
@@ -155,14 +135,13 @@ class SymbolsMelCollate():
     )
 
 
-def make_batch(symbols_padded: torch.LongTensor, accents_padded: torch.LongTensor, input_lengths: torch.LongTensor, mel_padded: torch.FloatTensor, gate_padded: torch.FloatTensor, output_lengths: torch.LongTensor, speaker_ids: torch.LongTensor) -> Tuple[torch.LongTensor, torch.LongTensor, torch.LongTensor, torch.FloatTensor, torch.FloatTensor, torch.LongTensor, torch.LongTensor]:
-  return symbols_padded, accents_padded, input_lengths, mel_padded, gate_padded, output_lengths, speaker_ids
+def make_batch(symbols_padded: torch.LongTensor, input_lengths: torch.LongTensor, mel_padded: torch.FloatTensor, gate_padded: torch.FloatTensor, output_lengths: torch.LongTensor, speaker_ids: torch.LongTensor) -> Tuple[torch.LongTensor, torch.LongTensor, torch.LongTensor, torch.FloatTensor, torch.FloatTensor, torch.LongTensor, torch.LongTensor]:
+  return symbols_padded, input_lengths, mel_padded, gate_padded, output_lengths, speaker_ids
 
 
 def parse_batch(batch: Tuple[torch.LongTensor, torch.LongTensor, torch.LongTensor, torch.FloatTensor, torch.FloatTensor, torch.LongTensor, torch.LongTensor]) -> Tuple[Tuple[torch.LongTensor, torch.LongTensor, torch.LongTensor, torch.FloatTensor, torch.LongTensor, torch.LongTensor, torch.LongTensor], Tuple[torch.FloatTensor, torch.FloatTensor]]:
-  symbols_padded, accents_padded, input_lengths, mel_padded, gate_padded, output_lengths, speaker_ids = batch
+  symbols_padded, input_lengths, mel_padded, gate_padded, output_lengths, speaker_ids = batch
   symbols_padded = to_gpu(symbols_padded).long()
-  accents_padded = to_gpu(accents_padded).long()
   input_lengths = to_gpu(input_lengths).long()
   max_len = torch.max(input_lengths.data).item()
   mel_padded = to_gpu(mel_padded).float()
@@ -170,7 +149,7 @@ def parse_batch(batch: Tuple[torch.LongTensor, torch.LongTensor, torch.LongTenso
   output_lengths = to_gpu(output_lengths).long()
   speaker_ids = to_gpu(speaker_ids).long()
 
-  x = (symbols_padded, accents_padded, input_lengths,
+  x = (symbols_padded, input_lengths,
        mel_padded, max_len, output_lengths, speaker_ids)
   y = (mel_padded, gate_padded)
   return x, y

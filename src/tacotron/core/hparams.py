@@ -29,11 +29,8 @@ class DataHParams():
 class ModelHParams():
   n_symbols: int = 0
   n_speakers: int = 0
-  n_accents: int = 0
   symbols_embedding_dim: int = 512
   speakers_embedding_dim: int = 128  # 16
-  #accents_embedding_dim: int = 512
-  accents_use_own_symbols: bool = False
   use_speaker_embedding: bool = True
 
   # Encoder parameters

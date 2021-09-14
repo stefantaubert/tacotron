@@ -1,5 +1,4 @@
 import datetime
-import os
 from functools import partial
 from pathlib import Path
 from shutil import copyfile
@@ -151,11 +150,11 @@ def infer(base_dir: Path, train_name: str, text_name: str, speaker: str, sentenc
 
   inference_results = infer_core(
     checkpoint=taco_checkpoint,
-    sentences=infer_sents,
+    utterances=infer_sents,
     custom_hparams=custom_hparams,
     full_run=full_run,
     save_callback=save_callback,
-    sentence_ids=sentence_ids,
+    utterance_ids=sentence_ids,
     speaker_name=speaker,
     train_name=train_name,
     max_decoder_steps=max_decoder_steps,

@@ -74,9 +74,9 @@ def get_mapped_symbol_weights(model_symbols: SymbolIdDict, trained_weights: Tens
 
   model_symbols_id_map = symbols_ids_map_to_model_symbols_ids_map(
     symbols_id_map,
-    hparams.n_accents,
+    0,
     n_symbols=hparams.n_symbols,
-    accents_use_own_symbols=hparams.accents_use_own_symbols
+    accents_use_own_symbols=False
   )
 
   model_weights = get_symbol_weights(hparams)
