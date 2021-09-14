@@ -177,7 +177,7 @@ def get_last_checkpoint(checkpoint_dir: str) -> Tuple[str, int]:
     raise Exception("No checkpoint iteration found!")
   last_iteration = max(its)
   last_checkpoint = get_pytorch_filename(last_iteration)
-  checkpoint_path = os.path.join(checkpoint_dir, last_checkpoint)
+  checkpoint_path = checkpoint_dir / last_checkpoint
   return checkpoint_path, last_iteration
 
 
@@ -190,8 +190,7 @@ def get_all_checkpoint_iterations(checkpoint_dir: str) -> List[int]:
 
 
 def get_checkpoint(checkpoint_dir: str, iteration: int) -> str:
-  checkpoint_path = os.path.join(
-    checkpoint_dir, get_pytorch_filename(iteration))
+  checkpoint_path = checkpoint_dir / get_pytorch_filename(iteration)
   if not os.path.isfile(checkpoint_path):
     raise Exception(f"Checkpoint with iteration {iteration} not found!")
   return checkpoint_path
@@ -700,7 +699,7 @@ def get_filenames(parent_dir: str) -> List[str]:
 
 def get_filepaths(parent_dir: str) -> List[str]:
   names = get_filenames(parent_dir)
-  res = [os.path.join(parent_dir, x) for x in names]
+  res = [parent_dir / x for x in names]
   return res
 
 
@@ -714,7 +713,7 @@ def get_subfolder_names(parent_dir: str) -> List[str]:
 def get_subfolders(parent_dir: str) -> List[str]:
   """return full paths"""
   names = get_subfolder_names(parent_dir)
-  res = [os.path.join(parent_dir, x) for x in names]
+  res = [parent_dir / x for x in names]
   return res
 
 
@@ -912,7 +911,7 @@ def str_to_int(val: str) -> int:
 
 
 def get_subdir(training_dir_path: str, subdir: str, create: bool = True) -> str:
-  result = os.path.join(training_dir_path, subdir)
+  result = training_dir_path / subdir
   if create:
     os.makedirs(result, exist_ok=True)
   return result
@@ -922,7 +921,7 @@ def download_tar(download_url, dir_path, tarmode: str = "r:gz") -> None:
   print("Starting download of {}...".format(download_url))
   os.makedirs(dir_path, exist_ok=True)
   dest = wget.download(download_url, dir_path)
-  downloaded_file = os.path.join(dir_path, dest)
+  downloaded_file = dir_path / dest
   print("\nFinished download to {}".format(downloaded_file))
   print("Unpacking...")
   tar = tarfile.open(downloaded_file, tarmode)

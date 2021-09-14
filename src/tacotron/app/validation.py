@@ -69,7 +69,7 @@ def get_val_entry_dir(val_dir: Path, result_name: str) -> None:
 
 
 def save_stats(val_dir: Path, validation_entries: ValidationEntries) -> None:
-  path = os.path.join(val_dir, "total.csv")
+  path = val_dir / "total.csv"
   validation_entries.save(path, header=True)
 
 
@@ -80,7 +80,7 @@ def save_mel_postnet_npy_paths(val_dir: Path, name: str, mel_postnet_npy_paths: 
     mel_info_dict=mel_postnet_npy_paths,
   )
 
-  path = os.path.join(val_dir, "mel_postnet_npy.json")
+  path = val_dir / "mel_postnet_npy.json"
   save_json(path, info_json)
   # text = '\n'.join(mel_postnet_npy_paths)
   # save_txt(path, text)
@@ -94,44 +94,44 @@ def get_result_name(entry: PreparedData, iteration: int, repetition: int):
 def save_results(entry: PreparedData, output: ValidationEntryOutput, val_dir: Path, iteration: int, mel_postnet_npy_paths: List[Dict[str, Any]]):
   result_name = get_result_name(entry, iteration, output.repetition)
   dest_dir = get_val_entry_dir(val_dir, result_name)
-  write(os.path.join(dest_dir, "original.wav"), output.orig_sr, output.wav_orig)
-  imageio.imsave(os.path.join(dest_dir, "original.png"), output.mel_orig_img)
-  imageio.imsave(os.path.join(dest_dir, "original_aligned.png"), output.mel_orig_aligned_img)
-  imageio.imsave(os.path.join(dest_dir, "inferred.png"), output.mel_postnet_img)
-  imageio.imsave(os.path.join(dest_dir, "inferred_aligned.png"), output.mel_postnet_aligned_img)
-  imageio.imsave(os.path.join(dest_dir, "mel.png"), output.mel_img)
-  imageio.imsave(os.path.join(dest_dir, "alignments.png"), output.alignments_img)
-  imageio.imsave(os.path.join(dest_dir, "alignments_aligned.png"), output.alignments_aligned_img)
-  imageio.imsave(os.path.join(dest_dir, "diff.png"), output.mel_postnet_diff_img)
-  imageio.imsave(os.path.join(dest_dir, "diff_aligned.png"), output.mel_postnet_aligned_diff_img)
-  np.save(os.path.join(dest_dir, "original.mel.npy"), output.mel_orig)
-  np.save(os.path.join(dest_dir, "original_aligned.mel.npy"), output.mel_orig_aligned)
+  write(dest_dir / "original.wav", output.orig_sr, output.wav_orig)
+  imageio.imsave(dest_dir / "original.png", output.mel_orig_img)
+  imageio.imsave(dest_dir / "original_aligned.png", output.mel_orig_aligned_img)
+  imageio.imsave(dest_dir / "inferred.png", output.mel_postnet_img)
+  imageio.imsave(dest_dir / "inferred_aligned.png", output.mel_postnet_aligned_img)
+  imageio.imsave(dest_dir / "mel.png", output.mel_img)
+  imageio.imsave(dest_dir / "alignments.png", output.alignments_img)
+  imageio.imsave(dest_dir / "alignments_aligned.png", output.alignments_aligned_img)
+  imageio.imsave(dest_dir / "diff.png", output.mel_postnet_diff_img)
+  imageio.imsave(dest_dir / "diff_aligned.png", output.mel_postnet_aligned_diff_img)
+  np.save(dest_dir / "original.mel.npy", output.mel_orig)
+  np.save(dest_dir / "original_aligned.mel.npy", output.mel_orig_aligned)
 
-  mel_postnet_npy_path = os.path.join(dest_dir, "inferred.mel.npy")
+  mel_postnet_npy_path = dest_dir / "inferred.mel.npy"
   np.save(mel_postnet_npy_path, output.mel_postnet)
-  np.save(os.path.join(dest_dir, "inferred_aligned.mel.npy"), output.mel_postnet_aligned)
+  np.save(dest_dir / "inferred_aligned.mel.npy", output.mel_postnet_aligned)
 
   stack_images_vertically(
     list_im=[
-      os.path.join(dest_dir, "original.png"),
-      os.path.join(dest_dir, "inferred.png"),
-      os.path.join(dest_dir, "diff.png"),
-      os.path.join(dest_dir, "alignments.png"),
-      os.path.join(dest_dir, "mel.png"),
+      dest_dir / "original.png",
+      dest_dir / "inferred.png",
+      dest_dir / "diff.png",
+      dest_dir / "alignments.png",
+      dest_dir / "mel.png",
     ],
-    out_path=os.path.join(dest_dir, "comparison.png")
+    out_path=dest_dir / "comparison.png"
   )
 
   stack_images_vertically(
     list_im=[
-      os.path.join(dest_dir, "original.png"),
-      os.path.join(dest_dir, "inferred.png"),
-      os.path.join(dest_dir, "original_aligned.png"),
-      os.path.join(dest_dir, "inferred_aligned.png"),
-      os.path.join(dest_dir, "diff_aligned.png"),
-      os.path.join(dest_dir, "alignments_aligned.png"),
+      dest_dir / "original.png",
+      dest_dir / "inferred.png",
+      dest_dir / "original_aligned.png",
+      dest_dir / "inferred_aligned.png",
+      dest_dir / "diff_aligned.png",
+      dest_dir / "alignments_aligned.png",
     ],
-    out_path=os.path.join(dest_dir, "comparison_aligned.png")
+    out_path=dest_dir / "comparison_aligned.png"
   )
 
   mel_info = get_mel_info_dict(
@@ -186,7 +186,7 @@ def validate(base_dir: Path, train_name: str, entry_ids: Optional[Set[int]] = No
     run_name=run_name,
   )
 
-  val_log_path = os.path.join(val_dir, "log.txt")
+  val_log_path = val_dir / "log.txt"
   logger = prepare_logger(val_log_path)
   logger.info("Validating...")
   logger.info(f"Checkpoints: {','.join(str(x) for x in sorted(iterations))}")

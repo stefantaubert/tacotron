@@ -34,11 +34,11 @@ def get_train_logs_dir(train_dir: Path) -> Path:
 
 
 def get_train_log_file(logs_dir: Path) -> Path:
-  return Path(os.path.join(logs_dir, "log.txt"))
+  return logs_dir / "log.txt"
 
 
 def get_train_checkpoints_log_file(logs_dir: Path) -> Path:
-  return os.path.join(logs_dir, "log_checkpoints.txt")
+  return logs_dir / "log_checkpoints.txt"
 
 
 def get_checkpoints_dir(train_dir: Path) -> Path:
@@ -46,37 +46,37 @@ def get_checkpoints_dir(train_dir: Path) -> Path:
 
 
 # def save_trainset(train_dir: str, dataset: PreparedDataList):
-#   path = os.path.join(train_dir, _train_csv)
+#   path = train_dir / _train_csv
 #   dataset.save(path)
 
 
 # def load_trainset(train_dir: str) -> PreparedDataList:
-#   path = os.path.join(train_dir, _train_csv)
+#   path = train_dir / _train_csv
 #   return PreparedDataList.load(PreparedData, path)
 
 
 # def save_testset(train_dir: str, dataset: PreparedDataList):
-#   path = os.path.join(train_dir, _test_csv)
+#   path = train_dir / _test_csv
 #   dataset.save(path)
 
 
 # def load_testset(train_dir: str) -> PreparedDataList:
-#   path = os.path.join(train_dir, _test_csv)
+#   path = train_dir / _test_csv
 #   return PreparedDataList.load(PreparedData, path)
 
 
 # def save_valset(train_dir: str, dataset: PreparedDataList):
-#   path = os.path.join(train_dir, _val_csv)
+#   path = train_dir / _val_csv
 #   dataset.save(path)
 
 
 # def load_valset(train_dir: str) -> PreparedDataList:
-#   path = os.path.join(train_dir, _val_csv)
+#   path = train_dir / _val_csv
 #   return PreparedDataList.load(PreparedData, path)
 
 
 def load_prep_settings(train_dir: Path) -> Tuple[Path, str, str]:
-  path = os.path.join(train_dir, _settings_json)
+  path = train_dir / _settings_json
   res = parse_json(path)
   return Path(res["ttsp_dir"]), res["merge_name"], res["prep_name"]
 
@@ -87,7 +87,7 @@ def save_prep_settings(train_dir: Path, ttsp_dir: Path, merge_name: Optional[str
     "merge_name": merge_name,
     "prep_name": prep_name,
   }
-  path = os.path.join(train_dir, _settings_json)
+  path = train_dir / _settings_json
   save_json(path, settings)
 
 
@@ -130,17 +130,17 @@ def get_inference_root_dir(train_dir: Path) -> Path:
 
 
 def get_infer_log(infer_dir: Path) -> Path:
-  return os.path.join(infer_dir, f"{get_parent_dirname(infer_dir)}.txt")
+  return infer_dir / f"{get_parent_dirname(infer_dir)}.txt"
 
 
 def save_infer_wav(infer_dir: Path, sampling_rate: int, wav: np.ndarray) -> None:
-  path = os.path.join(infer_dir, f"{get_parent_dirname(infer_dir)}.wav")
+  path = infer_dir / f"{get_parent_dirname(infer_dir)}.wav"
   float_to_wav(wav, path, sample_rate=sampling_rate)
 
 
 def save_infer_plot(infer_dir: Path, mel: np.ndarray) -> Path:
   plot_melspec(mel, title=get_parent_dirname(infer_dir))
-  path = os.path.join(infer_dir, f"{get_parent_dirname(infer_dir)}.png")
+  path = infer_dir / f"{get_parent_dirname(infer_dir)}.png"
   plt.savefig(path, bbox_inches='tight')
   plt.close()
   return path
@@ -162,7 +162,7 @@ def get_val_dir(train_dir: Path, entry: PreparedData, iteration: int) -> Path:
 def save_val_plot(val_dir: Path, mel) -> None:
   parent_dir = get_parent_dirname(val_dir)
   plot_melspec(mel, title=parent_dir)
-  path = os.path.join(val_dir, f"{parent_dir}.png")
+  path = val_dir / f"{parent_dir}.png"
   plt.savefig(path, bbox_inches='tight')
   plt.close()
 
@@ -170,23 +170,23 @@ def save_val_plot(val_dir: Path, mel) -> None:
 def save_val_orig_plot(val_dir: Path, mel) -> None:
   parent_dir = get_parent_dirname(val_dir)
   plot_melspec(mel, title=parent_dir)
-  path = os.path.join(val_dir, f"{parent_dir}_orig.png")
+  path = val_dir / f"{parent_dir}_orig.png"
   plt.savefig(path, bbox_inches='tight')
   plt.close()
 
 
 def save_val_comparison(val_dir: Path) -> None:
   parent_dir = get_parent_dirname(val_dir)
-  path1 = os.path.join(val_dir, f"{parent_dir}_orig.png")
-  path2 = os.path.join(val_dir, f"{parent_dir}.png")
+  path1 = val_dir / f"{parent_dir}_orig.png"
+  path2 = val_dir / f"{parent_dir}.png"
   assert os.path.exists(path1)
   assert os.path.exists(path2)
-  path = os.path.join(val_dir, f"{parent_dir}_comp.png")
+  path = val_dir / f"{parent_dir}_comp.png"
   stack_images_vertically([path1, path2], path)
 
 
 def get_val_wav_path(val_dir: Path) -> Path:
-  path = os.path.join(val_dir, f"{get_parent_dirname(val_dir)}.wav")
+  path = val_dir / f"{get_parent_dirname(val_dir)}.wav"
   return path
 
 
@@ -197,7 +197,7 @@ def save_val_wav(val_dir: Path, sampling_rate: int, wav) -> Path:
 
 
 def get_val_orig_wav_path(val_dir: Path) -> Path:
-  path = os.path.join(val_dir, f"{get_parent_dirname(val_dir)}_orig.wav")
+  path = val_dir / f"{get_parent_dirname(val_dir)}_orig.wav"
   return path
 
 
@@ -207,6 +207,6 @@ def save_val_orig_wav(val_dir: Path, wav_path: Path) -> None:
 
 
 def get_val_log(val_dir: Path) -> Path:
-  return os.path.join(val_dir, f"{get_parent_dirname(val_dir)}.txt")
+  return val_dir / f"{get_parent_dirname(val_dir)}.txt"
 
 # endregion

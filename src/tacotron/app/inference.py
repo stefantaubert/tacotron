@@ -43,31 +43,27 @@ MEL_POSTNET_PNG = "mel_postnet.png"
 ALIGNMENTS_PNG = "alignments.png"
 
 
-def save_mel_v_plot(infer_dir: Path, sentences: InferSentenceList):
-  paths = [os.path.join(get_infer_sent_dir(infer_dir, get_result_name(x)), MEL_PNG)
-           for x in sentences]
-  path = os.path.join(infer_dir, "mel_v.png")
+def save_mel_v_plot(infer_dir: Path, sentences: InferSentenceList) -> None:
+  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) / MEL_PNG for x in sentences]
+  path = infer_dir / "mel_v.png"
   stack_images_vertically(paths, path)
 
 
-def save_alignments_v_plot(infer_dir: Path, sentences: InferSentenceList):
-  paths = [os.path.join(get_infer_sent_dir(infer_dir, get_result_name(x)),
-                        ALIGNMENTS_PNG) for x in sentences]
-  path = os.path.join(infer_dir, "alignments_v.png")
+def save_alignments_v_plot(infer_dir: Path, sentences: InferSentenceList) -> None:
+  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) / ALIGNMENTS_PNG for x in sentences]
+  path = infer_dir / "alignments_v.png"
   stack_images_vertically(paths, path)
 
 
-def save_mel_postnet_v_plot(infer_dir: Path, sentences: InferSentenceList):
-  paths = [os.path.join(get_infer_sent_dir(infer_dir, get_result_name(x)),
-                        MEL_POSTNET_PNG) for x in sentences]
-  path = os.path.join(infer_dir, "mel_postnet_v.png")
+def save_mel_postnet_v_plot(infer_dir: Path, sentences: InferSentenceList) -> None:
+  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) / MEL_POSTNET_PNG for x in sentences]
+  path = infer_dir / "mel_postnet_v.png"
   stack_images_vertically(paths, path)
 
 
-def save_mel_postnet_h_plot(infer_dir: Path, sentences: InferSentenceList):
-  paths = [os.path.join(get_infer_sent_dir(infer_dir, get_result_name(x)),
-                        MEL_POSTNET_PNG) for x in sentences]
-  path = os.path.join(infer_dir, "mel_postnet_h.png")
+def save_mel_postnet_h_plot(infer_dir: Path, sentences: InferSentenceList) -> None:
+  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) / MEL_POSTNET_PNG for x in sentences]
+  path = infer_dir / "mel_postnet_h.png"
   stack_images_horizontally(paths, path)
 
 
@@ -76,7 +72,7 @@ def get_infer_sent_dir(infer_dir: Path, result_name: str) -> Path:
 
 
 def save_stats(infer_dir: Path, stats: InferenceEntries) -> None:
-  path = os.path.join(infer_dir, "total.csv")
+  path = infer_dir / "total.csv"
   stats.save(path, header=True)
 
 
@@ -87,20 +83,20 @@ def get_result_name(entry: InferSentence) -> str:
 def save_results(entry: InferSentence, output: InferenceEntryOutput, infer_dir: str, mel_postnet_npy_paths: List[Dict[str, Any]]):
   result_name = get_result_name(entry)
   dest_dir = get_infer_sent_dir(infer_dir, result_name)
-  imageio.imsave(os.path.join(dest_dir, MEL_PNG), output.mel_img)
-  imageio.imsave(os.path.join(dest_dir, MEL_POSTNET_PNG), output.postnet_img)
-  imageio.imsave(os.path.join(dest_dir, ALIGNMENTS_PNG), output.alignments_img)
+  imageio.imsave(dest_dir / MEL_PNG, output.mel_img)
+  imageio.imsave(dest_dir / MEL_POSTNET_PNG, output.postnet_img)
+  imageio.imsave(dest_dir / ALIGNMENTS_PNG, output.alignments_img)
 
-  mel_postnet_npy_path = os.path.join(dest_dir, "inferred.mel.npy")
+  mel_postnet_npy_path = dest_dir / "inferred.mel.npy"
   np.save(mel_postnet_npy_path, output.postnet_mel)
 
   stack_images_vertically(
     list_im=[
-      os.path.join(dest_dir, MEL_PNG),
-      os.path.join(dest_dir, MEL_POSTNET_PNG),
-      os.path.join(dest_dir, ALIGNMENTS_PNG),
+      dest_dir / MEL_PNG,
+      dest_dir / MEL_POSTNET_PNG,
+      dest_dir / ALIGNMENTS_PNG,
     ],
-    out_path=os.path.join(dest_dir, "comparison.png")
+    out_path=dest_dir / "comparison.png"
   )
 
   mel_info = get_mel_info_dict(
@@ -113,7 +109,7 @@ def save_results(entry: InferSentence, output: InferenceEntryOutput, infer_dir: 
 
 
 def get_infer_log_new(infer_dir: str):
-  return os.path.join(infer_dir, "log.txt")
+  return infer_dir / "log.txt"
 
 
 def infer(base_dir: Path, train_name: str, text_name: str, speaker: str, sentence_ids: Optional[Set[int]] = None, custom_checkpoint: Optional[int] = None, full_run: bool = True, custom_hparams: Optional[Dict[str, str]] = None, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, seed: int = DEFAULT_SEED, copy_mel_info_to: Optional[str] = DEFAULT_SAVE_MEL_INFO_COPY_PATH) -> None:
@@ -206,7 +202,7 @@ def save_mel_postnet_npy_paths(infer_dir: Path, name: str, mel_postnet_npy_paths
     mel_info_dict=mel_postnet_npy_paths,
   )
 
-  path = os.path.join(infer_dir, "mel_out.json")
+  path = infer_dir / "mel_out.json"
   save_json(path, info_json)
   #text = '\n'.join(mel_postnet_npy_paths)
   #save_txt(path, text)
