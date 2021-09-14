@@ -31,7 +31,7 @@ from tts_preparation import (PreparedData, get_merged_dir, get_prep_dir,
                              load_testset, load_trainset, load_valset)
 
 
-def get_repr_entries(entry_ids: Optional[Set[int]]):
+def get_repr_entries(entry_ids: Optional[Set[int]]) -> None:
   if entry_ids is None:
     return "none"
   if len(entry_ids) == 0:
@@ -39,7 +39,7 @@ def get_repr_entries(entry_ids: Optional[Set[int]]):
   return ",".join(list(sorted(map(str, entry_ids))))
 
 
-def get_repr_speaker(speaker: Optional[str]):
+def get_repr_speaker(speaker: Optional[str]) -> None:
   if speaker is None:
     return "none"
   return speaker
@@ -87,11 +87,11 @@ def save_mel_postnet_npy_paths(val_dir: Path, name: str, mel_postnet_npy_paths: 
   return path
 
 
-def get_result_name(entry: PreparedData, iteration: int, repetition: int):
+def get_result_name(entry: PreparedData, iteration: int, repetition: int) -> None:
   return f"it={iteration}_id={entry.entry_id}_rep={repetition}"
 
 
-def save_results(entry: PreparedData, output: ValidationEntryOutput, val_dir: Path, iteration: int, mel_postnet_npy_paths: List[Dict[str, Any]]):
+def save_results(entry: PreparedData, output: ValidationEntryOutput, val_dir: Path, iteration: int, mel_postnet_npy_paths: List[Dict[str, Any]]) -> None:
   result_name = get_result_name(entry, iteration, output.repetition)
   dest_dir = get_val_entry_dir(val_dir, result_name)
   write(dest_dir / "original.wav", output.orig_sr, output.wav_orig)
@@ -148,7 +148,7 @@ def validate(base_dir: Path, train_name: str, entry_ids: Optional[Set[int]] = No
   assert repetitions > 0
 
   train_dir = get_train_dir(base_dir, train_name, create=False)
-  assert os.path.isdir(train_dir)
+  assert train_dir.is_dir()
 
   ttsp_dir, merge_name, prep_name = load_prep_settings(train_dir)
   merge_dir = get_merged_dir(ttsp_dir, merge_name, create=False)

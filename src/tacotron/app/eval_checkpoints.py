@@ -12,7 +12,7 @@
 
 # def eval_checkpoints_main(base_dir: Path, train_name: str, select: int, min_it: int, max_it: int):
 #   train_dir = get_train_dir(base_dir, train_name, create=False)
-#   assert os.path.isdir(train_dir)
+#   assert train_dir.is_dir()
 
 #   merge_name, prep_name = load_prep_settings(train_dir)
 #   merge_dir = get_merged_dir(base_dir, merge_name, create=False)

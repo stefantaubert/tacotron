@@ -1,4 +1,5 @@
 from logging import Logger
+from pathlib import Path
 from typing import Dict, Optional
 
 import torch
@@ -13,7 +14,7 @@ from tqdm import tqdm
 from tts_preparation import PreparedDataList
 
 
-def eval_checkpoints(custom_hparams: Optional[Dict[str, str]], checkpoint_dir: str, select: int, min_it: int, max_it: int, n_symbols: int, n_accents: int, n_speakers: int, valset: PreparedDataList, logger: Logger):
+def eval_checkpoints(custom_hparams: Optional[Dict[str, str]], checkpoint_dir: Path, select: int, min_it: int, max_it: int, n_symbols: int, n_accents: int, n_speakers: int, valset: PreparedDataList, logger: Logger) -> None:
   its = get_all_checkpoint_iterations(checkpoint_dir)
   logger.info(f"Available iterations {its}")
   filtered_its = filter_checkpoints(its, select, min_it, max_it)

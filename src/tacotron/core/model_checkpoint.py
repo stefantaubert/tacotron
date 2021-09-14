@@ -71,7 +71,7 @@ class CheckpointTacotron(Checkpoint):
     return result
 
 
-def convert_v1_to_v2_model(old_model_path: str, custom_hparams: Optional[Dict[str, str]], speakers: SpeakersDict, accents: AccentsDict, symbols: SymbolIdDict):
+def convert_v1_to_v2_model(old_model_path: str, custom_hparams: Optional[Dict[str, str]], speakers: SpeakersDict, accents: AccentsDict, symbols: SymbolIdDict) -> None:
   checkpoint_dict = torch.load(old_model_path, map_location='cpu')
   hparams = HParams(
     n_speakers=len(speakers),

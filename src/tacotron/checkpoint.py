@@ -38,7 +38,7 @@ class Checkpoint():
 
   @classmethod
   def load(cls, checkpoint_path: str, logger: Logger):
-    assert os.path.isfile(checkpoint_path)
+    assert checkpoint_path.is_file()
     logger.info(f"Loading model '{checkpoint_path}'...")
     checkpoint_dict = torch.load(checkpoint_path, map_location='cpu')
     if "scheduler_state_dict" not in checkpoint_dict:

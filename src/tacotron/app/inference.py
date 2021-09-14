@@ -30,7 +30,7 @@ def get_run_name(input_name: str, iteration: int, speaker_name: str, full_run: b
   return subdir_name
 
 
-def get_infer_dir(train_dir: str, run_name: str):
+def get_infer_dir(train_dir: Path, run_name: str) -> None:
   return get_subdir(get_inference_root_dir(train_dir), run_name, create=True)
 
 
@@ -80,7 +80,7 @@ def get_result_name(entry: InferSentence) -> str:
   return str(entry.sent_id)
 
 
-def save_results(entry: InferSentence, output: InferenceEntryOutput, infer_dir: str, mel_postnet_npy_paths: List[Dict[str, Any]]):
+def save_results(entry: InferSentence, output: InferenceEntryOutput, infer_dir: Path, mel_postnet_npy_paths: List[Dict[str, Any]]) -> None:
   result_name = get_result_name(entry)
   dest_dir = get_infer_sent_dir(infer_dir, result_name)
   imageio.imsave(dest_dir / MEL_PNG, output.mel_img)
@@ -108,13 +108,13 @@ def save_results(entry: InferSentence, output: InferenceEntryOutput, infer_dir: 
   mel_postnet_npy_paths.append(mel_info)
 
 
-def get_infer_log_new(infer_dir: str):
+def get_infer_log_new(infer_dir: Path) -> None:
   return infer_dir / "log.txt"
 
 
 def infer(base_dir: Path, train_name: str, text_name: str, speaker: str, sentence_ids: Optional[Set[int]] = None, custom_checkpoint: Optional[int] = None, full_run: bool = True, custom_hparams: Optional[Dict[str, str]] = None, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, seed: int = DEFAULT_SEED, copy_mel_info_to: Optional[str] = DEFAULT_SAVE_MEL_INFO_COPY_PATH) -> None:
   train_dir = get_train_dir(base_dir, train_name, create=False)
-  assert os.path.isdir(train_dir)
+  assert train_dir.is_dir()
 
   logger = get_default_logger()
   init_logger(logger)

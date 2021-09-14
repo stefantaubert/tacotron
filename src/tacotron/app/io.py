@@ -14,7 +14,7 @@ from tacotron.utils import (get_parent_dirname, get_subdir, parse_json,
 from tts_preparation import PreparedData
 
 
-def get_train_dir(base_dir: Path, train_name: str, create: bool):
+def get_train_dir(base_dir: Path, train_name: str, create: bool) -> None:
   return get_subdir(base_dir, train_name, create)
 
 
@@ -45,32 +45,32 @@ def get_checkpoints_dir(train_dir: Path) -> Path:
   return get_subdir(train_dir, "checkpoints", create=True)
 
 
-# def save_trainset(train_dir: str, dataset: PreparedDataList):
+# def save_trainset(train_dir: Path, dataset: PreparedDataList):
 #   path = train_dir / _train_csv
 #   dataset.save(path)
 
 
-# def load_trainset(train_dir: str) -> PreparedDataList:
+# def load_trainset(train_dir: Path) -> PreparedDataList:
 #   path = train_dir / _train_csv
 #   return PreparedDataList.load(PreparedData, path)
 
 
-# def save_testset(train_dir: str, dataset: PreparedDataList):
+# def save_testset(train_dir: Path, dataset: PreparedDataList):
 #   path = train_dir / _test_csv
 #   dataset.save(path)
 
 
-# def load_testset(train_dir: str) -> PreparedDataList:
+# def load_testset(train_dir: Path) -> PreparedDataList:
 #   path = train_dir / _test_csv
 #   return PreparedDataList.load(PreparedData, path)
 
 
-# def save_valset(train_dir: str, dataset: PreparedDataList):
+# def save_valset(train_dir: Path, dataset: PreparedDataList):
 #   path = train_dir / _val_csv
 #   dataset.save(path)
 
 
-# def load_valset(train_dir: str) -> PreparedDataList:
+# def load_valset(train_dir: Path) -> PreparedDataList:
 #   path = train_dir / _val_csv
 #   return PreparedDataList.load(PreparedData, path)
 
@@ -111,7 +111,7 @@ def get_mel_out_dict(name: str, root_dir: Path, mel_info_dict: Dict[str, Any]) -
   return info_json
 
 
-# def split_dataset(prep_dir: str, train_dir: str, test_size: float = 0.01, validation_size: float = 0.05, split_seed: int = 1234):
+# def split_dataset(prep_dir: Path, train_dir: Path, test_size: float = 0.01, validation_size: float = 0.05, split_seed: int = 1234):
 #   wholeset = load_filelist(prep_dir)
 #   trainset, testset, valset = split_prepared_data_train_test_val(
 #     wholeset, test_size=test_size, validation_size=validation_size, seed=split_seed, shuffle=True)

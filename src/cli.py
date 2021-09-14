@@ -12,7 +12,7 @@ from tacotron.utils import parse_tuple_list, split_hparams_string, split_int_set
 BASE_DIR_VAR = "base_dir"
 
 
-def init_plot_emb_parser(parser):
+def init_plot_emb_parser(parser) -> None:
   parser.add_argument('--train_name', type=str, required=True)
   parser.add_argument('--custom_checkpoint', type=int)
   return plot_embeddings
@@ -32,13 +32,13 @@ def init_plot_emb_parser(parser):
 #   eval_checkpoints(**args)
 
 
-def init_restore_parser(parser: ArgumentParser):
+def init_restore_parser(parser: ArgumentParser) -> None:
   parser.add_argument('--train_name', type=str, required=True)
   parser.add_argument('--checkpoint_dir', type=str, required=True)
   return restore_model
 
 
-def init_train_parser(parser: ArgumentParser):
+def init_train_parser(parser: ArgumentParser) -> None:
   parser.add_argument('--ttsp_dir', type=str, required=True)
   parser.add_argument('--train_name', type=str, required=True)
   parser.add_argument('--merge_name', type=str, required=True)
@@ -53,23 +53,23 @@ def init_train_parser(parser: ArgumentParser):
   return train_cli
 
 
-def train_cli(**args):
+def train_cli(**args) -> None:
   args["custom_hparams"] = split_hparams_string(args["custom_hparams"])
   train(**args)
 
 
-def init_continue_train_parser(parser: ArgumentParser):
+def init_continue_train_parser(parser: ArgumentParser) -> None:
   parser.add_argument('--train_name', type=str, required=True)
   parser.add_argument('--custom_hparams', type=str)
   return continue_train_cli
 
 
-def continue_train_cli(**args):
+def continue_train_cli(**args) -> None:
   args["custom_hparams"] = split_hparams_string(args["custom_hparams"])
   continue_train(**args)
 
 
-def init_validate_parser(parser: ArgumentParser):
+def init_validate_parser(parser: ArgumentParser) -> None:
   parser.add_argument('--train_name', type=str, required=True)
   parser.add_argument('--entry_ids', type=str, help="Utterance ids or nothing if random")
   parser.add_argument('--speaker', type=str, help="ds_name,speaker_name")
@@ -90,14 +90,14 @@ def init_validate_parser(parser: ArgumentParser):
   return validate_cli
 
 
-def validate_cli(**args):
+def validate_cli(**args) -> None:
   args["custom_hparams"] = split_hparams_string(args["custom_hparams"])
   args["entry_ids"] = split_int_set_str(args["entry_ids"])
   args["custom_checkpoints"] = split_int_set_str(args["custom_checkpoints"])
   validate(**args)
 
 
-def init_inference_parser(parser: ArgumentParser):
+def init_inference_parser(parser: ArgumentParser) -> None:
   parser.add_argument('--train_name', type=str, required=True)
   parser.add_argument('--text_name', type=str, required=True)
   parser.add_argument('--speaker', type=str, required=True, help="ds_name,speaker_name")
@@ -112,19 +112,19 @@ def init_inference_parser(parser: ArgumentParser):
   return infer_cli
 
 
-def infer_cli(**args):
+def infer_cli(**args) -> None:
   args["custom_hparams"] = split_hparams_string(args["custom_hparams"])
   args["sentence_ids"] = split_int_set_str(args["sentence_ids"])
   infer(**args)
 
 
-def add_base_dir(parser: ArgumentParser):
+def add_base_dir(parser: ArgumentParser) -> None:
   assert BASE_DIR_VAR in os.environ.keys()
   base_dir = os.environ[BASE_DIR_VAR]
   parser.set_defaults(base_dir=base_dir)
 
 
-def _add_parser_to(subparsers, name: str, init_method):
+def _add_parser_to(subparsers, name: str, init_method) -> None:
   parser = subparsers.add_parser(name, help=f"{name} help")
   invoke_method = init_method(parser)
   parser.set_defaults(invoke_handler=invoke_method)
@@ -147,7 +147,7 @@ def _init_parser():
   return result
 
 
-def _process_args(args):
+def _process_args(args) -> None:
   params = vars(args)
   invoke_handler = params.pop("invoke_handler")
   invoke_handler(**params)

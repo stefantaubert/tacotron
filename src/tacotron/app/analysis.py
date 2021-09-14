@@ -15,24 +15,24 @@ def get_analysis_root_dir(train_dir: Path) -> Path:
   return get_subdir(train_dir, "analysis", create=True)
 
 
-def _save_similarities_csv(analysis_dir: Path, checkpoint_it: int, df: pd.DataFrame):
+def _save_similarities_csv(analysis_dir: Path, checkpoint_it: int, df: pd.DataFrame) -> None:
   path = analysis_dir / f"{checkpoint_it}.csv"
   save_df(df, path, header_columns=None)
 
 
-def _save_2d_plot(analysis_dir: Path, checkpoint_it: int, fig):
+def _save_2d_plot(analysis_dir: Path, checkpoint_it: int, fig) -> None:
   path = analysis_dir / f"{checkpoint_it}_2d.html"
   plt.plot(fig, filename=path, auto_open=False)
 
 
-def _save_3d_plot(analysis_dir: Path, checkpoint_it: int, fig):
+def _save_3d_plot(analysis_dir: Path, checkpoint_it: int, fig) -> None:
   path = analysis_dir / f"{checkpoint_it}_3d.html"
   plt.plot(fig, filename=path, auto_open=False)
 
 
-def plot_embeddings(base_dir: Path, train_name: str, custom_checkpoint: Optional[int] = None):
+def plot_embeddings(base_dir: Path, train_name: str, custom_checkpoint: Optional[int] = None) -> None:
   train_dir = get_train_dir(base_dir, train_name, create=False)
-  assert os.path.isdir(train_dir)
+  assert train_dir.is_dir()
   analysis_dir = get_analysis_root_dir(train_dir)
 
   logger = prepare_logger()

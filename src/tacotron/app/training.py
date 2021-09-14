@@ -116,7 +116,7 @@ def train(base_dir: Path, ttsp_dir: Path, train_name: str, merge_name: str, prep
 
 def continue_train(base_dir: Path, train_name: str, custom_hparams: Optional[Dict[str, str]] = None) -> None:
   train_dir = get_train_dir(base_dir, train_name, create=False)
-  assert os.path.isdir(train_dir)
+  assert train_dir.is_dir()
 
   logs_dir = get_train_logs_dir(train_dir)
   taco_logger = Tacotron2Logger(logs_dir)
