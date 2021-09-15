@@ -5,6 +5,7 @@ import torch
 from audio_utils.mel import TacotronSTFT
 from tacotron.core.hparams import HParams
 from tacotron.utils import to_gpu
+from text_utils.types import SpeakerId
 from torch import (FloatTensor, IntTensor,  # pylint: disable=no-name-in-module
                    LongTensor, Tensor)
 from torch.utils.data import DataLoader, Dataset
@@ -32,9 +33,9 @@ class SymbolsMelLoader(Dataset):
       symbols_tensor = IntTensor(entry.symbol_ids)
 
       if hparams.use_saved_mels:
-        self.data[i] = (symbols_tensor, entry.mel_path, entry.speaker_id)
+        self.data[i] = (symbols_tensor, entry.mel_absolute_path, entry.speaker_id)
       else:
-        self.data[i] = (symbols_tensor, entry.wav_path, entry.speaker_id)
+        self.data[i] = (symbols_tensor, entry.wav_absolute_path, entry.speaker_id)
 
     if hparams.use_saved_mels and hparams.cache_mels:
       logger.info("Loading mels into memory...")
@@ -45,7 +46,7 @@ class SymbolsMelLoader(Dataset):
         self.cache[i] = mel_tensor
     self.use_cache: bool = hparams.cache_mels
 
-  def __getitem__(self, index: int) -> Tuple[IntTensor, IntTensor, Tensor, int]:
+  def __getitem__(self, index: int) -> Tuple[IntTensor, Tensor, SpeakerId]:
     # return self.cache[index]
     # debug_logger.debug(f"getitem called {index}")
     symbols_tensor, path, speaker_id = self.data[index]
@@ -73,7 +74,7 @@ class SymbolsMelCollate():
     self.n_frames_per_step = n_frames_per_step
     self.padding_symbol_id = padding_symbol_id
 
-  def __call__(self, batch: List[Tuple[IntTensor, IntTensor, Tensor, int]]):
+  def __call__(self, batch: List[Tuple[IntTensor, Tensor, SpeakerId]]):
     """Collate's training batch from normalized text and mel-spectrogram
     PARAMS
     ------
@@ -81,20 +82,20 @@ class SymbolsMelCollate():
     """
     # Right zero-pad all one-hot text sequences to max input length
     input_lengths, ids_sorted_decreasing = torch.sort(
-      LongTensor([len(symbols_tensor) for symbols_tensor, _, _, _ in batch]), dim=0, descending=True)
+      LongTensor([len(symbols_tensor) for symbols_tensor, _, _ in batch]), dim=0, descending=True)
     max_input_len = input_lengths[0]
 
     symbols_padded = LongTensor(len(batch), max_input_len)
     torch.nn.init.constant_(symbols_padded, self.padding_symbol_id)
 
     for i, batch_id in enumerate(ids_sorted_decreasing):
-      symbols = batch[batch_id][0]
+      symbols, _, _ = batch[batch_id]
       symbols_padded[i, :symbols.size(0)] = symbols
 
     # Right zero-pad mel-spec
-    _, _, first_mel, _ = batch[0]
+    _, first_mel, _ = batch[0]
     num_mels = first_mel.size(0)
-    max_target_len = max([mel_tensor.size(1) for _, _, mel_tensor, _ in batch])
+    max_target_len = max([mel_tensor.size(1) for _, mel_tensor, _ in batch])
     if max_target_len % self.n_frames_per_step != 0:
       max_target_len += self.n_frames_per_step - max_target_len % self.n_frames_per_step
       assert max_target_len % self.n_frames_per_step == 0
@@ -108,7 +109,7 @@ class SymbolsMelCollate():
 
     output_lengths = LongTensor(len(batch))
     for i, batch_id in enumerate(ids_sorted_decreasing):
-      _, _, mel, _ = batch[batch_id]
+      _, mel, _ = batch[batch_id]
       mel_padded[i, :, :mel.size(1)] = mel
       gate_padded[i, mel.size(1) - 1:] = 1
       output_lengths[i] = mel.size(1)
@@ -119,7 +120,7 @@ class SymbolsMelCollate():
     for i, batch_id in enumerate(ids_sorted_decreasing):
       # len_symb = batch[batch_id][0].get_shape()[0]
       # len_x.append(len_symb)
-      _, _, _, speaker_id = batch[batch_id]
+      _, _, speaker_id = batch[batch_id]
       speaker_ids.append(speaker_id)
 
     # len_x = Tensor(len_x)
@@ -157,7 +158,7 @@ def parse_batch(batch: Tuple[torch.LongTensor, torch.LongTensor, torch.LongTenso
 
 def prepare_valloader(hparams: HParams, collate_fn: SymbolsMelCollate, valset: PreparedDataList, logger: Logger) -> DataLoader:
   logger.info(
-    f"Duration valset {valset.get_total_duration_s() / 60:.2f}m / {valset.get_total_duration_s() / 60 / 60:.2f}h")
+    f"Duration valset {valset.total_duration_s / 60:.2f}m / {valset.total_duration_s / 60 / 60:.2f}h")
 
   val = SymbolsMelLoader(valset, hparams, logger)
 
@@ -178,7 +179,7 @@ def prepare_valloader(hparams: HParams, collate_fn: SymbolsMelCollate, valset: P
 def prepare_trainloader(hparams: HParams, collate_fn: SymbolsMelCollate, trainset: PreparedDataList, logger: Logger) -> DataLoader:
   # Get data, data loaders and collate function ready
   logger.info(
-    f"Duration trainset {trainset.get_total_duration_s() / 60:.2f}m / {trainset.get_total_duration_s() / 60 / 60:.2f}h")
+    f"Duration trainset {trainset.total_duration_s / 60:.2f}m / {trainset.total_duration_s / 60 / 60:.2f}h")
 
   trn = SymbolsMelLoader(trainset, hparams, logger)
 

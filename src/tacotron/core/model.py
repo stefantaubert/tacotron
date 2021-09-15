@@ -523,8 +523,7 @@ def get_speaker_weights(hparams: HParams) -> torch.Tensor:
 
 
 def get_symbol_weights(hparams: HParams) -> torch.Tensor:
-  model_symbols_count = len(hparams.n_symbols)
-  model_weights = get_uniform_weights(model_symbols_count, hparams.symbols_embedding_dim)
+  model_weights = get_uniform_weights(hparams.n_symbols, hparams.symbols_embedding_dim)
   return model_weights
 
 

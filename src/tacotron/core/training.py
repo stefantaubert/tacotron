@@ -120,8 +120,8 @@ def init_torch(hparams: ExperimentHParams) -> None:
   init_cuddn_benchmark(hparams.cudnn_benchmark)
 
 
-def log_symbol_weights(model: nn.Module, logger: Logger) -> None:
-  logger.info(f"Symbolweights (cuda: {model.embedding.weight.is_cuda})")
+def log_symbol_weights(model: Tacotron2, logger: Logger) -> None:
+  logger.info(f"Symbolweights (cuda: {model.symbol_embeddings.weight.is_cuda})")
   logger.info(str(model.state_dict()[SYMBOL_EMBEDDING_LAYER_NAME]))
 
 
