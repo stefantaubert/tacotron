@@ -43,9 +43,9 @@ class InferenceEntryOutput():
   # gate_out_img: np.ndarray = None
 
 
-def get_subset(utterances: InferableUtterances, sent_ids: Set[int]) -> InferableUtterances:
+def get_subset(utterances: InferableUtterances, utterance_ids: Set[int]) -> InferableUtterances:
   result = InferableUtterances(utterance for utterance in utterances.items()
-                               if utterance.utterance_id in sent_ids)
+                               if utterance.utterance_id in utterance_ids)
   return result
 
 
@@ -85,7 +85,7 @@ def infer(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict[str, str
     text = "".join(utterance.symbols)
 
     infer_entry_output = InferenceEntry(
-      utterance_id=utterance.sent_id,
+      utterance_id=utterance.utterance_id,
       text=text,
       speaker_id=speaker_id,
       speaker_name=speaker_name,

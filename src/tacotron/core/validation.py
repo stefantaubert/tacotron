@@ -113,11 +113,9 @@ class ValidationEntryOutputs(GenericList[ValidationEntryOutput]):
   pass
 
 
-def get_ngram_rarity(data: PreparedDataList, corpus: PreparedDataList, symbols: SymbolIdDict, ngram: int) -> OrderedDictType[int, float]:
-  data_symbols_dict = OrderedDict({x.entry_id: symbols.get_symbols(
-    x.serialized_symbol_ids) for x in data.items()})
-  corpus_symbols_dict = OrderedDict({x.entry_id: symbols.get_symbols(
-    x.serialized_symbol_ids) for x in corpus.items()})
+def get_ngram_rarity(data: PreparedDataList, corpus: PreparedDataList, ngram: int) -> OrderedDictType[int, float]:
+  data_symbols_dict = OrderedDict({x.entry_id: x.symbols for x in data.items()})
+  corpus_symbols_dict = OrderedDict({x.entry_id: x.symbols for x in corpus.items()})
 
   rarity = get_rarity_ngrams(
     data=data_symbols_dict,
@@ -231,9 +229,9 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
     logger.info("Nothing to synthesize!")
     return validation_data
 
-  train_onegram_rarities = get_ngram_rarity(validation_data, trainset, model_symbols, 1)
-  train_twogram_rarities = get_ngram_rarity(validation_data, trainset, model_symbols, 2)
-  train_threegram_rarities = get_ngram_rarity(validation_data, trainset, model_symbols, 3)
+  train_onegram_rarities = get_ngram_rarity(validation_data, trainset, 1)
+  train_twogram_rarities = get_ngram_rarity(validation_data, trainset, 2)
+  train_threegram_rarities = get_ngram_rarity(validation_data, trainset, 3)
 
   synth = Synthesizer(
       checkpoint=checkpoint,
@@ -283,12 +281,13 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
 
       # TODO consider only inferable symbols
       symbol_count = len(entry.symbol_ids)
-      unique_symbols = set(model_symbols.get_symbols(entry.serialized_symbol_ids))
+      unique_symbols = set(entry.symbols)
       unique_symbols_str = " ".join(sorted(unique_symbols))
       unique_symbols_count = len(unique_symbols)
       timepoint = f"{datetime.datetime.now():%Y/%m/%d %H:%M:%S}"
 
-      mel_orig: np.ndarray = taco_stft.get_mel_tensor_from_file(entry.wav_path).cpu().numpy()
+      mel_orig: np.ndarray = taco_stft.get_mel_tensor_from_file(
+        entry.wav_absolute_path).cpu().numpy()
 
       target_frames = mel_orig.shape[1]
       predicted_frames = inference_result.mel_outputs_postnet.shape[1]
@@ -321,7 +320,7 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
       padded_structural_similarity = None
       aligned_structural_similarity = None
 
-      ground_truth = entry.text_original
+      ground_truth = ''.join(entry.symbols)
       #hypothesis = asr_pipeline.predict([inference_result.mel_outputs_postnet])[0]
       hypothesis = ""
 
@@ -377,10 +376,10 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
         repetitions=repetitions,
         seed=rep_seed,
         ds_entry_id=entry.ds_entry_id,
-        text_original=entry.text_original,
-        text=entry.text,
-        wav_path=entry.wav_path,
-        wav_duration_s=entry.duration_s,
+        text_original=''.join(entry.symbols_original),
+        text=''.join(entry.symbols),
+        wav_path=str(entry.wav_absolute_path),
+        wav_duration_s=entry.wav_duration,
         speaker_id=entry.speaker_id,
         speaker_name=speaker_name,
         iteration=checkpoint.iteration,
@@ -424,7 +423,7 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
       validation_entries.append(val_entry)
 
       if not fast:
-        orig_sr, orig_wav = read(entry.wav_path)
+        orig_sr, orig_wav = read(entry.wav_absolute_path)
 
         _, padded_mel_postnet_diff_img = calculate_structual_similarity_np(
           img_a=padded_mel_orig_img,

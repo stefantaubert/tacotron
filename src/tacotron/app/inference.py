@@ -77,7 +77,7 @@ def save_stats(infer_dir: Path, stats: InferenceEntries) -> None:
 
 
 def get_result_name(entry: InferableUtterance) -> str:
-  return str(entry.sent_id)
+  return str(entry.utterance_id)
 
 
 def save_results(entry: InferableUtterance, output: InferenceEntryOutput, infer_dir: Path, mel_postnet_npy_paths: List[Dict[str, Any]]) -> None:

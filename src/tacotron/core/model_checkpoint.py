@@ -56,6 +56,6 @@ class CheckpointTacotron(Checkpoint):
   def load(cls, checkpoint_path: str, logger: Logger):
     result = super().load(checkpoint_path, logger)
     # pylint: disable=no-member
-    logger.info(f'Including {len(result.symbols)} symbols.')
-    logger.info(f'Including {len(result.speakers)} speaker(s).')
+    logger.info(f'Including {len(result.symbol_id_dict)} symbol(s).')
+    logger.info(f'Including {len(result.speaker_id_dict)} speaker(s).')
     return result
