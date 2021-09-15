@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "89cd865d762dd0c5950bba71137a6c816aa35774422568f7d739ae6118a88fb2"
+            "sha256": "39a72ceba0e2e43c98148948bf8e8f0f03bac8708ccc691acf7e8ec49e42e90b"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -22,6 +22,10 @@
                 "sha256:6953272383486044699fd0e9f00aad167a27e08ce19aae66c6c4b10e7e767793"
             ],
             "version": "==0.13.0"
+        },
+        "accent-analyser": {
+            "editable": true,
+            "path": "./../accent-analyser"
         },
         "appdirs": {
             "hashes": [
@@ -633,7 +637,7 @@
         },
         "mcd": {
             "editable": true,
-            "path": "./../mcd"
+            "path": "./../mel_cepstral_distance"
         },
         "munkres": {
             "hashes": [
@@ -1434,6 +1438,10 @@
             ],
             "index": "pypi",
             "version": "==4.62.2"
+        },
+        "tts-preparation": {
+            "editable": true,
+            "path": "./../tts-preparation"
         },
         "typing-extensions": {
             "hashes": [
