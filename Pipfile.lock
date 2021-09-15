@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "f0ac3c50363a773f3b9b3179410342d0747e830ef568b33ec39b86634eb4c174"
+            "sha256": "89cd865d762dd0c5950bba71137a6c816aa35774422568f7d739ae6118a88fb2"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -23,10 +23,6 @@
             ],
             "version": "==0.13.0"
         },
-        "accent-analyser": {
-            "git": "https://github.com/stefantaubert/accent-analyser.git",
-            "ref": "9335ccd037fe0d44b0f220582693687241c6b968"
-        },
         "appdirs": {
             "hashes": [
                 "sha256:7d5d0167b2b1ba821647616af46a749d1c653740dd0d2415100fe26e27afdf41",
@@ -43,8 +39,7 @@
         },
         "audio-utils": {
             "editable": true,
-            "git": "https://github.com/stefantaubert/audio-utils.git",
-            "ref": "ecf916a39cbe376bfbb1075f4d876965a0dddfc9"
+            "path": "./../audio-utils"
         },
         "audioread": {
             "hashes": [
@@ -127,11 +122,11 @@
         },
         "charset-normalizer": {
             "hashes": [
-                "sha256:0c8911edd15d19223366a194a513099a302055a962bca2cec0f54b8b63175d8b",
-                "sha256:f23667ebe1084be45f6ae0538e4a5a865206544097e4e8bbcacf42cd02a348f3"
+                "sha256:7098e7e862f6370a2a8d1a6398cd359815c45d12626267652c3f13dec58e2367",
+                "sha256:fa471a601dfea0f492e4f4fca035cd82155e65dc45c9b83bf4322dfab63755dd"
             ],
             "markers": "python_version >= '3'",
-            "version": "==2.0.4"
+            "version": "==2.0.5"
         },
         "clang": {
             "hashes": [
@@ -227,8 +222,8 @@
             "version": "==1.12"
         },
         "g2p-en": {
-            "git": "https://github.com/stefantaubert/g2p",
-            "ref": "a115bdf9260ae56faafafc5d64c4c85adaf07cac"
+            "editable": true,
+            "path": "./../g2p"
         },
         "gast": {
             "hashes": [
@@ -421,8 +416,7 @@
         },
         "image-utils": {
             "editable": true,
-            "git": "https://github.com/stefantaubert/image-utils.git",
-            "ref": "afc405d20c1cfd7ec5686ab1ff1fafde0edf5bc5"
+            "path": "./../image-utils"
         },
         "imageio": {
             "hashes": [
@@ -639,8 +633,7 @@
         },
         "mcd": {
             "editable": true,
-            "git": "https://github.com/jasminsternkopf/mel_cepstral_distance.git",
-            "ref": "e75afc6ce12f3972f05e3b17bdfd3afed26119b0"
+            "path": "./../mcd"
         },
         "munkres": {
             "hashes": [
@@ -917,8 +910,8 @@
             "version": "==1.5.1"
         },
         "pronunciation-dict-parser": {
-            "git": "https://github.com/stefantaubert/pronunciation_dict_parser",
-            "ref": "fbf4e2ae066445fc26349ffd1651bca87015be4c"
+            "editable": true,
+            "path": "./../pronunciation_dict_parser"
         },
         "protobuf": {
             "hashes": [
@@ -1268,8 +1261,8 @@
             "version": "==1.7.1"
         },
         "sentence2pronunciation": {
-            "git": "https://github.com/jasminsternkopf/sentence2pronunciation",
-            "ref": "eac27fe42dd0398a7110eb82fe375754ef30da55"
+            "editable": true,
+            "path": "./../sentence2pronunciation"
         },
         "six": {
             "hashes": [
@@ -1296,13 +1289,12 @@
             "version": "==0.10.3.post1"
         },
         "speech-dataset-parser": {
-            "git": "https://github.com/stefantaubert/speech-dataset-parser.git",
-            "ref": "798650d50d7b4b553863838dc360d595d5774a49"
+            "editable": true,
+            "path": "./../speech-dataset-parser"
         },
         "speech-dataset-preprocessing": {
             "editable": true,
-            "git": "https://github.com/stefantaubert/speech-dataset-preprocessing.git",
-            "ref": "028643e04dbce6c3f1ef7fb3ddc6981187c88033"
+            "path": "./../speech-dataset-preprocessing"
         },
         "tables": {
             "hashes": [
@@ -1395,13 +1387,11 @@
         },
         "text-selection": {
             "editable": true,
-            "git": "https://github.com/stefantaubert/text-selection.git",
-            "ref": "72f78dbfb07315c407aa2c7b66d82ab1cd54820f"
+            "path": "./../text-selection"
         },
         "text-utils": {
             "editable": true,
-            "git": "https://github.com/stefantaubert/text-utils.git",
-            "ref": "5fdacbf1efbe24fae4cfb8ef798bfaedd5274721"
+            "path": "./../text-utils"
         },
         "threadpoolctl": {
             "hashes": [
@@ -1444,11 +1434,6 @@
             ],
             "index": "pypi",
             "version": "==4.62.2"
-        },
-        "tts-preparation": {
-            "editable": true,
-            "git": "https://github.com/stefantaubert/tts-preparation.git",
-            "ref": "b31e19a8713bb435af465fa387327115ee22665a"
         },
         "typing-extensions": {
             "hashes": [
@@ -1577,11 +1562,11 @@
         },
         "charset-normalizer": {
             "hashes": [
-                "sha256:0c8911edd15d19223366a194a513099a302055a962bca2cec0f54b8b63175d8b",
-                "sha256:f23667ebe1084be45f6ae0538e4a5a865206544097e4e8bbcacf42cd02a348f3"
+                "sha256:7098e7e862f6370a2a8d1a6398cd359815c45d12626267652c3f13dec58e2367",
+                "sha256:fa471a601dfea0f492e4f4fca035cd82155e65dc45c9b83bf4322dfab63755dd"
             ],
             "markers": "python_version >= '3'",
-            "version": "==2.0.4"
+            "version": "==2.0.5"
         },
         "click": {
             "hashes": [
