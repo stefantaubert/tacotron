@@ -128,10 +128,6 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-*.debug.py
-debug.py
-configs/
-globals_debug.py
-playground.*
 .vscode/
-src/debug/
+configs/
+*_debug/
