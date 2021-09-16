@@ -2,9 +2,18 @@ import unittest
 from dataclasses import dataclass
 from typing import List
 
+from tacotron.utils import (SaveIterationSettings, cast_as,
+                            check_has_unknown_params, check_is_first,
+                            check_is_last_batch_iteration,
+                            check_is_last_epoch_based,
+                            check_is_last_iterations_based, check_is_not_empty,
+                            check_is_save_epoch, check_is_save_iteration,
+                            check_save_it, get_checkpoint,
+                            get_continue_batch_iteration, get_continue_epoch,
+                            get_custom_or_last_checkpoint, get_next_save_it,
+                            iteration_to_batch_iteration, iteration_to_epoch,
+                            skip_batch)
 from torch.utils.data import DataLoader, Dataset
-
-from tacotron.utils import *
 
 
 class DummyDataset(Dataset):
