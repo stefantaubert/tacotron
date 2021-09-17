@@ -1,6 +1,6 @@
-from pathlib import Path
 import os
 from argparse import ArgumentParser
+from pathlib import Path
 
 # from tacotron.app.eval_checkpoints import eval_checkpoints
 from tacotron.app import (DEFAULT_MAX_DECODER_STEPS, continue_train, infer,
@@ -37,12 +37,12 @@ def init_plot_emb_parser(parser) -> None:
 
 def init_restore_parser(parser: ArgumentParser) -> None:
   parser.add_argument('--train_name', type=str, required=True)
-  parser.add_argument('--checkpoint_dir', type=str, required=True)
+  parser.add_argument('--checkpoint_dir', type=Path, required=True)
   return restore_model
 
 
 def init_train_parser(parser: ArgumentParser) -> None:
-  parser.add_argument('--ttsp_dir', type=str, required=True)
+  parser.add_argument('--ttsp_dir', type=Path, required=True)
   parser.add_argument('--train_name', type=str, required=True)
   parser.add_argument('--merge_name', type=str, required=True)
   parser.add_argument('--prep_name', type=str, required=True)
