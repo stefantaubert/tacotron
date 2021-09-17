@@ -1,3 +1,4 @@
+from pathlib import Path
 import os
 from argparse import ArgumentParser
 
@@ -5,9 +6,11 @@ from argparse import ArgumentParser
 from tacotron.app import (DEFAULT_MAX_DECODER_STEPS, continue_train, infer,
                           plot_embeddings, restore_model, train, validate)
 from tacotron.app.defaults import (DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME,
+                                   DEFAULT_REPETITIONS,
                                    DEFAULT_SAVE_MEL_INFO_COPY_PATH,
-                                   DEFAULT_REPETITIONS, DEFAULT_SEED)
-from tacotron.utils import parse_tuple_list, split_hparams_string, split_int_set_str
+                                   DEFAULT_SEED)
+from tacotron.utils import (parse_tuple_list, split_hparams_string,
+                            split_int_set_str)
 
 BASE_DIR_VAR = "base_dir"
 
@@ -120,7 +123,7 @@ def infer_cli(**args) -> None:
 
 def add_base_dir(parser: ArgumentParser) -> None:
   assert BASE_DIR_VAR in os.environ.keys()
-  base_dir = os.environ[BASE_DIR_VAR]
+  base_dir = Path(os.environ[BASE_DIR_VAR])
   parser.set_defaults(base_dir=base_dir)
 
 
