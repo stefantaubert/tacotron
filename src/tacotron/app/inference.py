@@ -6,8 +6,8 @@ from typing import Any, Dict, List, Optional, Set
 
 import imageio
 import numpy as np
+from general_utils import parse_json, save_json
 from image_utils import stack_images_horizontally, stack_images_vertically
-from text_utils.types import Speaker
 from tacotron.app.defaults import (DEFAULT_MAX_DECODER_STEPS,
                                    DEFAULT_SAVE_MEL_INFO_COPY_PATH,
                                    DEFAULT_SEED)
@@ -17,10 +17,12 @@ from tacotron.app.io import (get_checkpoints_dir, get_inference_root_dir,
 from tacotron.core import (CheckpointTacotron, InferenceEntries,
                            InferenceEntryOutput)
 from tacotron.core import infer as infer_core
+from tacotron.core.inference import get_df
+from tacotron.globals import DEFAULT_CSV_SEPERATOR
 from tacotron.utils import (add_console_out_to_logger, add_file_out_to_logger,
-                            create_parent_folder,
                             get_custom_or_last_checkpoint, get_default_logger,
-                            get_subdir, init_logger, parse_json, save_json)
+                            init_logger)
+from text_utils import Speaker
 from tts_preparation import (InferableUtterance, InferableUtterances,
                              get_merged_dir, get_text_dir, load_utterances)
 
@@ -30,8 +32,8 @@ def get_run_name(input_name: str, iteration: int, speaker_name: str, full_run: b
   return subdir_name
 
 
-def get_infer_dir(train_dir: Path, run_name: str) -> None:
-  return get_subdir(get_inference_root_dir(train_dir), run_name, create=True)
+def get_infer_dir(train_dir: Path, run_name: str) -> Path:
+  return get_inference_root_dir(train_dir) / run_name
 
 
 def load_infer_symbols_map(symbols_map: str) -> List[str]:
@@ -50,30 +52,34 @@ def save_mel_v_plot(infer_dir: Path, sentences: InferableUtterances) -> None:
 
 
 def save_alignments_v_plot(infer_dir: Path, sentences: InferableUtterances) -> None:
-  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) / ALIGNMENTS_PNG for x in sentences.items()]
+  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) /
+           ALIGNMENTS_PNG for x in sentences.items()]
   path = infer_dir / "alignments_v.png"
   stack_images_vertically(paths, path)
 
 
 def save_mel_postnet_v_plot(infer_dir: Path, sentences: InferableUtterances) -> None:
-  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) / MEL_POSTNET_PNG for x in sentences.items()]
+  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) /
+           MEL_POSTNET_PNG for x in sentences.items()]
   path = infer_dir / "mel_postnet_v.png"
   stack_images_vertically(paths, path)
 
 
 def save_mel_postnet_h_plot(infer_dir: Path, sentences: InferableUtterances) -> None:
-  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) / MEL_POSTNET_PNG for x in sentences.items()]
+  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) /
+           MEL_POSTNET_PNG for x in sentences.items()]
   path = infer_dir / "mel_postnet_h.png"
   stack_images_horizontally(paths, path)
 
 
 def get_infer_sent_dir(infer_dir: Path, result_name: str) -> Path:
-  return get_subdir(infer_dir, result_name, create=True)
+  return infer_dir / result_name
 
 
 def save_stats(infer_dir: Path, stats: InferenceEntries) -> None:
   path = infer_dir / "total.csv"
-  stats.save(path, header=True)
+  df = get_df(stats)
+  df.to_csv(path, sep=DEFAULT_CSV_SEPERATOR, header=True)
 
 
 def get_result_name(entry: InferableUtterance) -> str:
@@ -130,7 +136,7 @@ def infer(base_dir: Path, train_name: str, text_name: str, speaker: Speaker, utt
   # merge_dir = get_merged_dir(ttsp_dir, merge_name, create=False)
 
   merge_dir = get_merged_dir(ttsp_dir, merge_name)
-  text_dir = get_text_dir(merge_dir, text_name, create=False)
+  text_dir = get_text_dir(merge_dir, text_name)
   utterances = load_utterances(text_dir)
 
   run_name = get_run_name(
@@ -145,6 +151,7 @@ def infer(base_dir: Path, train_name: str, text_name: str, speaker: Speaker, utt
     run_name=run_name,
   )
 
+  infer_dir.mkdir(parents=True, exist_ok=True)
   add_file_out_to_logger(logger, get_infer_log_new(infer_dir))
 
   mel_postnet_npy_paths: List[Dict[str, Any]] = []
@@ -190,7 +197,7 @@ def infer(base_dir: Path, train_name: str, text_name: str, speaker: Speaker, utt
   logger.info(npy_path)
 
   if copy_mel_info_to is not None:
-    create_parent_folder(copy_mel_info_to)
+    copy_mel_info_to.parent.mkdir(exist_ok=True, parents=True)
     copyfile(npy_path, copy_mel_info_to)
     logger.info(copy_mel_info_to)
 

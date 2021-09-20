@@ -8,14 +8,13 @@ import matplotlib.pylab as plt
 import numpy as np
 from audio_utils import float_to_wav
 from audio_utils.mel import plot_melspec
+from general_utils import parse_json, save_json
 from image_utils import stack_images_vertically
-from tacotron.utils import (get_parent_dirname, get_subdir, parse_json,
-                            save_json)
 from tts_preparation import PreparedData
 
 
-def get_train_dir(base_dir: Path, train_name: str, create: bool) -> None:
-  return get_subdir(base_dir, train_name, create)
+def get_train_dir(base_dir: Path, train_name: str) -> Path:
+  return base_dir / train_name
 
 
 # region Training
@@ -25,12 +24,12 @@ def get_train_dir(base_dir: Path, train_name: str, create: bool) -> None:
 _settings_json = "settings.json"
 
 
-def get_train_root_dir(base_dir: Path, model_name: str, create: bool) -> Path:
-  return get_subdir(base_dir, model_name, create)
+def get_train_root_dir(base_dir: Path, model_name: str) -> Path:
+  return base_dir / model_name
 
 
 def get_train_logs_dir(train_dir: Path) -> Path:
-  return get_subdir(train_dir, "logs", create=True)
+  return train_dir / "logs"
 
 
 def get_train_log_file(logs_dir: Path) -> Path:
@@ -42,7 +41,7 @@ def get_train_checkpoints_log_file(logs_dir: Path) -> Path:
 
 
 def get_checkpoints_dir(train_dir: Path) -> Path:
-  return get_subdir(train_dir, "checkpoints", create=True)
+  return train_dir / "checkpoints"
 
 
 # def save_trainset(train_dir: Path, dataset: PreparedDataList):
@@ -126,21 +125,21 @@ def get_mel_out_dict(name: str, root_dir: Path, mel_info_dict: Dict[str, Any]) -
 
 
 def get_inference_root_dir(train_dir: Path) -> Path:
-  return get_subdir(train_dir, "inference", create=True)
+  return train_dir / "inference"
 
 
 def get_infer_log(infer_dir: Path) -> Path:
-  return infer_dir / f"{get_parent_dirname(infer_dir)}.txt"
+  return infer_dir / f"{infer_dir.parent.name}.txt"
 
 
 def save_infer_wav(infer_dir: Path, sampling_rate: int, wav: np.ndarray) -> None:
-  path = infer_dir / f"{get_parent_dirname(infer_dir)}.wav"
+  path = infer_dir / f"{infer_dir.parent.name}.wav"
   float_to_wav(wav, path, sample_rate=sampling_rate)
 
 
 def save_infer_plot(infer_dir: Path, mel: np.ndarray) -> Path:
-  plot_melspec(mel, title=get_parent_dirname(infer_dir))
-  path = infer_dir / f"{get_parent_dirname(infer_dir)}.png"
+  plot_melspec(mel, title=infer_dir.parent.name)
+  path = infer_dir / f"{infer_dir.parent.name}.png"
   plt.savefig(path, bbox_inches='tight')
   plt.close()
   return path
@@ -151,16 +150,16 @@ def save_infer_plot(infer_dir: Path, mel: np.ndarray) -> Path:
 
 
 def _get_validation_root_dir(train_dir: Path) -> Path:
-  return get_subdir(train_dir, "validation", create=True)
+  return train_dir / "validation"
 
 
 def get_val_dir(train_dir: Path, entry: PreparedData, iteration: int) -> Path:
   subdir_name = f"{datetime.datetime.now():%Y-%m-%d,%H-%M-%S},id={entry.entry_id},speaker={entry.speaker_id},it={iteration}"
-  return get_subdir(_get_validation_root_dir(train_dir), subdir_name, create=True)
+  return _get_validation_root_dir(train_dir) / subdir_name
 
 
 def save_val_plot(val_dir: Path, mel) -> None:
-  parent_dir = get_parent_dirname(val_dir)
+  parent_dir = val_dir.parent.name
   plot_melspec(mel, title=parent_dir)
   path = val_dir / f"{parent_dir}.png"
   plt.savefig(path, bbox_inches='tight')
@@ -168,7 +167,7 @@ def save_val_plot(val_dir: Path, mel) -> None:
 
 
 def save_val_orig_plot(val_dir: Path, mel) -> None:
-  parent_dir = get_parent_dirname(val_dir)
+  parent_dir = val_dir.parent.name
   plot_melspec(mel, title=parent_dir)
   path = val_dir / f"{parent_dir}_orig.png"
   plt.savefig(path, bbox_inches='tight')
@@ -176,7 +175,7 @@ def save_val_orig_plot(val_dir: Path, mel) -> None:
 
 
 def save_val_comparison(val_dir: Path) -> None:
-  parent_dir = get_parent_dirname(val_dir)
+  parent_dir = val_dir.parent.name
   path1 = val_dir / f"{parent_dir}_orig.png"
   path2 = val_dir / f"{parent_dir}.png"
   assert os.path.exists(path1)
@@ -186,7 +185,7 @@ def save_val_comparison(val_dir: Path) -> None:
 
 
 def get_val_wav_path(val_dir: Path) -> Path:
-  path = val_dir / f"{get_parent_dirname(val_dir)}.wav"
+  path = val_dir / f"{val_dir.parent.name}.wav"
   return path
 
 
@@ -197,7 +196,7 @@ def save_val_wav(val_dir: Path, sampling_rate: int, wav) -> Path:
 
 
 def get_val_orig_wav_path(val_dir: Path) -> Path:
-  path = val_dir / f"{get_parent_dirname(val_dir)}_orig.wav"
+  path = val_dir / f"{val_dir.parent.name}_orig.wav"
   return path
 
 
@@ -207,6 +206,6 @@ def save_val_orig_wav(val_dir: Path, wav_path: Path) -> None:
 
 
 def get_val_log(val_dir: Path) -> Path:
-  return val_dir / f"{get_parent_dirname(val_dir)}.txt"
+  return val_dir / f"{val_dir.parent.name}.txt"
 
 # endregion

@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import imageio
 import numpy as np
 import pandas as pd
+from general_utils import save_json
 from image_utils import stack_images_vertically
 from scipy.io.wavfile import write
 from tacotron.app.defaults import (DEFAULT_MAX_DECODER_STEPS,
@@ -22,16 +23,17 @@ from tacotron.app.io import (_get_validation_root_dir, get_checkpoints_dir,
 from tacotron.core import (CheckpointTacotron, ValidationEntries,
                            ValidationEntryOutput)
 from tacotron.core import validate as validate_core
-from tacotron.utils import (create_parent_folder,
-                            get_all_checkpoint_iterations, get_checkpoint,
-                            get_last_checkpoint, get_subdir, pass_lines_list,
-                            prepare_logger, save_json)
+from tacotron.core.validation import get_df
+from tacotron.globals import DEFAULT_CSV_SEPERATOR
+from tacotron.utils import (get_all_checkpoint_iterations, get_checkpoint,
+                            get_last_checkpoint, prepare_logger)
+from text_utils.types import Speaker
 from tqdm import tqdm
 from tts_preparation import (PreparedData, get_merged_dir, get_prep_dir,
                              load_testset, load_trainset, load_valset)
 
 
-def get_repr_entries(entry_ids: Optional[Set[int]]) -> None:
+def get_repr_entries(entry_ids: Optional[Set[int]]) -> str:
   if entry_ids is None:
     return "none"
   if len(entry_ids) == 0:
@@ -39,7 +41,7 @@ def get_repr_entries(entry_ids: Optional[Set[int]]) -> None:
   return ",".join(list(sorted(map(str, entry_ids))))
 
 
-def get_repr_speaker(speaker: Optional[str]) -> None:
+def get_repr_speaker(speaker: Optional[Speaker]) -> Speaker:
   if speaker is None:
     return "none"
   return speaker
@@ -55,8 +57,8 @@ def get_run_name(ds: str, iterations: Set[int], full_run: bool, entry_ids: Optio
   return subdir_name
 
 
-def get_val_dir(train_dir: Path, run_name: str) -> str:
-  return get_subdir(_get_validation_root_dir(train_dir), run_name, create=True)
+def get_val_dir(train_dir: Path, run_name: str) -> Path:
+  return _get_validation_root_dir(train_dir) / run_name
 
 
 # def get_val_dir_new(train_dir: Path):
@@ -64,16 +66,17 @@ def get_val_dir(train_dir: Path, run_name: str) -> str:
 #   return get_subdir(_get_validation_root_dir(train_dir), subdir_name, create=True)
 
 
-def get_val_entry_dir(val_dir: Path, result_name: str) -> None:
-  return get_subdir(val_dir, result_name, create=True)
+def get_val_entry_dir(val_dir: Path, result_name: str) -> Path:
+  return val_dir / result_name
 
 
 def save_stats(val_dir: Path, validation_entries: ValidationEntries) -> None:
   path = val_dir / "total.csv"
-  validation_entries.save(path, header=True)
+  df = get_df(validation_entries)
+  df.to_csv(path, sep=DEFAULT_CSV_SEPERATOR, header=True)
 
 
-def save_mel_postnet_npy_paths(val_dir: Path, name: str, mel_postnet_npy_paths: List[Dict[str, Any]]) -> str:
+def save_mel_postnet_npy_paths(val_dir: Path, name: str, mel_postnet_npy_paths: List[Dict[str, Any]]) -> Path:
   info_json = get_mel_out_dict(
     name=name,
     root_dir=val_dir,
@@ -147,12 +150,12 @@ def validate(base_dir: Path, train_name: str, entry_ids: Optional[Set[int]] = No
   """Param: custom checkpoints: empty => all; None => random; ids"""
   assert repetitions > 0
 
-  train_dir = get_train_dir(base_dir, train_name, create=False)
+  train_dir = get_train_dir(base_dir, train_name)
   assert train_dir.is_dir()
 
   ttsp_dir, merge_name, prep_name = load_prep_settings(train_dir)
-  merge_dir = get_merged_dir(ttsp_dir, merge_name, create=False)
-  prep_dir = get_prep_dir(merge_dir, prep_name, create=False)
+  merge_dir = get_merged_dir(ttsp_dir, merge_name)
+  prep_dir = get_prep_dir(merge_dir, prep_name)
 
   if ds == "val":
     data = load_valset(prep_dir)
@@ -244,7 +247,7 @@ def validate(base_dir: Path, train_name: str, entry_ids: Optional[Set[int]] = No
     logger.info(npy_path)
 
     if copy_mel_info_to is not None:
-      create_parent_folder(copy_mel_info_to)
+      copy_mel_info_to.parent.mkdir(parents=True, exist_ok=True)
       copyfile(npy_path, copy_mel_info_to)
       logger.info(copy_mel_info_to)
 

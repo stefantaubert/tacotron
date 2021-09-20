@@ -2,15 +2,15 @@ import os
 from argparse import ArgumentParser
 from pathlib import Path
 
+from general_utils import split_hparams_string, split_int_set_str
+
 # from tacotron.app.eval_checkpoints import eval_checkpoints
 from tacotron.app import (DEFAULT_MAX_DECODER_STEPS, continue_train, infer,
-                          plot_embeddings, restore_model, train, validate)
+                          plot_embeddings, train, validate)
 from tacotron.app.defaults import (DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME,
                                    DEFAULT_REPETITIONS,
                                    DEFAULT_SAVE_MEL_INFO_COPY_PATH,
                                    DEFAULT_SEED)
-from tacotron.utils import (parse_tuple_list, split_hparams_string,
-                            split_int_set_str)
 
 BASE_DIR_VAR = "base_dir"
 
@@ -35,10 +35,10 @@ def init_plot_emb_parser(parser) -> None:
 #   eval_checkpoints(**args)
 
 
-def init_restore_parser(parser: ArgumentParser) -> None:
-  parser.add_argument('--train_name', type=str, required=True)
-  parser.add_argument('--checkpoint_dir', type=Path, required=True)
-  return restore_model
+# def init_restore_parser(parser: ArgumentParser) -> None:
+#   parser.add_argument('--train_name', type=str, required=True)
+#   parser.add_argument('--checkpoint_dir', type=Path, required=True)
+#   return restore_model
 
 
 def init_train_parser(parser: ArgumentParser) -> None:
@@ -145,7 +145,7 @@ def _init_parser():
   _add_parser_to(subparsers, "infer", init_inference_parser)
   # _add_parser_to(subparsers, "eval-checkpoints", init_taco_eval_checkpoints_parser)
   _add_parser_to(subparsers, "plot-embeddings", init_plot_emb_parser)
-  _add_parser_to(subparsers, "restore", init_restore_parser)
+  #_add_parser_to(subparsers, "restore", init_restore_parser)
 
   return result
 

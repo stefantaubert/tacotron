@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -7,17 +6,16 @@ import plotly.offline as plt
 from tacotron.analysis import plot_embeddings as plot_embeddings_core
 from tacotron.app.io import get_checkpoints_dir, get_train_dir
 from tacotron.core import CheckpointTacotron
-from tacotron.utils import (get_custom_or_last_checkpoint, get_subdir,
-                            prepare_logger, save_df)
+from tacotron.utils import get_custom_or_last_checkpoint, prepare_logger
 
 
 def get_analysis_root_dir(train_dir: Path) -> Path:
-  return get_subdir(train_dir, "analysis", create=True)
+  return train_dir / "analysis"
 
 
 def _save_similarities_csv(analysis_dir: Path, checkpoint_it: int, df: pd.DataFrame) -> None:
   path = analysis_dir / f"{checkpoint_it}.csv"
-  save_df(df, path, header_columns=None)
+  df.to_csv(path, header_columns=None, index=False)
 
 
 def _save_2d_plot(analysis_dir: Path, checkpoint_it: int, fig) -> None:
@@ -47,7 +45,8 @@ def plot_embeddings(base_dir: Path, train_name: str, custom_checkpoint: Optional
     emb=checkpoint.get_symbol_embedding_weights(),
     logger=logger
   )
-
+  
+  analysis_dir.mkdir(parents=True,  exist_ok=True)
   _save_similarities_csv(analysis_dir, checkpoint_it, text)
   _save_2d_plot(analysis_dir, checkpoint_it, fig_2d)
   _save_3d_plot(analysis_dir, checkpoint_it, fig_3d)

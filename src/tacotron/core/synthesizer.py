@@ -6,13 +6,13 @@ from typing import Dict, Optional
 import numpy as np
 import torch
 from audio_utils.mel import mel_to_numpy
+from general_utils import overwrite_custom_hparams
 from tacotron.core.training import CheckpointTacotron, load_model
 from tacotron.globals import NOT_INFERABLE_SYMBOL_MARKER
-from tacotron.utils import (init_global_seeds, overwrite_custom_hparams,
-                            pass_lines)
-from text_utils.types import Speaker
-from tts_preparation import InferableUtterance, InferableUtterances
-from tts_preparation.core.inference import log_utterances
+from tacotron.utils import init_global_seeds
+from text_utils import Speaker
+from tts_preparation import (InferableUtterance, InferableUtterances,
+                             log_utterances)
 
 
 @dataclass

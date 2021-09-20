@@ -2,7 +2,7 @@ import datetime
 import random
 from collections import OrderedDict
 from dataclasses import dataclass
-from logging import Logger, getLogger
+from logging import Logger
 from typing import Callable, Dict, List, Optional
 from typing import OrderedDict as OrderedDictType
 from typing import Set
@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 from audio_utils.mel import (TacotronSTFT, align_mels_with_dtw, get_msd,
                              plot_melspec_np)
+from general_utils import GenericList
 from image_utils import calculate_structual_similarity_np
 from mcd import get_mcd_between_mel_spectograms
 from ordered_set import OrderedSet
@@ -20,12 +21,10 @@ from scipy.io.wavfile import read
 from sklearn.metrics import mean_squared_error
 from tacotron.core.synthesizer import Synthesizer
 from tacotron.core.training import CheckpointTacotron
-from tacotron.utils import (GenericList, cosine_dist_mels, make_same_dim,
+from tacotron.utils import (cosine_dist_mels, make_same_dim,
                             plot_alignment_np_new)
 from text_selection import get_rarity_ngrams
-from text_utils import SymbolIdDict
-from tts_preparation import (InferableUtterance, InferableUtterances,
-                             PreparedData, PreparedDataList)
+from tts_preparation import InferableUtterance, PreparedData, PreparedDataList
 
 
 @dataclass
@@ -84,6 +83,11 @@ class ValidationEntry():
 
 
 class ValidationEntries(GenericList[ValidationEntry]):
+  pass
+
+
+def get_df(entries: ValidationEntries) -> pd.DataFrame:
+  # TODO
   pass
 
 
@@ -172,9 +176,6 @@ def wav_to_text(wav: np.ndarray) -> str:
 
 
 def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: PreparedDataList, custom_hparams: Optional[Dict[str, str]], entry_ids: Optional[Set[int]], speaker_name: Optional[str], train_name: str, full_run: bool, save_callback: Optional[Callable[[PreparedData, ValidationEntryOutput], None]], max_decoder_steps: int, fast: bool, mcd_no_of_coeffs_per_frame: int, repetitions: int, seed: Optional[int], select_best_from: Optional[pd.DataFrame], logger: Logger) -> ValidationEntries:
-  model_symbols = checkpoint.get_symbols()
-  model_speakers = checkpoint.get_speakers()
-
   seeds: List[int]
   validation_data: PreparedDataList
 
@@ -208,8 +209,7 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
     assert seed is not None
     seeds = [seed for _ in validation_data]
   elif speaker_name is not None:
-    speaker_id = model_speakers.get_id(speaker_name)
-    relevant_entries = [x for x in data.items() if x.speaker_id == speaker_id]
+    relevant_entries = [x for x in data.items() if x.speaker_name == speaker_name]
     assert len(relevant_entries) > 0
     assert seed is not None
     random.seed(seed)

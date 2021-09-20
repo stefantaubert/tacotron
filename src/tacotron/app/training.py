@@ -1,12 +1,9 @@
 import logging
 import os
-import shutil
 from functools import partial
 from logging import Logger
 from pathlib import Path
 from typing import Dict, Optional
-
-from tts_preparation.app.io import load_merged_symbol_converter
 
 from tacotron.app.io import (get_checkpoints_dir,
                              get_train_checkpoints_log_file, get_train_dir,
@@ -20,12 +17,13 @@ from tacotron.utils import (get_custom_or_last_checkpoint, get_last_checkpoint,
 from tts_preparation import (get_merged_dir, get_prep_dir,
                              load_merged_speakers_json, load_trainset,
                              load_valset, load_weights_map)
+from tts_preparation.app.io import load_merged_symbol_converter
 
 
 def try_load_checkpoint(base_dir: Path, train_name: Optional[str], checkpoint: Optional[int], logger: Logger) -> Optional[CheckpointTacotron]:
   result = None
   if train_name:
-    train_dir = get_train_dir(base_dir, train_name, False)
+    train_dir = get_train_dir(base_dir, train_name)
     checkpoint_path, _ = get_custom_or_last_checkpoint(
       get_checkpoints_dir(train_dir), checkpoint)
     result = CheckpointTacotron.load(checkpoint_path, logger)
@@ -39,23 +37,24 @@ def save_checkpoint(checkpoint: CheckpointTacotron, save_checkpoint_dir: Path, l
   checkpoint.save(checkpoint_path, logger)
 
 
-def restore_model(base_dir: Path, train_name: str, checkpoint_dir: Path) -> None:
-  train_dir = get_train_dir(base_dir, train_name, create=True)
-  logs_dir = get_train_logs_dir(train_dir)
-  logger = prepare_logger(get_train_log_file(logs_dir), reset=True)
-  save_checkpoint_dir = get_checkpoints_dir(train_dir)
-  last_checkpoint, iteration = get_last_checkpoint(checkpoint_dir)
-  logger.info(f"Restoring checkpoint {iteration} from {checkpoint_dir}...")
-  shutil.copy2(last_checkpoint, save_checkpoint_dir)
-  logger.info("Restoring done.")
+# def restore_model(base_dir: Path, train_name: str, checkpoint_dir: Path) -> None:
+#   train_dir = get_train_dir(base_dir, train_name, create=True)
+#   logs_dir = get_train_logs_dir(train_dir)
+#   logger = prepare_logger(get_train_log_file(logs_dir), reset=True)
+#   save_checkpoint_dir = get_checkpoints_dir(train_dir)
+#   last_checkpoint, iteration = get_last_checkpoint(checkpoint_dir)
+#   logger.info(f"Restoring checkpoint {iteration} from {checkpoint_dir}...")
+#   shutil.copy2(last_checkpoint, save_checkpoint_dir)
+#   logger.info("Restoring done.")
 
 
 def train(base_dir: Path, ttsp_dir: Path, train_name: str, merge_name: str, prep_name: str, warm_start_train_name: Optional[str] = None, warm_start_checkpoint: Optional[int] = None, custom_hparams: Optional[Dict[str, str]] = None, weights_train_name: Optional[str] = None, weights_checkpoint: Optional[int] = None, use_weights_map: Optional[bool] = None, map_from_speaker: Optional[str] = None) -> None:
-  merge_dir = get_merged_dir(ttsp_dir, merge_name, create=False)
-  prep_dir = get_prep_dir(merge_dir, prep_name, create=False)
+  merge_dir = get_merged_dir(ttsp_dir, merge_name)
+  prep_dir = get_prep_dir(merge_dir, prep_name)
 
-  train_dir = get_train_dir(base_dir, train_name, create=True)
+  train_dir = get_train_dir(base_dir, train_name)
   logs_dir = get_train_logs_dir(train_dir)
+  logs_dir.mkdir(parents=True, exist_ok=True)
 
   taco_logger = Tacotron2Logger(logs_dir)
   logger = prepare_logger(get_train_log_file(logs_dir), reset=True)
@@ -79,7 +78,7 @@ def train(base_dir: Path, ttsp_dir: Path, train_name: str, merge_name: str, prep
 
   weights_map = None
   if use_weights_map is not None and use_weights_map:
-    weights_train_dir = get_train_dir(base_dir, weights_train_name, False)
+    weights_train_dir = get_train_dir(base_dir, weights_train_name)
     _, weights_merge_name, _ = load_prep_settings(weights_train_dir)
     weights_map = load_weights_map(merge_dir, weights_merge_name)
 
@@ -114,7 +113,7 @@ def train(base_dir: Path, ttsp_dir: Path, train_name: str, merge_name: str, prep
 
 
 def continue_train(base_dir: Path, train_name: str, custom_hparams: Optional[Dict[str, str]] = None) -> None:
-  train_dir = get_train_dir(base_dir, train_name, create=False)
+  train_dir = get_train_dir(base_dir, train_name)
   assert train_dir.is_dir()
 
   logs_dir = get_train_logs_dir(train_dir)
@@ -136,8 +135,8 @@ def continue_train(base_dir: Path, train_name: str, custom_hparams: Optional[Dic
   )
 
   ttsp_dir, merge_name, prep_name = load_prep_settings(train_dir)
-  merge_dir = get_merged_dir(ttsp_dir, merge_name, create=False)
-  prep_dir = get_prep_dir(merge_dir, prep_name, create=False)
+  merge_dir = get_merged_dir(ttsp_dir, merge_name)
+  prep_dir = get_prep_dir(merge_dir, prep_name)
   trainset = load_trainset(prep_dir)
   valset = load_valset(prep_dir)
 

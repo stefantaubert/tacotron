@@ -5,6 +5,7 @@ from typing import Callable, Dict, Iterator, List, Optional, Tuple
 
 import numpy as np
 import torch
+from general_utils import overwrite_custom_hparams
 from tacotron.checkpoint import Checkpoint, get_iteration
 from tacotron.core.dataloader import (SymbolsMelCollate, parse_batch,
                                       prepare_trainloader, prepare_valloader)
@@ -21,8 +22,7 @@ from tacotron.utils import (SaveIterationSettings, check_save_it,
                             get_continue_epoch, get_formatted_current_total,
                             get_last_iteration, get_next_save_it, init_cuddn,
                             init_cuddn_benchmark, init_global_seeds,
-                            iteration_to_epoch, log_hparams,
-                            overwrite_custom_hparams, skip_batch,
+                            iteration_to_epoch, log_hparams, skip_batch,
                             update_weights, validate_model)
 from text_utils import SpeakersDict, SymbolIdDict, SymbolsMap
 from torch import nn

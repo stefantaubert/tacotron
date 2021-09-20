@@ -2,12 +2,14 @@ import datetime
 from dataclasses import dataclass
 from logging import Logger
 from typing import Callable, Dict, Optional, Set
+from general_utils import GenericList
 
 import numpy as np
+import pandas as pd
 from audio_utils.mel import plot_melspec_np
 from tacotron.core.synthesizer import Synthesizer
 from tacotron.core.training import CheckpointTacotron
-from tacotron.utils import GenericList, plot_alignment_np_new
+from tacotron.utils import plot_alignment_np_new
 from text_utils.types import Speaker, SpeakerId
 from tts_preparation import InferableUtterance, InferableUtterances
 
@@ -30,6 +32,11 @@ class InferenceEntry():
 
 
 class InferenceEntries(GenericList[InferenceEntry]):
+  pass
+
+
+def get_df(entries: InferenceEntries) -> pd.DataFrame:
+  # TODO
   pass
 
 
