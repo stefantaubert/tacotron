@@ -3,13 +3,14 @@ from pathlib import Path
 from typing import Dict, Optional
 
 import torch
+from general_utils.main import overwrite_custom_hparams
 from tacotron.core.dataloader import (SymbolsMelCollate, parse_batch,
                                       prepare_valloader)
 from tacotron.core.hparams import HParams
 from tacotron.core.model_checkpoint import CheckpointTacotron
 from tacotron.core.training import Tacotron2Loss, load_model, validate_model
 from tacotron.utils import (filter_checkpoints, get_all_checkpoint_iterations,
-                            get_checkpoint, overwrite_custom_hparams)
+                            get_checkpoint)
 from tqdm import tqdm
 from tts_preparation import PreparedDataList
 
