@@ -119,7 +119,7 @@ def get_infer_log_new(infer_dir: Path) -> None:
   return infer_dir / "log.txt"
 
 
-def infer(base_dir: Path, train_name: str, text_name: str, speaker: Speaker, utterance_ids: Optional[Set[int]] = None, custom_checkpoint: Optional[int] = None, full_run: bool = True, custom_hparams: Optional[Dict[str, str]] = None, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, seed: int = DEFAULT_SEED, copy_mel_info_to: Optional[Path] = DEFAULT_SAVE_MEL_INFO_COPY_PATH) -> None:
+def infer(base_dir: Path, train_name: str, text_name: str, speaker: Speaker, utterance_ids: Optional[Set[int]] = None, custom_checkpoint: Optional[int] = None, full_run: bool = True, custom_hparams: Optional[Dict[str, str]] = None, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, seed: Optional[int] = DEFAULT_SEED, copy_mel_info_to: Optional[Path] = DEFAULT_SAVE_MEL_INFO_COPY_PATH) -> None:
   train_dir = get_train_dir(base_dir, train_name)
   assert train_dir.is_dir()
 

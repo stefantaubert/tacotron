@@ -1,7 +1,6 @@
 from pathlib import Path
 
-
-DEFAULT_SEED = 1111
+DEFAULT_SEED = None
 DEFAULT_REPETITIONS = 1
 DEFAULT_MAX_DECODER_STEPS = 3000
 DEFAULT_SAVE_MEL_INFO_COPY_PATH = Path("/tmp/mel_out.json")

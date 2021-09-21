@@ -104,7 +104,7 @@ def init_inference_parser(parser: ArgumentParser) -> None:
   parser.add_argument('--train_name', type=str, required=True)
   parser.add_argument('--text_name', type=str, required=True)
   parser.add_argument('--speaker', type=str, required=True, help="ds_name,speaker_name")
-  parser.add_argument('--sentence_ids', type=str)
+  parser.add_argument('--utterance_ids', type=str)
   parser.add_argument('--custom_checkpoint', type=int)
   parser.add_argument('--custom_hparams', type=str)
   parser.add_argument('--full_run', action='store_true')
@@ -117,7 +117,7 @@ def init_inference_parser(parser: ArgumentParser) -> None:
 
 def infer_cli(**args) -> None:
   args["custom_hparams"] = split_hparams_string(args["custom_hparams"])
-  args["sentence_ids"] = split_int_set_str(args["sentence_ids"])
+  args["utterance_ids"] = split_int_set_str(args["utterance_ids"])
   infer(**args)
 
 

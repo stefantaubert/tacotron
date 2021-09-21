@@ -1,4 +1,5 @@
 import datetime
+import random
 from dataclasses import dataclass
 from logging import Logger
 from typing import Callable, Dict, Optional, Set
@@ -91,15 +92,17 @@ def get_subset(utterances: InferableUtterances, utterance_ids: Set[int]) -> Infe
   return result
 
 
-def infer(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict[str, str]], speaker_name: Optional[Speaker], train_name: str, utterances: InferableUtterances, utterance_ids: Optional[Set[int]], full_run: bool, save_callback: Callable[[InferableUtterance, InferenceEntryOutput], None], max_decoder_steps: int, seed: int, logger: Logger) -> InferenceEntries:
+def infer(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict[str, str]], speaker_name: Optional[Speaker], train_name: str, utterances: InferableUtterances, utterance_ids: Optional[Set[int]], full_run: bool, save_callback: Callable[[InferableUtterance, InferenceEntryOutput], None], max_decoder_steps: int, seed: Optional[int], logger: Logger) -> InferenceEntries:
   model_speakers = checkpoint.get_speakers()
+  if seed is None:
+    seed = random.randint(1, 9999)
+    logger.info(f"As no seed was given, using random seed: {seed}.")
 
   if full_run:
     pass
   elif utterance_ids is not None:
     utterances = InferableUtterances(get_subset(utterances, utterance_ids))
   else:
-    assert seed is not None
     utterances = InferableUtterances([utterances.get_random_entry(seed)])
   synth = Synthesizer(
     checkpoint=checkpoint,

@@ -222,9 +222,12 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
   seeds: List[int]
   validation_data: PreparedDataList
 
+  if seed is None:
+    seed = random.randint(1, 9999)
+    logger.info(f"As no seed was given, using random seed: {seed}.")
+
   if full_run:
     validation_data = data
-    assert seed is not None
     seeds = [seed for _ in data]
   elif select_best_from is not None:
     assert entry_ids is not None
@@ -249,18 +252,15 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
     if len(validation_data) != len(entry_ids):
       logger.error("Not all entry_id's were found!")
       assert False
-    assert seed is not None
     seeds = [seed for _ in validation_data]
   elif speaker_name is not None:
     relevant_entries = [x for x in data.items() if x.speaker_name == speaker_name]
     assert len(relevant_entries) > 0
-    assert seed is not None
     random.seed(seed)
     entry = random.choice(relevant_entries)
     validation_data = PreparedDataList([entry])
     seeds = [seed]
   else:
-    assert seed is not None
     random.seed(seed)
     entry = random.choice(data)
     validation_data = PreparedDataList([entry])
