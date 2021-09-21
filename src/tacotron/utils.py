@@ -157,8 +157,8 @@ def get_last_checkpoint(checkpoint_dir: Path) -> Tuple[str, int]:
 
 def get_all_checkpoint_iterations(checkpoint_dir: Path) -> List[int]:
   filenames = get_filenames(checkpoint_dir)
-  checkpoints_str = [get_pytorch_basename(x)
-                     for x in filenames if is_pytorch_file(x)]
+  checkpoints_str = [get_pytorch_basename(str(x))
+                     for x in filenames if is_pytorch_file(str(x))]
   checkpoints = list(sorted(list(map(int, checkpoints_str))))
   return checkpoints
 

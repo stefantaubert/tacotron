@@ -69,9 +69,12 @@ class ValidationEntries(GenericList[ValidationEntry]):
 
 
 def get_df(entries: ValidationEntries) -> DataFrame:
+  if len(entries) == 0:
+    return DataFrame()
+
   data = [
     {
-      "Id": entry.utterance.utterance_id,
+      "Id": entry.utterance.identifier,
       "Timepoint": f"{entry.timepoint:%Y/%m/%d %H:%M:%S}",
       "Iteration": entry.iteration,
       "Seed": entry.seed,
@@ -116,12 +119,12 @@ def get_df(entries: ValidationEntries) -> DataFrame:
       "Unique symbols": ' '.join(sorted(set(entry.utterance.symbols))),
       "# Unique symbols": len(set(entry.utterance.symbols)),
       "Train name": entry.train_name,
+      "Ds-Id": entry.utterance.ds_entry_id,
+      "Wav path": str(entry.utterance.wav_absolute_path),
+      "Wav path original": str(entry.utterance.wav_original_absolute_path),
     }
     for entry in entries.items()
   ]
-
-  if len(data) == 0:
-    return DataFrame()
 
   df = DataFrame(
     data=[x.values() for x in data],

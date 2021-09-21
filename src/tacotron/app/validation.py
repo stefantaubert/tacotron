@@ -97,6 +97,7 @@ def get_result_name(entry: PreparedData, iteration: int, repetition: int) -> Non
 def save_results(entry: PreparedData, output: ValidationEntryOutput, val_dir: Path, iteration: int, mel_postnet_npy_paths: List[Dict[str, Any]]) -> None:
   result_name = get_result_name(entry, iteration, output.repetition)
   dest_dir = get_val_entry_dir(val_dir, result_name)
+  dest_dir.mkdir(parents=True, exist_ok=True)
   write(dest_dir / "original.wav", output.orig_sr, output.wav_orig)
   imageio.imsave(dest_dir / "original.png", output.mel_orig_img)
   imageio.imsave(dest_dir / "original_aligned.png", output.mel_orig_aligned_img)
@@ -188,6 +189,7 @@ def validate(base_dir: Path, train_name: str, entry_ids: Optional[Set[int]] = No
     train_dir=train_dir,
     run_name=run_name,
   )
+  val_dir.mkdir(parents=True, exist_ok=True)
 
   val_log_path = val_dir / "log.txt"
   logger = prepare_logger(val_log_path)

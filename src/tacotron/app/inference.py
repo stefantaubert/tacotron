@@ -45,29 +45,29 @@ MEL_POSTNET_PNG = "mel_postnet.png"
 ALIGNMENTS_PNG = "alignments.png"
 
 
-def save_mel_v_plot(infer_dir: Path, sentences: InferableUtterances) -> None:
-  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) / MEL_PNG for x in sentences.items()]
+def save_mel_v_plot(infer_dir: Path, utterances: InferableUtterances) -> None:
+  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) / MEL_PNG for x in utterances.items()]
   path = infer_dir / "mel_v.png"
   stack_images_vertically(paths, path)
 
 
-def save_alignments_v_plot(infer_dir: Path, sentences: InferableUtterances) -> None:
+def save_alignments_v_plot(infer_dir: Path, utterances: InferableUtterances) -> None:
   paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) /
-           ALIGNMENTS_PNG for x in sentences.items()]
+           ALIGNMENTS_PNG for x in utterances.items()]
   path = infer_dir / "alignments_v.png"
   stack_images_vertically(paths, path)
 
 
-def save_mel_postnet_v_plot(infer_dir: Path, sentences: InferableUtterances) -> None:
+def save_mel_postnet_v_plot(infer_dir: Path, utterances: InferableUtterances) -> None:
   paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) /
-           MEL_POSTNET_PNG for x in sentences.items()]
+           MEL_POSTNET_PNG for x in utterances.items()]
   path = infer_dir / "mel_postnet_v.png"
   stack_images_vertically(paths, path)
 
 
-def save_mel_postnet_h_plot(infer_dir: Path, sentences: InferableUtterances) -> None:
+def save_mel_postnet_h_plot(infer_dir: Path, utterances: InferableUtterances) -> None:
   paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) /
-           MEL_POSTNET_PNG for x in sentences.items()]
+           MEL_POSTNET_PNG for x in utterances.items()]
   path = infer_dir / "mel_postnet_h.png"
   stack_images_horizontally(paths, path)
 
@@ -76,9 +76,9 @@ def get_infer_sent_dir(infer_dir: Path, result_name: str) -> Path:
   return infer_dir / result_name
 
 
-def save_stats(infer_dir: Path, stats: InferenceEntries) -> None:
+def save_stats(infer_dir: Path, entries: InferenceEntries) -> None:
   path = infer_dir / "total.csv"
-  df = get_df(stats)
+  df = get_df(entries)
   df.to_csv(path, sep=DEFAULT_CSV_SEPERATOR, header=True)
 
 
@@ -89,6 +89,7 @@ def get_result_name(entry: InferableUtterance) -> str:
 def save_results(entry: InferableUtterance, output: InferenceEntryOutput, infer_dir: Path, mel_postnet_npy_paths: List[Dict[str, Any]]) -> None:
   result_name = get_result_name(entry)
   dest_dir = get_infer_sent_dir(infer_dir, result_name)
+  dest_dir.mkdir(parents=True, exist_ok=True)
   imageio.imsave(dest_dir / MEL_PNG, output.mel_img)
   imageio.imsave(dest_dir / MEL_POSTNET_PNG, output.postnet_img)
   imageio.imsave(dest_dir / ALIGNMENTS_PNG, output.alignments_img)
@@ -119,7 +120,7 @@ def get_infer_log_new(infer_dir: Path) -> None:
 
 
 def infer(base_dir: Path, train_name: str, text_name: str, speaker: Speaker, utterance_ids: Optional[Set[int]] = None, custom_checkpoint: Optional[int] = None, full_run: bool = True, custom_hparams: Optional[Dict[str, str]] = None, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, seed: int = DEFAULT_SEED, copy_mel_info_to: Optional[Path] = DEFAULT_SAVE_MEL_INFO_COPY_PATH) -> None:
-  train_dir = get_train_dir(base_dir, train_name, create=False)
+  train_dir = get_train_dir(base_dir, train_name)
   assert train_dir.is_dir()
 
   logger = get_default_logger()
@@ -133,7 +134,7 @@ def infer(base_dir: Path, train_name: str, text_name: str, speaker: Speaker, utt
   taco_checkpoint = CheckpointTacotron.load(checkpoint_path, logger)
 
   ttsp_dir, merge_name, _ = load_prep_settings(train_dir)
-  # merge_dir = get_merged_dir(ttsp_dir, merge_name, create=False)
+  # merge_dir = get_merged_dir(ttsp_dir, merge_name)
 
   merge_dir = get_merged_dir(ttsp_dir, merge_name)
   text_dir = get_text_dir(merge_dir, text_name)
@@ -173,16 +174,16 @@ def infer(base_dir: Path, train_name: str, text_name: str, speaker: Speaker, utt
   )
 
   logger.info("Creating mel_postnet_v.png")
-  save_mel_postnet_v_plot(infer_dir, inference_results)
+  save_mel_postnet_v_plot(infer_dir, utterances)
 
   logger.info("Creating mel_postnet_h.png")
-  save_mel_postnet_h_plot(infer_dir, inference_results)
+  save_mel_postnet_h_plot(infer_dir, utterances)
 
   logger.info("Creating mel_v.png")
-  save_mel_v_plot(infer_dir, inference_results)
+  save_mel_v_plot(infer_dir, utterances)
 
   logger.info("Creating alignments_v.png")
-  save_alignments_v_plot(infer_dir, inference_results)
+  save_alignments_v_plot(infer_dir, utterances)
 
   logger.info("Creating total.csv")
   save_stats(infer_dir, inference_results)

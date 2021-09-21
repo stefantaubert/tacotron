@@ -45,6 +45,9 @@ class InferenceEntries(GenericList[InferenceEntry]):
 
 
 def get_df(entries: InferenceEntries) -> DataFrame:
+  if len(entries) == 0:
+    return DataFrame()
+
   data = [{
     "Id": entry.utterance.utterance_id,
     "Timepoint": f"{entry.timepoint:%Y/%m/%d %H:%M:%S}",
@@ -63,9 +66,6 @@ def get_df(entries: InferenceEntries) -> DataFrame:
     "Unique symbols": ' '.join(sorted(entry.unique_symbols)),
     "# Unique symbols": entry.unique_symbols_count,
    } for entry in entries.items()]
-
-  if len(data) == 0:
-    return DataFrame()
 
   df = DataFrame(
     data=[x.values() for x in data],
