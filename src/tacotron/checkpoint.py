@@ -1,5 +1,6 @@
 from dataclasses import asdict, dataclass
 from logging import Logger
+from pathlib import Path
 from typing import Any, Dict, Optional, Type, TypeVar
 
 import torch
@@ -24,14 +25,14 @@ class Checkpoint():
         f"Ignored these hparams from checkpoint because they did not exist in the current HParams: {ignored}.")
     return res
 
-  def save(self, checkpoint_path: str, logger: Logger):
+  def save(self, checkpoint_path: Path, logger: Logger):
     logger.info(f"Saving model at iteration {self.iteration}...")
     checkpoint_dict = asdict(self)
     torch.save(checkpoint_dict, checkpoint_path)
     logger.info(f"Saved model to '{checkpoint_path}'.")
 
   @classmethod
-  def load(cls, checkpoint_path: str, logger: Logger):
+  def load(cls, checkpoint_path: Path, logger: Logger):
     assert checkpoint_path.is_file()
     logger.info(f"Loading model '{checkpoint_path}'...")
     checkpoint_dict = torch.load(checkpoint_path, map_location='cpu')

@@ -1,5 +1,6 @@
 from dataclasses import asdict, dataclass
 from logging import Logger
+from pathlib import Path
 from typing import Optional
 from typing import OrderedDict as OrderedDictType
 
@@ -53,7 +54,7 @@ class CheckpointTacotron(Checkpoint):
     return pretrained_weights
 
   @classmethod
-  def load(cls, checkpoint_path: str, logger: Logger):
+  def load(cls, checkpoint_path: Path, logger: Logger):
     result = super().load(checkpoint_path, logger)
     # pylint: disable=no-member
     logger.info(f'Including {len(result.symbol_id_dict)} symbol(s).')
