@@ -17,6 +17,7 @@ from general_utils import GenericList
 from image_utils import calculate_structual_similarity_np
 from mcd import get_mcd_between_mel_spectograms
 from ordered_set import OrderedSet
+from pandas import DataFrame
 from scipy.io.wavfile import read
 from sklearn.metrics import mean_squared_error
 from tacotron.core.synthesizer import Synthesizer
@@ -29,34 +30,20 @@ from tts_preparation import InferableUtterance, PreparedData, PreparedDataList
 
 @dataclass
 class ValidationEntry():
-  timepoint: str
+  timepoint: datetime.datetime
+  utterance: PreparedData
   repetition: int
   repetitions: int
   seed: int
-  entry_id: int
-  ds_entry_id: int
   train_name: str
   iteration: int
-  speaker_name: str
-  speaker_id: int
-  wav_path: str
   sampling_rate: int
-  wav_duration_s: float
-  text_original: str
-  text: str
-  unique_symbols: str
-  unique_symbols_count: int
-  symbol_count: int
   # grad_norm: float
   # loss: float
   inference_duration_s: float
   reached_max_decoder_steps: bool
   target_frames: int
   predicted_frames: int
-  diff_frames: int
-  frame_deviation_percent: float
-  # mcd_dtw_v2: float
-  # mcd_dtw_v2_frames: int
   padded_mse: float
   padded_cosine_similarity: Optional[float]
   padded_structural_similarity: Optional[float]
@@ -73,22 +60,75 @@ class ValidationEntry():
   wil: float
   wip: float
   train_one_gram_rarity: float
-  global_one_gram_rarity: float
   train_two_gram_rarity: float
-  global_two_gram_rarity: float
   train_three_gram_rarity: float
-  global_three_gram_rarity: float
-  train_combined_rarity: float
-  global_combined_rarity: float
 
 
 class ValidationEntries(GenericList[ValidationEntry]):
   pass
 
 
-def get_df(entries: ValidationEntries) -> pd.DataFrame:
-  # TODO
-  pass
+def get_df(entries: ValidationEntries) -> DataFrame:
+  data = [
+    {
+      "Id": entry.utterance.utterance_id,
+      "Timepoint": f"{entry.timepoint:%Y/%m/%d %H:%M:%S}",
+      "Iteration": entry.iteration,
+      "Seed": entry.seed,
+      "Repetition": entry.repetition,
+      "Repetitions": entry.repetitions,
+      "Language": repr(entry.utterance.symbols_language),
+      "Symbols": ''.join(entry.utterance.symbols),
+      "Symbols format": repr(entry.utterance.symbols_format),
+      "Speaker": entry.utterance.speaker_name,
+      "Speaker Id": entry.utterance.speaker_id,
+      "Inference duration (s)": entry.inference_duration_s,
+      "Reached max. steps": entry.reached_max_decoder_steps,
+      "Sampling rate (Hz)": entry.sampling_rate,
+      "# MFCC Coefficients": entry.mfcc_no_coeffs,
+      "MFCC DTW MCD": entry.mfcc_dtw_mcd,
+      "MFCC DTW PEN": entry.mfcc_dtw_penalty,
+      "# MFCC DTW frames": entry.mfcc_dtw_frames,
+      "# Target frames": entry.target_frames,
+      "# Predicted frames": entry.predicted_frames,
+      "# Difference frames": entry.predicted_frames - entry.target_frames,
+      "Frames deviation (%)": (entry.predicted_frames / entry.target_frames) - 1,
+      "MSE (Padded)": entry.padded_mse,
+      "Cosine Similarity (Padded)": entry.padded_cosine_similarity,
+      "Structual Similarity (Padded)": entry.padded_structural_similarity,
+      "MSE (Aligned)": entry.aligned_mse,
+      "Cosine Similarity (Aligned)": entry.aligned_cosine_similarity,
+      "Structual Similarity (Aligned)": entry.aligned_structural_similarity,
+      "MSD": entry.msd,
+      "WER": entry.wer,
+      "MER": entry.mer,
+      "WIL": entry.wil,
+      "WIP": entry.wip,
+      "1-gram rarity (train set)": entry.train_one_gram_rarity,
+      "2-gram rarity (train set)": entry.train_two_gram_rarity,
+      "3-gram rarity (train set)": entry.train_three_gram_rarity,
+      "Combined rarity (train set)": entry.train_one_gram_rarity + entry.train_two_gram_rarity + entry.train_three_gram_rarity,
+      "1-gram rarity (total set)": entry.utterance.one_gram_rarity,
+      "2-gram rarity (total set)": entry.utterance.two_gram_rarity,
+      "3-gram rarity (total set)": entry.utterance.three_gram_rarity,
+      "Combined rarity (total set)": entry.utterance.one_gram_rarity + entry.utterance.two_gram_rarity + entry.utterance.three_gram_rarity,
+      "# Symbols": len(entry.utterance.symbols),
+      "Unique symbols": ' '.join(sorted(set(entry.utterance.symbols))),
+      "# Unique symbols": len(set(entry.utterance.symbols)),
+      "Train name": entry.train_name,
+    }
+    for entry in entries.items()
+  ]
+
+  if len(data) == 0:
+    return DataFrame()
+
+  df = DataFrame(
+    data=[x.values() for x in data],
+    columns=data[0].keys(),
+  )
+
+  return df
 
 
 @dataclass
@@ -272,6 +312,7 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
         symbols_format=entry.symbols_format,
       )
 
+      timepoint = datetime.datetime.now()
       inference_result = synth.infer(
         utterance=infer_sent,
         speaker=entry.speaker_name,
@@ -279,20 +320,11 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
         seed=rep_seed,
       )
 
-      # TODO consider only inferable symbols
-      symbol_count = len(entry.symbol_ids)
-      unique_symbols = set(entry.symbols)
-      unique_symbols_str = " ".join(sorted(unique_symbols))
-      unique_symbols_count = len(unique_symbols)
-      timepoint = f"{datetime.datetime.now():%Y/%m/%d %H:%M:%S}"
-
       mel_orig: np.ndarray = taco_stft.get_mel_tensor_from_file(
         entry.wav_absolute_path).cpu().numpy()
 
       target_frames = mel_orig.shape[1]
       predicted_frames = inference_result.mel_outputs_postnet.shape[1]
-      diff_frames = predicted_frames - target_frames
-      frame_deviation_percent = (predicted_frames / target_frames) - 1
 
       dtw_mcd, dtw_penalty, dtw_frames = get_mcd_between_mel_spectograms(
         mel_1=mel_orig,
@@ -367,25 +399,12 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
 
         # imageio.imsave("/tmp/aligned_mel_diff_img_raw.png", aligned_mel_diff_img_raw)
 
-      train_combined_rarity = train_onegram_rarities[entry.entry_id] + \
-          train_twogram_rarities[entry.entry_id] + train_threegram_rarities[entry.entry_id]
-
       val_entry = ValidationEntry(
-        entry_id=entry.entry_id,
+        utterance=entry,
         repetition=rep_human_readable,
         repetitions=repetitions,
         seed=rep_seed,
-        ds_entry_id=entry.ds_entry_id,
-        text_original=''.join(entry.symbols_original),
-        text=''.join(entry.symbols),
-        wav_path=str(entry.wav_absolute_path),
-        wav_duration_s=entry.wav_duration,
-        speaker_id=entry.speaker_id,
-        speaker_name=speaker_name,
         iteration=checkpoint.iteration,
-        unique_symbols=unique_symbols_str,
-        unique_symbols_count=unique_symbols_count,
-        symbol_count=symbol_count,
         timepoint=timepoint,
         train_name=train_name,
         sampling_rate=synth.get_sampling_rate(),
@@ -393,8 +412,6 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
         inference_duration_s=inference_result.inference_duration_s,
         predicted_frames=predicted_frames,
         target_frames=target_frames,
-        diff_frames=diff_frames,
-        frame_deviation_percent=frame_deviation_percent,
         padded_cosine_similarity=padded_cosine_similarity,
         mfcc_no_coeffs=mcd_no_of_coeffs_per_frame,
         mfcc_dtw_mcd=dtw_mcd,
@@ -410,14 +427,9 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
         aligned_cosine_similarity=aligned_cosine_similarity,
         aligned_mse=aligned_mse,
         aligned_structural_similarity=aligned_structural_similarity,
-        global_one_gram_rarity=entry.one_gram_rarity,
-        global_two_gram_rarity=entry.two_gram_rarity,
-        global_three_gram_rarity=entry.three_gram_rarity,
-        global_combined_rarity=entry.combined_rarity,
         train_one_gram_rarity=train_onegram_rarities[entry.entry_id],
         train_two_gram_rarity=train_twogram_rarities[entry.entry_id],
         train_three_gram_rarity=train_threegram_rarities[entry.entry_id],
-        train_combined_rarity=train_combined_rarity,
       )
 
       validation_entries.append(val_entry)

@@ -2,42 +2,77 @@ import datetime
 from dataclasses import dataclass
 from logging import Logger
 from typing import Callable, Dict, Optional, Set
-from general_utils import GenericList
 
 import numpy as np
-import pandas as pd
 from audio_utils.mel import plot_melspec_np
+from general_utils import GenericList
+from pandas.core.frame import DataFrame
 from tacotron.core.synthesizer import Synthesizer
 from tacotron.core.training import CheckpointTacotron
 from tacotron.utils import plot_alignment_np_new
-from text_utils.types import Speaker, SpeakerId
+from text_utils.types import Speaker, SpeakerId, Symbols
 from tts_preparation import InferableUtterance, InferableUtterances
 
 
 @dataclass
 class InferenceEntry():
-  utterance_id: int = None
-  text: str = None
-  speaker_id: SpeakerId = None
-  speaker_name: Speaker = None
-  iteration: int = None
-  reached_max_decoder_steps: bool = None
-  inference_duration_s: float = None
-  unique_symbols: str = None
-  unique_symbols_count: int = None
-  symbol_count: int = None
-  timepoint: str = None
-  train_name: str = None
-  sampling_rate: int = None
+  utterance: InferableUtterance
+  speaker_id: SpeakerId
+  speaker_name: Speaker
+  iteration: int
+  reached_max_decoder_steps: bool
+  inference_duration_s: float
+  timepoint: datetime.datetime
+  train_name: str
+  sampling_rate: int
+  seed: int
+
+  @property
+  def unique_symbols(self) -> Symbols:
+    return set(self.utterance.symbols)
+
+  @property
+  def symbols_count(self) -> int:
+    return len(self.utterance.symbols)
+
+  @property
+  def unique_symbols_count(self) -> int:
+    return len(self.unique_symbols)
 
 
 class InferenceEntries(GenericList[InferenceEntry]):
   pass
 
 
-def get_df(entries: InferenceEntries) -> pd.DataFrame:
-  # TODO
-  pass
+def get_df(entries: InferenceEntries) -> DataFrame:
+  data = [{
+    "Id": entry.utterance.utterance_id,
+    "Timepoint": f"{entry.timepoint:%Y/%m/%d %H:%M:%S}",
+    "Iteration": entry.iteration,
+    "Language": repr(entry.utterance.language),
+    "Symbols": ''.join(entry.utterance.symbols),
+    "Symbols format": repr(entry.utterance.symbols_format),
+    "Speaker": entry.speaker_name,
+    "Speaker Id": entry.speaker_id,
+    "Inference duration (s)": entry.inference_duration_s,
+    "Reached max. steps": entry.reached_max_decoder_steps,
+    "Train name": entry.train_name,
+    "Sampling rate (Hz)": entry.sampling_rate,
+    "Seed": entry.seed,
+    "# Symbols": entry.symbols_count,
+    "Unique symbols": ' '.join(sorted(entry.unique_symbols)),
+    "# Unique symbols": entry.unique_symbols_count,
+   } for entry in entries.items()]
+
+  if len(data) == 0:
+    return DataFrame()
+
+  df = DataFrame(
+    data=[x.values() for x in data],
+    columns=data[0].keys(),
+  )
+
+  return df
 
 
 @dataclass
@@ -66,7 +101,6 @@ def infer(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict[str, str
   else:
     assert seed is not None
     utterances = InferableUtterances([utterances.get_random_entry(seed)])
-
   synth = Synthesizer(
     checkpoint=checkpoint,
     custom_hparams=custom_hparams,
@@ -77,6 +111,7 @@ def infer(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict[str, str
 
   result = InferenceEntries()
   for utterance in utterances.items():
+    timepoint = datetime.datetime.now()
     inf_sent_output = synth.infer(
       utterance=utterance,
       speaker=speaker_name,
@@ -84,27 +119,17 @@ def infer(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict[str, str
       seed=seed,
     )
 
-    symbol_count = len(utterance.symbols)
-    unique_symbols = set(utterance.symbols)
-    unique_symbols_str = " ".join(sorted(unique_symbols))
-    unique_symbols_count = len(unique_symbols)
-    timepoint = f"{datetime.datetime.now():%Y/%m/%d %H:%M:%S}"
-    text = "".join(utterance.symbols)
-
     infer_entry_output = InferenceEntry(
-      utterance_id=utterance.utterance_id,
-      text=text,
+      utterance=utterance,
       speaker_id=speaker_id,
       speaker_name=speaker_name,
       iteration=checkpoint.iteration,
-      unique_symbols=unique_symbols_str,
-      unique_symbols_count=unique_symbols_count,
-      symbol_count=symbol_count,
       timepoint=timepoint,
       train_name=train_name,
       sampling_rate=inf_sent_output.sampling_rate,
       inference_duration_s=inf_sent_output.inference_duration_s,
       reached_max_decoder_steps=inf_sent_output.reached_max_decoder_steps,
+      seed=seed,
     )
 
     _, mel_img = plot_melspec_np(inf_sent_output.mel_outputs)
