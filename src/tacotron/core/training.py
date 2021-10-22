@@ -203,6 +203,9 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
 
   log_symbol_weights(model, logger)
 
+  logger.info(f"Symbols: {' '.join(sorted(symbols.get_all_symbols()))} (#{len(symbols)})")
+  logger.info(f"Speakers: {', '.join(sorted(speakers.get_all_speakers()))} (#{len(speakers)})")
+
   collate_fn = SymbolsMelCollate(
     n_frames_per_step=hparams.n_frames_per_step,
     padding_symbol_id=symbols.get_id(DEFAULT_PADDING_SYMBOL),

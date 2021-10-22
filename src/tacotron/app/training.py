@@ -32,8 +32,8 @@ def try_load_checkpoint(base_dir: Path, train_name: Optional[str], checkpoint: O
 
 
 def save_checkpoint(checkpoint: CheckpointTacotron, save_checkpoint_dir: Path, logger: Logger) -> None:
-  checkpoint_path = os.path.join(
-    save_checkpoint_dir, get_pytorch_filename(checkpoint.iteration))
+  save_checkpoint_dir.mkdir(exist_ok=True, parents=True)
+  checkpoint_path = save_checkpoint_dir / get_pytorch_filename(checkpoint.iteration)
   checkpoint.save(checkpoint_path, logger)
 
 
