@@ -6,7 +6,7 @@ from typing import OrderedDict as OrderedDictType
 from tacotron.core.hparams import HParams
 from tacotron.core.model import get_speaker_weights, get_symbol_weights
 from text_utils import SpeakersDict, SymbolIdDict, SymbolsMap
-from text_utils.types import Speaker, SymbolId
+from text_utils.types import Speaker, Symbol, SymbolId
 from torch import Tensor
 
 
@@ -83,3 +83,21 @@ def get_mapped_speaker_weights(model_speaker_id_dict: SpeakersDict, trained_weig
   )
 
   return weights
+
+
+def add_symbol_embedding(input_weights: Tensor, input_symbols: SymbolIdDict, input_symbol: Symbol, target_weights: Tensor, target_symbols: SymbolIdDict) -> Tensor:
+  symbols_mapping = SymbolsMap.from_intersection(
+    map_from=input_symbols.get_all_symbols(),
+    map_to=target_symbols.get_all_symbols(),
+  )
+
+  symbols_id_mapping = symbols_mapping.convert_to_symbols_ids_map(
+    from_symbols=input_symbols,
+    to_symbols=target_symbols,
+  )
+
+  target_weights_updated: Tensor
+
+  # TODO jasmin create embedding for input_symbol
+
+  return target_weights_updated
