@@ -3,13 +3,14 @@ from logging import Logger
 from typing import Dict, Optional
 from typing import OrderedDict as OrderedDictType
 
+import numpy as np
+import torch
 from sklearn.base import BaseEstimator
 from tacotron.core.hparams import HParams
 from tacotron.core.model import get_speaker_weights, get_symbol_weights
 from text_utils import SpeakersDict, SymbolIdDict, SymbolsMap
 from text_utils.types import Speaker, Symbol, SymbolId
 from torch import Tensor
-import numpy as np
 
 
 def map_weights(model_symbols_id_map: OrderedDictType[SymbolId, SymbolId], model_weights: Tensor, trained_weights: Tensor, logger: Logger) -> None:
@@ -88,8 +89,6 @@ def get_mapped_speaker_weights(model_speaker_id_dict: SpeakersDict, trained_weig
 
 
 class Add_Symbol_Embeddings(BaseEstimator):
-  def __init__(self):
-    pass
 
   def get_symbols_mapping(self, input_symbols: SymbolIdDict, target_symbols: SymbolIdDict):
     symbols_mapping = SymbolsMap.from_intersection(
@@ -104,52 +103,56 @@ class Add_Symbol_Embeddings(BaseEstimator):
 
     return self.symbols_id_mapping
 
-  def get_difference_vector_to_add(input_weights: Tensor, target_weights: Tensor, index_mapping: Dict[int, int]):
+  def get_difference_vector_to_add(self, input_weights: Tensor, target_weights: Tensor, index_mapping: Dict[int, int]):
     assert input_weights.shape[1] == target_weights.shape[1]
-    difference_vectors = Tensor([target_weights[index_speaker_2] - input_weights[index_speaker_1]
-                                 for index_speaker_1, index_speaker_2 in index_mapping.items()])
-    number_of_symbols = difference_vectors.shape[0]
-    average_difference_vector = 1 / number_of_symbols * np.sum(difference_vectors, axis=0)
+    difference_vectors = torch.stack([target_weights[target_index] - input_weights[input_index]
+                                      for target_index, input_index in index_mapping.items()])
+    average_difference_vector = torch.mean(difference_vectors, 0)
 
     return average_difference_vector
 
   def fit(self, input_weights: Tensor, input_symbols: SymbolIdDict, target_weights: Tensor, target_symbols: SymbolIdDict) -> Tensor:
     symbols_mapping = self.get_symbols_mapping(input_symbols, target_symbols)
-    self.average_shift = get_difference_vector_to_add(
+    self.input_weights = input_weights
+    self.input_symbols = input_symbols
+    self.average_shift = self.get_difference_vector_to_add(
       input_weights, target_weights, symbols_mapping)
     return self
 
-  def predict(input_symbol: Symbol):
-    pass
+  def predict(self, target_symbol: Symbol):
+    symbol_index = self.input_symbols.get_id(target_symbol)
+    embedding_input_symbols = self.input_weights[symbol_index]
+    predicted_embedding = embedding_input_symbols + self.average_shift
+    return predicted_embedding
 
 
-def add_symbol_embedding(input_weights: Tensor, input_symbols: SymbolIdDict, input_symbol: Symbol, target_weights: Tensor, target_symbols: SymbolIdDict) -> Tensor:
-  symbols_mapping = SymbolsMap.from_intersection(
-    map_from=input_symbols.get_all_symbols(),
-    map_to=target_symbols.get_all_symbols(),
-  )
+# def add_symbol_embedding(input_weights: Tensor, input_symbols: SymbolIdDict, input_symbol: Symbol, target_weights: Tensor, target_symbols: SymbolIdDict) -> Tensor:
+#   symbols_mapping = SymbolsMap.from_intersection(
+#     map_from=input_symbols.get_all_symbols(),
+#     map_to=target_symbols.get_all_symbols(),
+#   )
 
-  symbols_id_mapping = symbols_mapping.convert_to_symbols_ids_map(
-    from_symbols=input_symbols,
-    to_symbols=target_symbols,
-  )
+#   symbols_id_mapping = symbols_mapping.convert_to_symbols_ids_map(
+#     from_symbols=input_symbols,
+#     to_symbols=target_symbols,
+#   )
 
-  target_weights_updated: Tensor
+#   target_weights_updated: Tensor
 
-  # TODO jasmin create embedding for input_symbol
+#   # TODO jasmin create embedding for input_symbol
 
-  return target_weights_updated
-
-
-def get_difference_vector_to_add(speaker_1: np.array, speaker_2: np.array, index_mapping: Dict[int, int]):
-  assert speaker_1.shape[1] == speaker_2.shape[1]
-  difference_vectors = np.array([speaker_2[index_speaker_2] - speaker_1[index_speaker_1]
-                                 for index_speaker_1, index_speaker_2 in index_mapping.items()])
-  number_of_symbols = difference_vectors.shape[0]
-  average_difference_vector = 1 / number_of_symbols * np.sum(difference_vectors, axis=0)
-
-  return average_difference_vector
+#   return target_weights_updated
 
 
-def predict_with_adding(speaker_array, diff_vector):
-  return speaker_array + diff_vector
+# def get_difference_vector_to_add(speaker_1: np.array, speaker_2: np.array, index_mapping: Dict[int, int]):
+#   assert speaker_1.shape[1] == speaker_2.shape[1]
+#   difference_vectors = np.array([speaker_2[index_speaker_2] - speaker_1[index_speaker_1]
+#                                  for index_speaker_1, index_speaker_2 in index_mapping.items()])
+#   number_of_symbols = difference_vectors.shape[0]
+#   average_difference_vector = 1 / number_of_symbols * np.sum(difference_vectors, axis=0)
+
+#   return average_difference_vector
+
+
+# def predict_with_adding(speaker_array, diff_vector):
+#   return speaker_array + diff_vector
