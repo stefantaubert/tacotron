@@ -124,35 +124,3 @@ class Add_Symbol_Embeddings(BaseEstimator):
     embedding_input_symbols = self.input_weights[symbol_index]
     predicted_embedding = embedding_input_symbols + self.average_shift
     return predicted_embedding
-
-
-# def add_symbol_embedding(input_weights: Tensor, input_symbols: SymbolIdDict, input_symbol: Symbol, target_weights: Tensor, target_symbols: SymbolIdDict) -> Tensor:
-#   symbols_mapping = SymbolsMap.from_intersection(
-#     map_from=input_symbols.get_all_symbols(),
-#     map_to=target_symbols.get_all_symbols(),
-#   )
-
-#   symbols_id_mapping = symbols_mapping.convert_to_symbols_ids_map(
-#     from_symbols=input_symbols,
-#     to_symbols=target_symbols,
-#   )
-
-#   target_weights_updated: Tensor
-
-#   # TODO jasmin create embedding for input_symbol
-
-#   return target_weights_updated
-
-
-# def get_difference_vector_to_add(speaker_1: np.array, speaker_2: np.array, index_mapping: Dict[int, int]):
-#   assert speaker_1.shape[1] == speaker_2.shape[1]
-#   difference_vectors = np.array([speaker_2[index_speaker_2] - speaker_1[index_speaker_1]
-#                                  for index_speaker_1, index_speaker_2 in index_mapping.items()])
-#   number_of_symbols = difference_vectors.shape[0]
-#   average_difference_vector = 1 / number_of_symbols * np.sum(difference_vectors, axis=0)
-
-#   return average_difference_vector
-
-
-# def predict_with_adding(speaker_array, diff_vector):
-#   return speaker_array + diff_vector
