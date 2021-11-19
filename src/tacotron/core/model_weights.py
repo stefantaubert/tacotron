@@ -1,13 +1,16 @@
 from collections import OrderedDict
-from logging import Logger
+from dataclasses import asdict
+from logging import Logger, getLogger
 from typing import Dict, Optional
 from typing import OrderedDict as OrderedDictType
+from typing import Set
 
 import numpy as np
 import torch
-from sklearn.base import BaseEstimator
 from tacotron.core.hparams import HParams
-from tacotron.core.model import get_speaker_weights, get_symbol_weights
+from tacotron.core.model import (SYMBOL_EMBEDDING_LAYER_NAME,
+                                 get_speaker_weights, get_symbol_weights)
+from tacotron.core.model_checkpoint import CheckpointTacotron
 from text_utils import SpeakersDict, SymbolIdDict, SymbolsMap
 from text_utils.types import Speaker, Symbol, SymbolId
 from torch import Tensor
@@ -88,7 +91,12 @@ def get_mapped_speaker_weights(model_speaker_id_dict: SpeakersDict, trained_weig
   return weights
 
 
-class Add_Symbol_Embeddings(BaseEstimator):
+class AddSymbolEmbeddings():
+  def __init__(self) -> None:
+    self.symbols_id_mapping = None
+    self.input_weights = None
+    self.input_symbols = None
+    self.average_shift = None
 
   def get_symbols_mapping(self, input_symbols: SymbolIdDict, target_symbols: SymbolIdDict):
     symbols_mapping = SymbolsMap.from_intersection(
@@ -103,7 +111,7 @@ class Add_Symbol_Embeddings(BaseEstimator):
 
     return self.symbols_id_mapping
 
-  def get_difference_vector_to_add(self, input_weights: Tensor, target_weights: Tensor, index_mapping: Dict[int, int]):
+  def get_difference_vector_to_add(self, input_weights: Tensor, target_weights: Tensor, index_mapping: Dict[int, int]) -> Tensor:
     assert input_weights.shape[1] == target_weights.shape[1]
     difference_vectors = torch.stack([target_weights[target_index] - input_weights[input_index]
                                       for target_index, input_index in index_mapping.items()])
@@ -111,16 +119,47 @@ class Add_Symbol_Embeddings(BaseEstimator):
 
     return average_difference_vector
 
-  def fit(self, input_weights: Tensor, input_symbols: SymbolIdDict, target_weights: Tensor, target_symbols: SymbolIdDict) -> Tensor:
+  def fit(self, input_weights: Tensor, input_symbols: SymbolIdDict, target_weights: Tensor, target_symbols: SymbolIdDict):
     symbols_mapping = self.get_symbols_mapping(input_symbols, target_symbols)
     self.input_weights = input_weights
     self.input_symbols = input_symbols
     self.average_shift = self.get_difference_vector_to_add(
       input_weights, target_weights, symbols_mapping)
-    return self
 
-  def predict(self, target_symbol: Symbol):
-    symbol_index = self.input_symbols.get_id(target_symbol)
+  def predict(self, input_symbol: Symbol) -> Tensor:
+    symbol_index = self.input_symbols.get_id(input_symbol)
     embedding_input_symbols = self.input_weights[symbol_index]
     predicted_embedding = embedding_input_symbols + self.average_shift
     return predicted_embedding
+
+
+def map_symbols(input_model: CheckpointTacotron, target_model: CheckpointTacotron, symbols: Set[Symbol]) -> None:
+  logger = getLogger(__name__)
+  input_embedding: Tensor = input_model.model_state_dict[SYMBOL_EMBEDDING_LAYER_NAME]
+  input_symbols = input_model.get_symbols()
+
+  target_embedding: Tensor = target_model.model_state_dict[SYMBOL_EMBEDDING_LAYER_NAME]
+  target_symbols = target_model.get_symbols()
+
+  mapper = AddSymbolEmbeddings()
+  mapper.fit(
+      input_weights=input_embedding,
+      input_symbols=input_symbols,
+      target_symbols=target_symbols,
+      target_weights=target_embedding,
+  )
+
+  for symbol in symbols:
+    logger.info(f"Mapping \"{symbol}\"...")
+    target_hparams = target_model.get_hparams(logger)
+    new_vector = mapper.predict(symbol)
+    logger.info(new_vector[:7])
+    s = torch.reshape(new_vector, (1, target_hparams.symbols_embedding_dim))
+    target_embedding = torch.cat((target_embedding, s))
+    target_model.model_state_dict[SYMBOL_EMBEDDING_LAYER_NAME] = target_embedding
+    target_symbols.add_symbol(symbol)
+    target_model.symbol_id_dict = target_symbols.raw()
+    target_hparams.n_symbols += 1
+    target_model.hparams = asdict(target_hparams)
+
+  return target_model

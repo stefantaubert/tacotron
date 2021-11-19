@@ -74,7 +74,8 @@ def get_df(entries: ValidationEntries) -> DataFrame:
 
   data = [
     {
-      "Id": entry.utterance.identifier,
+      "Id": entry.utterance.entry_id,
+      "Basename": entry.utterance.basename,
       "Timepoint": f"{entry.timepoint:%Y/%m/%d %H:%M:%S}",
       "Iteration": entry.iteration,
       "Seed": entry.seed,
