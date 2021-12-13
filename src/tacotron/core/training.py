@@ -178,7 +178,7 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
         trained_symbols=weights_checkpoint.get_symbols(),
         custom_mapping=weights_map,
         hparams=hparams,
-        logger=logger
+        logger=logger,
       )
 
       update_weights(model.symbol_embeddings, pretrained_symbol_weights)

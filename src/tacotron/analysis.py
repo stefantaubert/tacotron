@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objs as go
 import torch
+from pandas.core.frame import DataFrame
 from scipy.spatial.distance import cosine
 from sklearn.manifold import TSNE
 from sklearn.preprocessing import normalize
@@ -94,3 +95,17 @@ def plot_embeddings(symbols: SymbolIdDict, emb: torch.Tensor, logger: Logger) ->
   fig_3d = emb_plot_3d(emb_normed, all_symbols_sorted)
 
   return df, fig_2d, fig_3d
+
+
+def embeddings_to_csv(embeddings: torch.Tensor, keys: List[str]) -> DataFrame:
+  result = []
+  assert len(keys) == len(embeddings)
+  for key, entry in zip(keys, range(len(embeddings))):
+    line = [key] + list(embeddings.numpy()[entry])
+    result.append(line)
+  columns = [""] + list(range(embeddings.shape[1]))
+  result = DataFrame(
+    data=result,
+    columns=columns,
+  )
+  return result

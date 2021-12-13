@@ -24,7 +24,8 @@ def map_missing_symbols(base_dir: Path, from_train_name: str, to_train_name: str
   from_checkpoint_dir = get_checkpoints_dir(from_train_dir)
   _, from_last_it = get_last_checkpoint(from_checkpoint_dir)
   from_checkpoint_path = get_checkpoint(from_checkpoint_dir, from_last_it)
-  from_taco_checkpoint = CheckpointTacotron.load(from_checkpoint_path, logger)
+  from_taco_checkpoint = cast(
+    CheckpointTacotron, CheckpointTacotron.load(from_checkpoint_path, logger))
 
   to_checkpoint_dir = get_checkpoints_dir(to_train_dir)
   _, to_last_it = get_last_checkpoint(to_checkpoint_dir)
