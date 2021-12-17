@@ -48,7 +48,7 @@ def save_checkpoint(checkpoint: CheckpointTacotron, save_checkpoint_dir: Path, l
 #   logger.info("Restoring done.")
 
 
-def train(base_dir: Path, ttsp_dir: Path, train_name: str, merge_name: str, prep_name: str, warm_start_train_name: Optional[str] = None, warm_start_checkpoint: Optional[int] = None, custom_hparams: Optional[Dict[str, str]] = None, weights_train_name: Optional[str] = None, weights_checkpoint: Optional[int] = None, use_weights_map: Optional[bool] = None, map_from_speaker: Optional[str] = None) -> None:
+def train(base_dir: Path, ttsp_dir: Path, train_name: str, merge_name: str, prep_name: str, warm_start_train_name: Optional[str] = None, warm_start_checkpoint: Optional[int] = None, custom_hparams: Optional[Dict[str, str]] = None, weights_train_name: Optional[str] = None, weights_checkpoint: Optional[int] = None, map_symbol_weights: bool = False, use_weights_map: Optional[bool] = None, map_from_speaker: Optional[str] = None) -> None:
   merge_dir = get_merged_dir(ttsp_dir, merge_name)
   prep_dir = get_prep_dir(merge_dir, prep_name)
 
@@ -106,6 +106,7 @@ def train(base_dir: Path, ttsp_dir: Path, train_name: str, merge_name: str, prep
     weights_map=weights_map,
     weights_checkpoint=weights_model,
     warm_model=warm_model,
+    map_symbol_weights=map_symbol_weights,
     map_from_speaker_name=map_from_speaker,
     logger=logger,
     checkpoint_logger=checkpoint_logger,
