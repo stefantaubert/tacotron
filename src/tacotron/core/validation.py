@@ -288,12 +288,12 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
 
   jiwer_ground_truth_transform = tr.Compose([
     tr.ToLowerCase(),
-    tr.SentencesToListOfWords(),
+    tr.ReduceToListOfListOfWords(),
   ])
 
   jiwer_inferred_asr_transform = tr.Compose([
     tr.ToLowerCase(),
-    tr.SentencesToListOfWords(),
+    tr.ReduceToListOfListOfWords(),
   ])
 
   #asr_pipeline = asr.load('deepspeech2', lang='en')
