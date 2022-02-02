@@ -30,38 +30,39 @@ from tts_preparation import InferableUtterance, PreparedData, PreparedDataList
 
 @dataclass
 class ValidationEntry():
-  timepoint: datetime.datetime
-  utterance: PreparedData
-  repetition: int
-  repetitions: int
-  seed: int
-  train_name: str
-  iteration: int
-  sampling_rate: int
-  # grad_norm: float
-  # loss: float
-  inference_duration_s: float
-  reached_max_decoder_steps: bool
-  target_frames: int
-  predicted_frames: int
-  padded_mse: float
-  padded_cosine_similarity: Optional[float]
-  padded_structural_similarity: Optional[float]
-  aligned_mse: float
-  aligned_cosine_similarity: Optional[float]
-  aligned_structural_similarity: Optional[float]
-  mfcc_no_coeffs: int
-  mfcc_dtw_mcd: float
-  mfcc_dtw_penalty: float
-  mfcc_dtw_frames: int
-  msd: float
-  wer: float
-  mer: float
-  wil: float
-  wip: float
-  train_one_gram_rarity: float
-  train_two_gram_rarity: float
-  train_three_gram_rarity: float
+  timepoint: datetime.datetime = None
+  utterance: PreparedData = None
+  repetition: int = None
+  repetitions: int = None
+  seed: int = None
+  train_name: str = None
+  iteration: int = None
+  sampling_rate: int = None
+  # grad_norm: float = None
+  # loss: float = None
+  inference_duration_s: float = None
+  reached_max_decoder_steps: bool = None
+  target_frames: int = None
+  predicted_frames: int = None
+  padded_mse: float = None
+  padded_cosine_similarity: Optional[float] = None
+  padded_structural_similarity: Optional[float] = None
+  aligned_mse: float = None
+  aligned_cosine_similarity: Optional[float] = None
+  aligned_structural_similarity: Optional[float] = None
+  mfcc_no_coeffs: int = None
+  mfcc_dtw_mcd: float = None
+  mfcc_dtw_penalty: float = None
+  mfcc_dtw_frames: int = None
+  msd: float = None
+  wer: float = None
+  mer: float = None
+  wil: float = None
+  wip: float = None
+  train_one_gram_rarity: float = None
+  train_two_gram_rarity: float = None
+  train_three_gram_rarity: float = None
+  was_fast: bool = None
 
 
 class ValidationEntries(GenericList[ValidationEntry]):
@@ -72,60 +73,63 @@ def get_df(entries: ValidationEntries) -> DataFrame:
   if len(entries) == 0:
     return DataFrame()
 
-  data = [
-    {
-      "Id": entry.utterance.entry_id,
-      "Basename": entry.utterance.basename,
-      "Timepoint": f"{entry.timepoint:%Y/%m/%d %H:%M:%S}",
-      "Iteration": entry.iteration,
-      "Seed": entry.seed,
-      "Repetition": entry.repetition,
-      "Repetitions": entry.repetitions,
-      "Language": repr(entry.utterance.symbols_language),
-      "Symbols": ''.join(entry.utterance.symbols),
-      "Symbols format": repr(entry.utterance.symbols_format),
-      "Speaker": entry.utterance.speaker_name,
-      "Speaker Id": entry.utterance.speaker_id,
-      "Inference duration (s)": entry.inference_duration_s,
-      "Reached max. steps": entry.reached_max_decoder_steps,
-      "Sampling rate (Hz)": entry.sampling_rate,
-      "# MFCC Coefficients": entry.mfcc_no_coeffs,
-      "MFCC DTW MCD": entry.mfcc_dtw_mcd,
-      "MFCC DTW PEN": entry.mfcc_dtw_penalty,
-      "# MFCC DTW frames": entry.mfcc_dtw_frames,
-      "# Target frames": entry.target_frames,
-      "# Predicted frames": entry.predicted_frames,
-      "# Difference frames": entry.predicted_frames - entry.target_frames,
-      "Frames deviation (%)": (entry.predicted_frames / entry.target_frames) - 1,
-      "MSE (Padded)": entry.padded_mse,
-      "Cosine Similarity (Padded)": entry.padded_cosine_similarity,
-      "Structual Similarity (Padded)": entry.padded_structural_similarity,
-      "MSE (Aligned)": entry.aligned_mse,
-      "Cosine Similarity (Aligned)": entry.aligned_cosine_similarity,
-      "Structual Similarity (Aligned)": entry.aligned_structural_similarity,
-      "MSD": entry.msd,
-      "WER": entry.wer,
-      "MER": entry.mer,
-      "WIL": entry.wil,
-      "WIP": entry.wip,
-      "1-gram rarity (train set)": entry.train_one_gram_rarity,
-      "2-gram rarity (train set)": entry.train_two_gram_rarity,
-      "3-gram rarity (train set)": entry.train_three_gram_rarity,
-      "Combined rarity (train set)": entry.train_one_gram_rarity + entry.train_two_gram_rarity + entry.train_three_gram_rarity,
-      "1-gram rarity (total set)": entry.utterance.one_gram_rarity,
-      "2-gram rarity (total set)": entry.utterance.two_gram_rarity,
-      "3-gram rarity (total set)": entry.utterance.three_gram_rarity,
-      "Combined rarity (total set)": entry.utterance.one_gram_rarity + entry.utterance.two_gram_rarity + entry.utterance.three_gram_rarity,
-      "# Symbols": len(entry.utterance.symbols),
-      "Unique symbols": ' '.join(sorted(set(entry.utterance.symbols))),
-      "# Unique symbols": len(set(entry.utterance.symbols)),
-      "Train name": entry.train_name,
-      "Ds-Id": entry.utterance.ds_entry_id,
-      "Wav path": str(entry.utterance.wav_absolute_path),
-      "Wav path original": str(entry.utterance.wav_original_absolute_path),
-    }
-    for entry in entries.items()
-  ]
+  data = []
+  for entry in entries.items():
+    tmp = {}
+    tmp["Id"] = entry.utterance.entry_id
+    tmp["Basename"] = entry.utterance.basename
+    tmp["Timepoint"] = f"{entry.timepoint:%Y/%m/%d %H:%M:%S}"
+    tmp["Iteration"] = entry.iteration
+    tmp["Seed"] = entry.seed
+    tmp["Repetition"] = entry.repetition
+    tmp["Repetitions"] = entry.repetitions
+    tmp["Language"] = repr(entry.utterance.symbols_language)
+    tmp["Symbols"] = ''.join(entry.utterance.symbols)
+    tmp["Symbols format"] = repr(entry.utterance.symbols_format)
+    tmp["Speaker"] = entry.utterance.speaker_name
+    tmp["Speaker Id"] = entry.utterance.speaker_id
+    tmp["Inference duration (s)"] = entry.inference_duration_s
+    tmp["Reached max. steps"] = entry.reached_max_decoder_steps
+    tmp["Sampling rate (Hz)"] = entry.sampling_rate
+    if not entry.was_fast:
+      tmp["# MFCC Coefficients"] = entry.mfcc_no_coeffs
+      tmp["MFCC DTW MCD"] = entry.mfcc_dtw_mcd
+      tmp["MFCC DTW PEN"] = entry.mfcc_dtw_penalty
+      tmp["# MFCC DTW frames"] = entry.mfcc_dtw_frames
+      tmp["# Target frames"] = entry.target_frames
+    tmp["# Predicted frames"] = entry.predicted_frames
+    if not entry.was_fast:
+      tmp["# Difference frames"] = entry.predicted_frames - entry.target_frames
+      tmp["Frames deviation (%)"] = (entry.predicted_frames / entry.target_frames) - 1
+      tmp["MSE (Padded)"] = entry.padded_mse
+      tmp["Cosine Similarity (Padded)"] = entry.padded_cosine_similarity
+      tmp["Structual Similarity (Padded)"] = entry.padded_structural_similarity
+      tmp["MSE (Aligned)"] = entry.aligned_mse
+      tmp["Cosine Similarity (Aligned)"] = entry.aligned_cosine_similarity
+      tmp["Structual Similarity (Aligned)"] = entry.aligned_structural_similarity
+      tmp["MSD"] = entry.msd
+      tmp["WER"] = entry.wer
+      tmp["MER"] = entry.mer
+      tmp["WIL"] = entry.wil
+      tmp["WIP"] = entry.wip
+      tmp["1-gram rarity (train set)"] = entry.train_one_gram_rarity
+      tmp["2-gram rarity (train set)"] = entry.train_two_gram_rarity
+      tmp["3-gram rarity (train set)"] = entry.train_three_gram_rarity
+      tmp["Combined rarity (train set)"] = entry.train_one_gram_rarity + \
+          entry.train_two_gram_rarity + entry.train_three_gram_rarity
+      tmp["1-gram rarity (total set)"] = entry.utterance.one_gram_rarity
+      tmp["2-gram rarity (total set)"] = entry.utterance.two_gram_rarity
+      tmp["3-gram rarity (total set)"] = entry.utterance.three_gram_rarity
+      tmp["Combined rarity (total set)"] = entry.utterance.one_gram_rarity + \
+          entry.utterance.two_gram_rarity + entry.utterance.three_gram_rarity
+    tmp["# Symbols"] = len(entry.utterance.symbols)
+    tmp["Unique symbols"] = ' '.join(sorted(set(entry.utterance.symbols)))
+    tmp["# Unique symbols"] = len(set(entry.utterance.symbols))
+    tmp["Train name"] = entry.train_name
+    tmp["Ds-Id"] = entry.utterance.ds_entry_id
+    tmp["Wav path"] = str(entry.utterance.wav_absolute_path)
+    tmp["Wav path original"] = str(entry.utterance.wav_original_absolute_path)
+    data.append(tmp)
 
   df = DataFrame(
     data=[x.values() for x in data],
@@ -137,23 +141,24 @@ def get_df(entries: ValidationEntries) -> DataFrame:
 
 @dataclass
 class ValidationEntryOutput():
-  repetition: int
-  wav_orig: np.ndarray
-  mel_orig: np.ndarray
-  mel_orig_aligned: np.ndarray
-  orig_sr: int
-  mel_orig_img: np.ndarray
-  mel_orig_aligned_img: np.ndarray
-  mel_postnet: np.ndarray
-  mel_postnet_aligned: np.ndarray
-  mel_postnet_sr: int
-  mel_postnet_img: np.ndarray
-  mel_postnet_aligned_img: np.ndarray
-  mel_postnet_diff_img: np.ndarray
-  mel_postnet_aligned_diff_img: np.ndarray
-  mel_img: np.ndarray
-  alignments_img: np.ndarray
-  alignments_aligned_img: np.ndarray
+  repetition: int = None
+  wav_orig: np.ndarray = None
+  mel_orig: np.ndarray = None
+  mel_orig_aligned: np.ndarray = None
+  orig_sr: int = None
+  mel_orig_img: np.ndarray = None
+  mel_orig_aligned_img: np.ndarray = None
+  mel_postnet: np.ndarray = None
+  mel_postnet_aligned: np.ndarray = None
+  mel_postnet_sr: int = None
+  mel_postnet_img: np.ndarray = None
+  mel_postnet_aligned_img: np.ndarray = None
+  mel_postnet_diff_img: np.ndarray = None
+  mel_postnet_aligned_diff_img: np.ndarray = None
+  mel_img: np.ndarray = None
+  alignments_img: np.ndarray = None
+  alignments_aligned_img: np.ndarray = None
+  was_fast: bool = None
   # gate_out_img: np.ndarray
 
 
@@ -219,7 +224,7 @@ def wav_to_text(wav: np.ndarray) -> str:
   return ""
 
 
-def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: PreparedDataList, custom_hparams: Optional[Dict[str, str]], entry_ids: Optional[Set[int]], speaker_name: Optional[str], train_name: str, full_run: bool, save_callback: Optional[Callable[[PreparedData, ValidationEntryOutput], None]], max_decoder_steps: int, fast: bool, mcd_no_of_coeffs_per_frame: int, repetitions: int, seed: Optional[int], select_best_from: Optional[pd.DataFrame], logger: Logger) -> ValidationEntries:
+def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: PreparedDataList, custom_hparams: Optional[Dict[str, str]], entry_ids: Optional[Set[int]], speaker_name: Optional[str], train_name: str, full_run: bool, save_callback: Callable[[PreparedData, ValidationEntryOutput], None], max_decoder_steps: int, fast: bool, mcd_no_of_coeffs_per_frame: int, repetitions: int, seed: Optional[int], select_best_from: Optional[pd.DataFrame], logger: Logger) -> ValidationEntries:
   seeds: List[int]
   validation_data: PreparedDataList
 
@@ -273,10 +278,6 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
     logger.info("Nothing to synthesize!")
     return validation_data
 
-  train_onegram_rarities = get_ngram_rarity(validation_data, trainset, 1)
-  train_twogram_rarities = get_ngram_rarity(validation_data, trainset, 2)
-  train_threegram_rarities = get_ngram_rarity(validation_data, trainset, 3)
-
   synth = Synthesizer(
       checkpoint=checkpoint,
       custom_hparams=custom_hparams,
@@ -286,15 +287,20 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
   taco_stft = TacotronSTFT(synth.hparams, logger=logger)
   validation_entries = ValidationEntries()
 
-  jiwer_ground_truth_transform = tr.Compose([
-    tr.ToLowerCase(),
-    tr.ReduceToListOfListOfWords(),
-  ])
+  if not fast:
+    jiwer_ground_truth_transform = tr.Compose([
+      tr.ToLowerCase(),
+      tr.ReduceToListOfListOfWords(),
+    ])
 
-  jiwer_inferred_asr_transform = tr.Compose([
-    tr.ToLowerCase(),
-    tr.ReduceToListOfListOfWords(),
-  ])
+    jiwer_inferred_asr_transform = tr.Compose([
+      tr.ToLowerCase(),
+      tr.ReduceToListOfListOfWords(),
+    ])
+
+    train_onegram_rarities = get_ngram_rarity(validation_data, trainset, 1)
+    train_twogram_rarities = get_ngram_rarity(validation_data, trainset, 2)
+    train_threegram_rarities = get_ngram_rarity(validation_data, trainset, 3)
 
   #asr_pipeline = asr.load('deepspeech2', lang='en')
   # asr_pipeline.model.summary()
@@ -324,55 +330,70 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
         seed=rep_seed,
       )
 
-      mel_orig: np.ndarray = taco_stft.get_mel_tensor_from_file(
-        entry.wav_absolute_path).cpu().numpy()
+      val_entry = ValidationEntry()
 
-      target_frames = mel_orig.shape[1]
-      predicted_frames = inference_result.mel_outputs_postnet.shape[1]
-
-      dtw_mcd, dtw_penalty, dtw_frames = get_mcd_between_mel_spectograms(
-        mel_1=mel_orig,
-        mel_2=inference_result.mel_outputs_postnet,
-        n_mfcc=mcd_no_of_coeffs_per_frame,
-        take_log=False,
-        use_dtw=True,
-      )
-
-      padded_mel_orig, padded_mel_postnet = make_same_dim(
-        mel_orig, inference_result.mel_outputs_postnet)
-
-      aligned_mel_orig, aligned_mel_postnet, mel_dtw_dist, _, path_mel_postnet = align_mels_with_dtw(
-        mel_orig, inference_result.mel_outputs_postnet)
-
-      mel_aligned_length = len(aligned_mel_postnet)
-      msd = get_msd(mel_dtw_dist, mel_aligned_length)
-
-      padded_cosine_similarity = cosine_dist_mels(padded_mel_orig, padded_mel_postnet)
-      aligned_cosine_similarity = cosine_dist_mels(aligned_mel_orig, aligned_mel_postnet)
-
-      padded_mse = mean_squared_error(padded_mel_orig, padded_mel_postnet)
-      aligned_mse = mean_squared_error(aligned_mel_orig, aligned_mel_postnet)
-
-      padded_structural_similarity = None
-      aligned_structural_similarity = None
-
-      ground_truth = ''.join(entry.symbols)
-      #hypothesis = asr_pipeline.predict([inference_result.mel_outputs_postnet])[0]
-      hypothesis = ""
-
-      measures = jiwer.compute_measures(
-        truth=ground_truth,
-        truth_transform=jiwer_ground_truth_transform,
-        hypothesis=hypothesis,
-        hypothesis_transform=jiwer_inferred_asr_transform,
-      )
-
-      wer = measures['wer']
-      mer = measures['mer']
-      wil = measures['wil']
-      wip = measures['wip']
+      val_entry.utterance = entry
+      val_entry.repetition = rep_human_readable
+      val_entry.repetitions = repetitions
+      val_entry.seed = rep_seed
+      val_entry.iteration = checkpoint.iteration
+      val_entry.timepoint = timepoint
+      val_entry.train_name = train_name
+      val_entry.sampling_rate = synth.get_sampling_rate()
+      val_entry.reached_max_decoder_steps = inference_result.reached_max_decoder_steps
+      val_entry.inference_duration_s = inference_result.inference_duration_s
+      val_entry.predicted_frames = inference_result.mel_outputs_postnet.shape[1]
+      val_entry.was_fast = fast
 
       if not fast:
+
+        mel_orig: np.ndarray = taco_stft.get_mel_tensor_from_file(
+          entry.wav_absolute_path).cpu().numpy()
+
+        target_frames = mel_orig.shape[1]
+
+        dtw_mcd, dtw_penalty, dtw_frames = get_mcd_between_mel_spectograms(
+          mel_1=mel_orig,
+          mel_2=inference_result.mel_outputs_postnet,
+          n_mfcc=mcd_no_of_coeffs_per_frame,
+          take_log=False,
+          use_dtw=True,
+        )
+
+        padded_mel_orig, padded_mel_postnet = make_same_dim(
+          mel_orig, inference_result.mel_outputs_postnet)
+
+        aligned_mel_orig, aligned_mel_postnet, mel_dtw_dist, _, path_mel_postnet = align_mels_with_dtw(
+          mel_orig, inference_result.mel_outputs_postnet)
+
+        mel_aligned_length = len(aligned_mel_postnet)
+        msd = get_msd(mel_dtw_dist, mel_aligned_length)
+
+        padded_cosine_similarity = cosine_dist_mels(padded_mel_orig, padded_mel_postnet)
+        aligned_cosine_similarity = cosine_dist_mels(aligned_mel_orig, aligned_mel_postnet)
+
+        padded_mse = mean_squared_error(padded_mel_orig, padded_mel_postnet)
+        aligned_mse = mean_squared_error(aligned_mel_orig, aligned_mel_postnet)
+
+        padded_structural_similarity = None
+        aligned_structural_similarity = None
+
+        ground_truth = ''.join(entry.symbols)
+        #hypothesis = asr_pipeline.predict([inference_result.mel_outputs_postnet])[0]
+        hypothesis = ""
+
+        measures = jiwer.compute_measures(
+          truth=ground_truth,
+          truth_transform=jiwer_ground_truth_transform,
+          hypothesis=hypothesis,
+          hypothesis_transform=jiwer_inferred_asr_transform,
+        )
+
+        wer = measures['wer']
+        mer = measures['mer']
+        wil = measures['wil']
+        wip = measures['wip']
+
         padded_mel_orig_img_raw_1, padded_mel_orig_img = plot_melspec_np(
           padded_mel_orig, title="padded_mel_orig")
         padded_mel_outputs_postnet_img_raw_1, padded_mel_outputs_postnet_img = plot_melspec_np(
@@ -403,40 +424,34 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
 
         # imageio.imsave("/tmp/aligned_mel_diff_img_raw.png", aligned_mel_diff_img_raw)
 
-      val_entry = ValidationEntry(
-        utterance=entry,
-        repetition=rep_human_readable,
-        repetitions=repetitions,
-        seed=rep_seed,
-        iteration=checkpoint.iteration,
-        timepoint=timepoint,
-        train_name=train_name,
-        sampling_rate=synth.get_sampling_rate(),
-        reached_max_decoder_steps=inference_result.reached_max_decoder_steps,
-        inference_duration_s=inference_result.inference_duration_s,
-        predicted_frames=predicted_frames,
-        target_frames=target_frames,
-        padded_cosine_similarity=padded_cosine_similarity,
-        mfcc_no_coeffs=mcd_no_of_coeffs_per_frame,
-        mfcc_dtw_mcd=dtw_mcd,
-        mfcc_dtw_penalty=dtw_penalty,
-        mfcc_dtw_frames=dtw_frames,
-        padded_structural_similarity=padded_structural_similarity,
-        padded_mse=padded_mse,
-        msd=msd,
-        wer=wer,
-        mer=mer,
-        wil=wil,
-        wip=wip,
-        aligned_cosine_similarity=aligned_cosine_similarity,
-        aligned_mse=aligned_mse,
-        aligned_structural_similarity=aligned_structural_similarity,
-        train_one_gram_rarity=train_onegram_rarities[entry.entry_id],
-        train_two_gram_rarity=train_twogram_rarities[entry.entry_id],
-        train_three_gram_rarity=train_threegram_rarities[entry.entry_id],
-      )
+        val_entry.target_frames = target_frames
+        val_entry.padded_cosine_similarity = padded_cosine_similarity
+        val_entry.mfcc_no_coeffs = mcd_no_of_coeffs_per_frame
+        val_entry.mfcc_dtw_mcd = dtw_mcd
+        val_entry.mfcc_dtw_penalty = dtw_penalty
+        val_entry.mfcc_dtw_frames = dtw_frames
+        val_entry.padded_structural_similarity = padded_structural_similarity
+        val_entry.padded_mse = padded_mse
+        val_entry.msd = msd
+        val_entry.wer = wer
+        val_entry.mer = mer
+        val_entry.wil = wil
+        val_entry.wip = wip
+        val_entry.aligned_cosine_similarity = aligned_cosine_similarity
+        val_entry.aligned_mse = aligned_mse
+        val_entry.aligned_structural_similarity = aligned_structural_similarity
+        val_entry.train_one_gram_rarity = train_onegram_rarities[entry.entry_id]
+        val_entry.train_two_gram_rarity = train_twogram_rarities[entry.entry_id]
+        val_entry.train_three_gram_rarity = train_threegram_rarities[entry.entry_id]
 
       validation_entries.append(val_entry)
+
+      validation_entry_output = ValidationEntryOutput()
+
+      validation_entry_output.was_fast = fast
+      validation_entry_output.repetition = rep_human_readable
+      validation_entry_output.mel_postnet = inference_result.mel_outputs_postnet
+      validation_entry_output.mel_postnet_sr = inference_result.sampling_rate
 
       if not fast:
         orig_sr, orig_wav = read(entry.wav_absolute_path)
@@ -463,29 +478,22 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
           aligned_alignments, title="aligned_alignments")
         # imageio.imsave("/tmp/alignments.png", alignments_img)
 
-        validation_entry_output = ValidationEntryOutput(
-          repetition=rep_human_readable,
-          wav_orig=orig_wav,
-          mel_orig=mel_orig,
-          orig_sr=orig_sr,
-          mel_postnet=inference_result.mel_outputs_postnet,
-          mel_postnet_sr=inference_result.sampling_rate,
-          mel_orig_img=mel_orig_img,
-          mel_postnet_img=post_mel_img,
-          mel_postnet_diff_img=padded_mel_postnet_diff_img,
-          alignments_img=alignments_img,
-          mel_img=mel_img,
-          mel_postnet_aligned_diff_img=aligned_mel_postnet_diff_img,
-          mel_orig_aligned=aligned_mel_orig,
-          mel_orig_aligned_img=aligned_mel_orig_img,
-          mel_postnet_aligned=aligned_mel_postnet,
-          mel_postnet_aligned_img=aligned_mel_postnet_img,
-          alignments_aligned_img=aligned_alignments_img,
-        )
+        validation_entry_output.mel_orig = mel_orig
+        validation_entry_output.wav_orig = orig_wav
+        validation_entry_output.orig_sr = orig_sr
+        validation_entry_output.mel_orig_img = mel_orig_img
+        validation_entry_output.mel_postnet_img = post_mel_img
+        validation_entry_output.mel_postnet_diff_img = padded_mel_postnet_diff_img
+        validation_entry_output.alignments_img = alignments_img
+        validation_entry_output.mel_img = mel_img
+        validation_entry_output.mel_postnet_aligned_diff_img = aligned_mel_postnet_diff_img
+        validation_entry_output.mel_orig_aligned = aligned_mel_orig
+        validation_entry_output.mel_orig_aligned_img = aligned_mel_orig_img
+        validation_entry_output.mel_postnet_aligned = aligned_mel_postnet
+        validation_entry_output.mel_postnet_aligned_img = aligned_mel_postnet_img
+        validation_entry_output.alignments_aligned_img = aligned_alignments_img
 
-        assert save_callback is not None
-
-        save_callback(entry, validation_entry_output)
+      save_callback(entry, validation_entry_output)
 
       logger.info(f"MFCC MCD DTW: {val_entry.mfcc_dtw_mcd}")
 

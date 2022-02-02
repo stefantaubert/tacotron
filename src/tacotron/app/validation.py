@@ -98,45 +98,47 @@ def save_results(entry: PreparedData, output: ValidationEntryOutput, val_dir: Pa
   result_name = get_result_name(entry, iteration, output.repetition)
   dest_dir = get_val_entry_dir(val_dir, result_name)
   dest_dir.mkdir(parents=True, exist_ok=True)
-  write(dest_dir / "original.wav", output.orig_sr, output.wav_orig)
-  imageio.imsave(dest_dir / "original.png", output.mel_orig_img)
-  imageio.imsave(dest_dir / "original_aligned.png", output.mel_orig_aligned_img)
-  imageio.imsave(dest_dir / "inferred.png", output.mel_postnet_img)
-  imageio.imsave(dest_dir / "inferred_aligned.png", output.mel_postnet_aligned_img)
-  imageio.imsave(dest_dir / "mel.png", output.mel_img)
-  imageio.imsave(dest_dir / "alignments.png", output.alignments_img)
-  imageio.imsave(dest_dir / "alignments_aligned.png", output.alignments_aligned_img)
-  imageio.imsave(dest_dir / "diff.png", output.mel_postnet_diff_img)
-  imageio.imsave(dest_dir / "diff_aligned.png", output.mel_postnet_aligned_diff_img)
-  np.save(dest_dir / "original.mel.npy", output.mel_orig)
-  np.save(dest_dir / "original_aligned.mel.npy", output.mel_orig_aligned)
 
   mel_postnet_npy_path = dest_dir / "inferred.mel.npy"
   np.save(mel_postnet_npy_path, output.mel_postnet)
-  np.save(dest_dir / "inferred_aligned.mel.npy", output.mel_postnet_aligned)
 
-  stack_images_vertically(
-    list_im=[
-      dest_dir / "original.png",
-      dest_dir / "inferred.png",
-      dest_dir / "diff.png",
-      dest_dir / "alignments.png",
-      dest_dir / "mel.png",
-    ],
-    out_path=dest_dir / "comparison.png"
-  )
+  if not output.was_fast:
+    write(dest_dir / "original.wav", output.orig_sr, output.wav_orig)
+    imageio.imsave(dest_dir / "original.png", output.mel_orig_img)
+    imageio.imsave(dest_dir / "original_aligned.png", output.mel_orig_aligned_img)
+    imageio.imsave(dest_dir / "inferred.png", output.mel_postnet_img)
+    imageio.imsave(dest_dir / "inferred_aligned.png", output.mel_postnet_aligned_img)
+    imageio.imsave(dest_dir / "mel.png", output.mel_img)
+    imageio.imsave(dest_dir / "alignments.png", output.alignments_img)
+    imageio.imsave(dest_dir / "alignments_aligned.png", output.alignments_aligned_img)
+    imageio.imsave(dest_dir / "diff.png", output.mel_postnet_diff_img)
+    imageio.imsave(dest_dir / "diff_aligned.png", output.mel_postnet_aligned_diff_img)
+    np.save(dest_dir / "original.mel.npy", output.mel_orig)
+    np.save(dest_dir / "original_aligned.mel.npy", output.mel_orig_aligned)
+    np.save(dest_dir / "inferred_aligned.mel.npy", output.mel_postnet_aligned)
 
-  stack_images_vertically(
-    list_im=[
-      dest_dir / "original.png",
-      dest_dir / "inferred.png",
-      dest_dir / "original_aligned.png",
-      dest_dir / "inferred_aligned.png",
-      dest_dir / "diff_aligned.png",
-      dest_dir / "alignments_aligned.png",
-    ],
-    out_path=dest_dir / "comparison_aligned.png"
-  )
+    stack_images_vertically(
+      list_im=[
+        dest_dir / "original.png",
+        dest_dir / "inferred.png",
+        dest_dir / "diff.png",
+        dest_dir / "alignments.png",
+        dest_dir / "mel.png",
+      ],
+      out_path=dest_dir / "comparison.png"
+    )
+
+    stack_images_vertically(
+      list_im=[
+        dest_dir / "original.png",
+        dest_dir / "inferred.png",
+        dest_dir / "original_aligned.png",
+        dest_dir / "inferred_aligned.png",
+        dest_dir / "diff_aligned.png",
+        dest_dir / "alignments_aligned.png",
+      ],
+      out_path=dest_dir / "comparison_aligned.png"
+    )
 
   mel_info = get_mel_info_dict(
     identifier=result_name,
@@ -209,9 +211,8 @@ def validate(base_dir: Path, train_name: str, entry_ids: Optional[Set[int]] = No
     logger.info(f"Current checkpoint: {iteration}")
     checkpoint_path = get_checkpoint(checkpoint_dir, iteration)
     taco_checkpoint = CheckpointTacotron.load(checkpoint_path, logger)
-    if not fast:
-      save_callback = partial(save_results, val_dir=val_dir, iteration=iteration,
-                              mel_postnet_npy_paths=mel_postnet_npy_paths)
+    save_callback = partial(save_results, val_dir=val_dir, iteration=iteration,
+                            mel_postnet_npy_paths=mel_postnet_npy_paths)
 
     validation_entries = validate_core(
       checkpoint=taco_checkpoint,
@@ -239,18 +240,17 @@ def validate(base_dir: Path, train_name: str, entry_ids: Optional[Set[int]] = No
 
   save_stats(val_dir, result)
 
-  if not fast:
-    logger.info("Wrote all inferred mel paths including sampling rate into these file(s):")
-    npy_path = save_mel_postnet_npy_paths(
-      val_dir=val_dir,
-      name=run_name,
-      mel_postnet_npy_paths=mel_postnet_npy_paths
-    )
-    logger.info(npy_path)
+  logger.info("Wrote all inferred mel paths including sampling rate into these file(s):")
+  npy_path = save_mel_postnet_npy_paths(
+    val_dir=val_dir,
+    name=run_name,
+    mel_postnet_npy_paths=mel_postnet_npy_paths
+  )
+  logger.info(npy_path)
 
-    if copy_mel_info_to is not None:
-      copy_mel_info_to.parent.mkdir(parents=True, exist_ok=True)
-      copyfile(npy_path, copy_mel_info_to)
-      logger.info(copy_mel_info_to)
+  if copy_mel_info_to is not None:
+    copy_mel_info_to.parent.mkdir(parents=True, exist_ok=True)
+    copyfile(npy_path, copy_mel_info_to)
+    logger.info(copy_mel_info_to)
 
   logger.info(f"Saved output to: {val_dir}")

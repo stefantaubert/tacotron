@@ -33,7 +33,7 @@ def get_default_logger():
   return logging.getLogger("default")
 
 
-def prepare_logger(log_file_path: Optional[Path] = None, reset: bool = False, logger: Logger = get_default_logger()) -> None:
+def prepare_logger(log_file_path: Optional[Path] = None, reset: bool = False, logger: Logger = get_default_logger()) -> Logger:
   init_logger(logger)
   add_console_out_to_logger(logger)
   if log_file_path is not None:
