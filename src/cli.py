@@ -1,3 +1,4 @@
+import faulthandler
 import os
 from argparse import ArgumentParser
 from pathlib import Path
@@ -158,6 +159,7 @@ def _process_args(args) -> None:
 
 
 if __name__ == "__main__":
+  faulthandler.enable()
   main_parser = _init_parser()
 
   received_args = main_parser.parse_args()

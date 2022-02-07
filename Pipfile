@@ -29,7 +29,7 @@ general-utils = {editable = true, path = "./../general-utils"}
 pandas = "*"
 librosa = "*"
 plotly = "*"
-torch = "==1.7.1"
+torch = "*"
 scikit-image = "*"
 matplotlib = "*"
 tqdm = "*"
