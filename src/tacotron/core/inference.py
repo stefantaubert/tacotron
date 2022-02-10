@@ -103,7 +103,7 @@ def infer(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict[str, str
   elif utterance_ids is not None:
     utterances = InferableUtterances(get_subset(utterances, utterance_ids))
   else:
-    utterances = InferableUtterances([utterances.get_random_entry(seed)])
+    utterances = InferableUtterances([utterances.get_random_entry()])
   synth = Synthesizer(
     checkpoint=checkpoint,
     custom_hparams=custom_hparams,
