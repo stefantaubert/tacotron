@@ -31,7 +31,9 @@ class ModelHParams():
   n_speakers: int = 0
   symbols_embedding_dim: int = 512
   speakers_embedding_dim: int = 128  # 16
+  # stress_embedding_dim: int = 128  # 16 only if not 1-hot
   use_speaker_embedding: bool = True
+  use_stress_embedding: bool = True
 
   # Encoder parameters
   encoder_kernel_size: int = 5

@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from general_utils import overwrite_custom_hparams
 from tacotron.checkpoint import Checkpoint, get_iteration
-from tacotron.core.dataloader import (SymbolsMelCollate, parse_batch,
+from tacotron.core.dataloader import (SymbolsMelCollate, get_symbols_dict, get_symbols_stresses_dicts, parse_batch,
                                       prepare_trainloader, prepare_valloader)
 from tacotron.core.hparams import ExperimentHParams, HParams, OptimizerHParams
 from tacotron.core.logger import Tacotron2Logger
@@ -229,10 +229,18 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
   collate_fn = SymbolsMelCollate(
     n_frames_per_step=hparams.n_frames_per_step,
     padding_symbol_id=symbols.get_id(DEFAULT_PADDING_SYMBOL),
+    use_stress=hparams.use_stress_embedding,
   )
 
-  val_loader = prepare_valloader(hparams, collate_fn, valset, logger)
-  train_loader = prepare_trainloader(hparams, collate_fn, trainset, logger)
+  stresses_dict = None
+  if hparams.use_stress_embedding:
+    symbols_dict, stresses_dict = get_symbols_stresses_dicts(valset, trainset)
+  else:
+    symbols_dict = get_symbols_dict(valset, trainset)
+
+  val_loader = prepare_valloader(hparams, collate_fn, valset, symbols_dict, stresses_dict, logger)
+  train_loader = prepare_trainloader(
+    hparams, collate_fn, trainset, symbols_dict, stresses_dict, logger)
 
   batch_iterations = len(train_loader)
   enough_traindata = batch_iterations > 0

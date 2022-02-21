@@ -36,6 +36,7 @@ def eval_checkpoints(custom_hparams: Optional[Dict[str, str]], checkpoint_dir: P
     hparams.n_frames_per_step,
     padding_symbol_id=0,  # TODO: refactor
     # padding_symbol_id=symbols.get_id(PADDING_SYMBOL),
+    use_stress=hparams.use_stress_embedding,
   )
   val_loader = prepare_valloader(hparams, collate_fn, valset, logger)
 

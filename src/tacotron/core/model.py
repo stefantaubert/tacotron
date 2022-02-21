@@ -216,7 +216,7 @@ class Encoder(nn.Module):
   """
 
   def __init__(self, hparams: HParams):
-    super(Encoder, self).__init__()
+    super().__init__()
 
     convolutions = []
     for _ in range(hparams.encoder_n_convolutions):
@@ -272,7 +272,7 @@ class Encoder(nn.Module):
 
 class Decoder(nn.Module):
   def __init__(self, hparams: HParams, logger: Logger):
-    super(Decoder, self).__init__()
+    super().__init__()
     self.logger = logger
     self.n_mel_channels = hparams.n_mel_channels
     self.n_frames_per_step = hparams.n_frames_per_step
@@ -531,6 +531,7 @@ class Tacotron2(nn.Module):
   def __init__(self, hparams: HParams, logger: Logger):
     super(Tacotron2, self).__init__()
     self.use_speaker_embedding = hparams.use_speaker_embedding
+    self.use_stress_embedding = hparams.use_stress_embedding
 
     self.logger = logger
     self.mask_padding = hparams.mask_padding
@@ -550,16 +551,27 @@ class Tacotron2(nn.Module):
     self.postnet = Postnet(hparams)
 
   def forward(self, inputs: Tuple[torch.LongTensor, torch.LongTensor, torch.LongTensor, torch.FloatTensor, torch.LongTensor, torch.LongTensor, torch.LongTensor]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    text_inputs, text_lengths, mels, max_len, output_lengths, speaker_ids = inputs
-    text_lengths, output_lengths = text_lengths.data, output_lengths.data
+    symbol_inputs, symbol_lengths, mels, max_len, output_lengths, speaker_ids = inputs
+    symbol_lengths, output_lengths = symbol_lengths.data, output_lengths.data
+  
+    # symbol_inputs: [70, 174] -> [batch_size, maximum count of symbols]
+    
+    # shape: [70, 174, 512] -> [batch_size, maximum count of symbols, symbols_emb_dim]
+    embedded_inputs = self.symbol_embeddings(input=symbol_inputs)
+    
+    if False and self.use_stress_embedding:
+      stress_embeddings = F.one_hot(speaker_ids, num_classes=5)  # _, -, 0, 1, 2
+      embedded_inputs = torch.cat([
+        embedded_inputs,
+        stress_embeddings,
+      ], 1)
 
-    embedded_inputs = self.symbol_embeddings(input=text_inputs)
     # from [20, 133, 512]) to [20, 512, 133]
     embedded_inputs = embedded_inputs.transpose(1, 2)
 
     encoder_outputs = self.encoder(
       x=embedded_inputs,
-      input_lengths=text_lengths
+      input_lengths=symbol_lengths
     )  # [20, 133, 512]
 
     merged_outputs = encoder_outputs
@@ -579,7 +591,7 @@ class Tacotron2(nn.Module):
     mel_outputs, gate_outputs, alignments = self.decoder(
       memory=merged_outputs,
       decoder_inputs=mels,
-      memory_lengths=text_lengths
+      memory_lengths=symbol_lengths
     )
 
     mel_outputs_postnet = self.postnet(mel_outputs)
