@@ -1,3 +1,5 @@
+from typing import OrderedDict as OrderedDictType
+from collections import OrderedDict
 from itertools import chain
 from logging import Logger
 from pathlib import Path
@@ -6,6 +8,7 @@ from typing import Dict, Generator, List, Optional, Tuple
 import torch
 from audio_utils.mel import TacotronSTFT
 from tacotron.core.hparams import HParams
+from tacotron.core.model import ForwardXIn
 from tacotron.utils import to_gpu
 from text_utils import SpeakerId, Symbol, Symbols
 from text_utils.pronunciation.arpa_symbols import VOWELS_WITH_STRESSES
@@ -45,21 +48,22 @@ def split_stresses_arpa(symbols: Symbols) -> Tuple[Symbols, Tuple[str, ...]]:
 PADDING_SHIFT = 1
 
 
-def get_symbols_dict(valset: PreparedDataList, trainset: PreparedDataList) -> Dict[str, int]:
+def get_symbols_dict(valset: PreparedDataList, trainset: PreparedDataList) -> OrderedDictType[Symbol, int]:
   all_valsymbols = (entry.symbols for entry in valset.items())
   all_trainsymbols = (entry.symbols for entry in trainset.items())
   all_symbols = chain(all_valsymbols, all_trainsymbols)
 
   unique_symbols = {symbol for symbols in all_symbols for symbol in symbols}
 
-  symbol_ids = {
-    symbol: symbol_nr + PADDING_SHIFT
-    for symbol, symbol_nr in zip(sorted(unique_symbols), range(len(unique_symbols)))
-  }
+  symbol_ids = OrderedDict((
+    (symbol, symbol_nr + PADDING_SHIFT)
+    for symbol_nr, symbol in enumerate(sorted(unique_symbols))
+  ))
+
   return symbol_ids
 
 
-def get_symbols_stresses_dicts(valset: PreparedDataList, trainset: PreparedDataList) -> Tuple[Dict[Symbol, int], Dict[str, int]]:
+def get_symbols_stresses_dicts(valset: PreparedDataList, trainset: PreparedDataList) -> Tuple[OrderedDictType[Symbol, int], OrderedDictType[str, int]]:
   all_valsymbols = (entry.symbols for entry in valset.items())
   all_trainsymbols = (entry.symbols for entry in trainset.items())
   all_symbols = chain(all_valsymbols, all_trainsymbols)
@@ -69,15 +73,15 @@ def get_symbols_stresses_dicts(valset: PreparedDataList, trainset: PreparedDataL
   unique_symbols = {symbol for symbols in all_symbols for symbol in symbols}
   unique_stresses = {stress for stresses in all_stresses for stress in stresses}
 
-  symbol_ids = {
-    symbol: symbol_nr + PADDING_SHIFT
-    for symbol, symbol_nr in zip(sorted(unique_symbols), range(len(unique_symbols)))
-  }
+  symbol_ids = OrderedDict((
+    (symbol, symbol_nr + PADDING_SHIFT)
+    for symbol_nr, symbol in enumerate(sorted(unique_symbols))
+  ))
 
-  stress_ids = {
-    stress: stress_nr + PADDING_SHIFT
-    for stress, stress_nr in zip(sorted(unique_stresses), range(len(unique_stresses)))
-  }
+  stress_ids = OrderedDict((
+    (stress, stress_nr + PADDING_SHIFT)
+    for stress_nr, stress in enumerate(sorted(unique_stresses))
+  ))
 
   return symbol_ids, stress_ids
 
@@ -155,8 +159,8 @@ class SymbolsMelLoader(Dataset):
     return len(self.data)
 
 
-Batch = Tuple[torch.LongTensor, torch.LongTensor, torch.LongTensor, torch.FloatTensor,
-              torch.FloatTensor, torch.LongTensor, torch.LongTensor, Optional[torch.LongTensor]]
+Batch = Tuple[LongTensor, LongTensor, LongTensor, FloatTensor,
+              FloatTensor, LongTensor, LongTensor, Optional[LongTensor]]
 
 
 class SymbolsMelCollate():
@@ -165,134 +169,94 @@ class SymbolsMelCollate():
 
   def __init__(self, n_frames_per_step: int, padding_symbol_id: int, use_stress: bool):
     self.n_frames_per_step = n_frames_per_step
-    self.padding_symbol_id = padding_symbol_id
-    self.padding_stress_id = 0
     self.use_stress = use_stress
+    self.use_speakers = True
 
   def __call__(self, batch: List[LoaderEntry]) -> Batch:
-    """Collate's training batch from normalized text and mel-spectrogram
-    PARAMS
-    ------
-    batch: [text_normalized, mel_normalized]
-    """
-    # Right zero-pad all one-hot text sequences to max input length
-    symbols_counts = [symbols_tensor.size(0) for symbols_tensor, _, _, _ in batch]
-    symbol_lens = IntTensor(symbols_counts)
-    max_input_len = max(symbols_counts)
-    del symbols_counts
+    # batches need to be sorted descending for encoder part: nn.utils.rnn.pack_padded_sequence
+    batch.sort(key=lambda x: x[0].size(0), reverse=True)
 
-    ids_sorted_decreasing = range(len(batch))
-    # input_lengths, ids_sorted_decreasing = torch.sort(
-    #   IntTensor([len(symbols_tensor) for symbols_tensor, _, _, _ in batch]), dim=0, descending=True)
-    # max_input_len = input_lengths[0]
+    symbol_tensors, mel_tensors, speaker_ids, stress_tensors = zip(*batch)
+
+    symbol_lens = [tensor.size(0) for tensor in symbol_tensors]
+    symbol_lens_tensor = IntTensor(symbol_lens)
+
+    # prepare padding
+    max_symbol_len = max(symbol_lens)
 
     # pad symbols
-    symbols_padded = IntTensor(len(batch), max_input_len)
-    torch.nn.init.constant_(symbols_padded, self.padding_symbol_id)
-
-    for i, batch_id in enumerate(ids_sorted_decreasing):
-      symbols_tensor, _, _, _ = batch[batch_id]
-      symbols_padded[i, :symbols_tensor.size(0)] = symbols_tensor
+    symbols_padded_tensor = IntTensor(len(symbol_tensors), max_symbol_len)
+    symbols_padded_tensor.zero_()
+    for i, tensor in enumerate(symbol_tensors):
+      symbols_padded_tensor[i, :tensor.size(0)] = tensor
 
     # pad stresses
-    stresses_padded = None
+    stresses_padded_tensor = None
     if self.use_stress:
-      stresses_padded = LongTensor(len(batch), max_input_len)
-      stresses_padded.zero_()
-      #torch.nn.init.constant_(stresses_padded, self.padding_stress_id)
-
-      for i, batch_id in enumerate(ids_sorted_decreasing):
-        _, _, _, stresses_tensor = batch[batch_id]
-        stresses_padded[i, :stresses_tensor.size(0)] = stresses_tensor
+      # needs to be long for one-hot later
+      stresses_padded_tensor = LongTensor(len(stress_tensors), max_symbol_len)
+      stresses_padded_tensor.zero_()
+      for i, tensor in enumerate(stress_tensors):
+        stresses_padded_tensor[i, :tensor.size(0)] = tensor
 
     # pad speakers
-    speakers_padded = LongTensor(len(batch), max_input_len)
-    speakers_padded.zero_()
-    #torch.nn.init.constant_(stresses_padded, self.padding_stress_id)
-
-    for i, batch_id in enumerate(ids_sorted_decreasing):
-      symbols_tensor, _, speaker_id, _ = batch[batch_id]
-      speaker_id += 1
-      speakers_padded[i, :symbols_tensor.size(0)] = speaker_id
+    speakers_padded_tensor = None
+    if self.use_speakers:
+      speakers_padded_tensor = IntTensor(len(speaker_ids), max_symbol_len)
+      speakers_padded_tensor.zero_()
+      for i, (symbols_len, speaker_id) in enumerate(zip(symbol_lens, speaker_ids)):
+        speakers_padded_tensor[i, :symbols_len] = speaker_id + 1
 
     # calculate mel lengths
-    mel_lengths = IntTensor(len(batch))
-    for i, batch_id in enumerate(ids_sorted_decreasing):
-      _, mel_tensor, _, _ = batch[batch_id]
-      mel_lengths[i] = mel_tensor.size(1)
+    mel_lens = [tensor.size(1) for tensor in mel_tensors]
+    mel_lens_tensor = IntTensor(mel_lens)
 
     # prepare mel padding
-    max_mel_len = max([mel_tensor.size(1) for _, mel_tensor, _, _ in batch])
+    max_mel_len = max(mel_lens)
     if max_mel_len % self.n_frames_per_step != 0:
       max_mel_len += self.n_frames_per_step - max_mel_len % self.n_frames_per_step
       assert max_mel_len % self.n_frames_per_step == 0
 
     # pad mels
-    _, first_mel, _, _ = batch[0]
     # 80
-    num_mels = first_mel.size(0)
-    mel_padded = FloatTensor(len(batch), num_mels, max_mel_len)
-    mel_padded.zero_()
-
-    for i, batch_id in enumerate(ids_sorted_decreasing):
-      _, mel_tensor, _, _ = batch[batch_id]
-      mel_padded[i, :, :mel_tensor.size(1)] = mel_tensor
+    num_mels = mel_tensors[0].size(0)
+    mel_padded_tensor = FloatTensor(len(mel_tensors), num_mels, max_mel_len)
+    mel_padded_tensor.zero_()
+    for i, tensor in enumerate(mel_tensors):
+      mel_padded_tensor[i, :, :tensor.size(1)] = tensor
 
     # pad gates
-    gate_padded = FloatTensor(len(batch), max_mel_len)
-    gate_padded.zero_()
-
-    for i, batch_id in enumerate(ids_sorted_decreasing):
-      _, mel_tensor, _, _ = batch[batch_id]
-      gate_padded[i, mel_tensor.size(1) - 1:] = 1
-
-    # # count number of items - characters in text
-    # # len_x = []
-    # speaker_ids = []
-    # for i, batch_id in enumerate(ids_sorted_decreasing):
-    #   # len_symb = batch[batch_id][0].get_shape()[0]
-    #   # len_x.append(len_symb)
-    #   _, _, speaker_id, _ = batch[batch_id]
-    #   speaker_ids.append(speaker_id)
-
-    # # len_x = Tensor(len_x)
-    # speaker_ids = IntTensor(speaker_ids)
-
-    # symbols_padded.cuda()
-    # input_lengths.cuda()
-    # mel_padded.cuda()
-    # gate_padded.cuda()
-    # output_lengths.cuda()
-    # speaker_ids.cuda()
-
-    # if stresses_padded is not None:
-    #   stresses_padded.cuda()
+    gate_padded_tensor = FloatTensor(len(mel_tensors), max_mel_len)
+    gate_padded_tensor.zero_()
+    for i, tensor in enumerate(mel_tensors):
+      # why - 1?
+      gate_padded_tensor[i, tensor.size(1) - 1:] = 1
 
     return (
-      symbols_padded,
-      symbol_lens,
-      mel_padded,
-      gate_padded,
-      mel_lengths,
-      speakers_padded,
-      stresses_padded
+      symbols_padded_tensor,
+      symbol_lens_tensor,
+      mel_padded_tensor,
+      gate_padded_tensor,
+      mel_lens_tensor,
+      speakers_padded_tensor,
+      stresses_padded_tensor
     )
 
 
-def parse_batch(batch: Batch) -> Tuple[Tuple[torch.LongTensor, torch.LongTensor, torch.LongTensor, torch.FloatTensor, torch.LongTensor, torch.LongTensor, torch.LongTensor, Optional[torch.LongTensor]], Tuple[torch.FloatTensor, torch.FloatTensor]]:
+def parse_batch(batch: Batch) -> Tuple[ForwardXIn, Tuple[FloatTensor, FloatTensor]]:
   symbols_padded, input_lengths, mel_padded, gate_padded, output_lengths, speaker_ids, stress_ids = batch
-  symbols_padded = to_gpu(symbols_padded)  # .int()
-  input_lengths = to_gpu(input_lengths)  # .long()
-  max_len = torch.max(input_lengths.data).item()
-  mel_padded = to_gpu(mel_padded)  # .float()
-  gate_padded = to_gpu(gate_padded)  # .float()
-  output_lengths = to_gpu(output_lengths)  # .long()
-  speaker_ids = to_gpu(speaker_ids)  # .long()
+  symbols_padded = to_gpu(symbols_padded)
+  input_lengths = to_gpu(input_lengths)
+  mel_padded = to_gpu(mel_padded)
+  gate_padded = to_gpu(gate_padded)
+  output_lengths = to_gpu(output_lengths)
+  if speaker_ids is not None:
+    speaker_ids = to_gpu(speaker_ids)
   if stress_ids is not None:
-    stress_ids = to_gpu(stress_ids)  # .long()
+    stress_ids = to_gpu(stress_ids)
 
   x = (symbols_padded, input_lengths,
-       mel_padded, max_len, output_lengths, speaker_ids, stress_ids)
+       mel_padded, output_lengths, speaker_ids, stress_ids)
   y = (mel_padded, gate_padded)
   return x, y
 

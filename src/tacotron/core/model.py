@@ -523,7 +523,7 @@ class Decoder(nn.Module):
 
 
 def get_speaker_weights(hparams: HParams) -> torch.Tensor:
-  weights = get_xavier_weights(hparams.n_speakers, hparams.speakers_embedding_dim)
+  weights = get_xavier_weights(hparams.n_speakers + 1, hparams.speakers_embedding_dim)
   return weights
 
 
@@ -532,8 +532,12 @@ def get_symbol_weights(hparams: HParams) -> torch.Tensor:
   return model_weights
 
 
+ForwardXIn = Tuple[IntTensor, IntTensor, FloatTensor,
+                   IntTensor, Optional[IntTensor], Optional[LongTensor]]
+
+
 class Tacotron2(nn.Module):
-  def __init__(self, hparams: HParams, logger: Logger):
+  def __init__(self, hparams: HParams, logger: Logger, n_symbols: int, n_stresses: Optional[int], n_speakers: Optional[int]):
     super().__init__()
     self.use_speaker_embedding = hparams.use_speaker_embedding
     self.use_stress_embedding = hparams.use_stress_embedding
@@ -541,62 +545,59 @@ class Tacotron2(nn.Module):
     self.mask_padding = hparams.mask_padding
     self.n_mel_channels = hparams.n_mel_channels
 
-    symbol_emb_weights = get_symbol_weights(hparams)
+    # +1 because of padding
+    symbol_emb_weights = get_uniform_weights(n_symbols + 1, hparams.symbols_embedding_dim)
     # rename will destroy all previous trained models
     self.symbol_embeddings = weights_to_embedding(symbol_emb_weights)
     logger.debug(f"is cuda: {self.symbol_embeddings.weight.is_cuda}")
 
     if self.use_speaker_embedding:
-      speaker_emb_weights = get_speaker_weights(hparams)
+      assert n_speakers is not None
+      speaker_emb_weights = get_xavier_weights(n_speakers + 1, hparams.speakers_embedding_dim)
       self.speakers_embeddings = weights_to_embedding(speaker_emb_weights)
 
     if self.use_stress_embedding:
-      self.stress_embedding_dim = hparams.stress_embedding_dim
+      assert n_stresses is not None
+      self.stress_embedding_dim = n_stresses + 1
 
     self.encoder = Encoder(hparams)
     self.decoder = Decoder(hparams)
     self.postnet = Postnet(hparams)
 
-  def forward(self, inputs: Tuple[LongTensor, LongTensor, LongTensor, FloatTensor, LongTensor, LongTensor, LongTensor, Optional[LongTensor]]) -> Tuple[FloatTensor, FloatTensor, FloatTensor, FloatTensor]:
-    symbol_inputs, symbol_lengths, mels, max_len, output_lengths, speaker_ids, stress_ids = inputs
+  def forward(self, inputs: ForwardXIn) -> Tuple[FloatTensor, FloatTensor, FloatTensor, FloatTensor]:
+    symbol_inputs, symbol_lengths, mels, output_lengths, speaker_ids, stress_ids = inputs
     symbol_lengths, output_lengths = symbol_lengths.data, output_lengths.data
 
     # symbol_inputs: [70, 174] -> [batch_size, maximum count of symbols]
 
     # shape: [70, 174, 512] -> [batch_size, maximum count of symbols, symbols_emb_dim]
-    embedded_inputs: FloatTensor = self.symbol_embeddings(input=symbol_inputs.int())
+    embedded_inputs: FloatTensor = self.symbol_embeddings(input=symbol_inputs)
     assert embedded_inputs.dtype == torch.float32
 
     if self.use_stress_embedding:
+      assert stress_ids is not None
       # Note: num_classes need to be defined because otherwise the dimension is not always the same since not all batches contain all stresses
       stress_embeddings: LongTensor = F.one_hot(
-        stress_ids.long(), num_classes=self.stress_embedding_dim)  # _, -, 0, 1, 2
+        stress_ids, num_classes=self.stress_embedding_dim)  # _, -, 0, 1, 2
       stress_embeddings = stress_embeddings.type(torch.float32)
-      embedded_inputs = torch.cat([embedded_inputs, stress_embeddings], -1)
+      embedded_inputs = torch.cat((embedded_inputs, stress_embeddings), -1)
 
-    # from [20, 133, 512]) to [20, 512, 133]
+    # swap last two dims
     embedded_inputs = embedded_inputs.transpose(1, 2)
 
     encoder_outputs = self.encoder(
       x=embedded_inputs,
       input_lengths=symbol_lengths
-    )  # [20, 133, 512]
+    )
 
     merged_outputs = encoder_outputs
 
     if self.use_speaker_embedding:
-      # Extract speaker embeddings
-      # From [20] to [20, 1]
-      speaker_ids = speaker_ids.unsqueeze(1)
+      assert speaker_ids is not None
       embedded_speakers: FloatTensor = self.speakers_embeddings(input=speaker_ids)
       assert embedded_speakers.dtype == torch.float32
-      # From [20, 1, 16] to [20, 133, 16]
-      # copies the values from one speaker to all max_len dimension arrays
-      max_count_symbols = symbol_inputs.shape[1]
-      embedded_speakers = embedded_speakers.expand(-1, max_count_symbols, -1)
-
       # concatenate symbol and speaker embeddings (-1 means last dimension)
-      merged_outputs = torch.cat([encoder_outputs, embedded_speakers], -1)
+      merged_outputs = torch.cat((merged_outputs, embedded_speakers), -1)
 
     mel_outputs, gate_outputs, alignments = self.decoder(
       memory=merged_outputs,
