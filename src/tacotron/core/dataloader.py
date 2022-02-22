@@ -9,8 +9,8 @@ from tacotron.core.hparams import HParams
 from tacotron.utils import to_gpu
 from text_utils import SpeakerId, Symbol, Symbols
 from text_utils.pronunciation.arpa_symbols import VOWELS_WITH_STRESSES
-from torch import (FloatTensor, IntTensor,  # pylint: disable=no-name-in-module
-                   LongTensor, Tensor)
+from torch import (ByteTensor, FloatTensor, IntTensor,  # pylint: disable=no-name-in-module
+                   LongTensor, ShortTensor, Tensor)
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 from tts_preparation import PreparedDataList
@@ -148,6 +148,7 @@ class SymbolsMelLoader(Dataset):
     if stress_tensor is not None:
       stress_tensor_cloned = stress_tensor.clone().detach()
     # debug_logger.debug(f"getitem finished {index}")
+
     return symbols_tensor_cloned, mel_tensor, speaker_id, stress_tensor_cloned
 
   def __len__(self):
@@ -165,6 +166,7 @@ class SymbolsMelCollate():
   def __init__(self, n_frames_per_step: int, padding_symbol_id: int, use_stress: bool):
     self.n_frames_per_step = n_frames_per_step
     self.padding_symbol_id = padding_symbol_id
+    self.padding_stress_id = 0
     self.use_stress = use_stress
 
   def __call__(self, batch: List[LoaderEntry]) -> Batch:
@@ -174,82 +176,120 @@ class SymbolsMelCollate():
     batch: [text_normalized, mel_normalized]
     """
     # Right zero-pad all one-hot text sequences to max input length
-    input_lengths, ids_sorted_decreasing = torch.sort(
-      LongTensor([len(symbols_tensor) for symbols_tensor, _, _, _ in batch]), dim=0, descending=True)
-    max_input_len = input_lengths[0]
+    symbols_counts = [symbols_tensor.size(0) for symbols_tensor, _, _, _ in batch]
+    symbol_lens = IntTensor(symbols_counts)
+    max_input_len = max(symbols_counts)
+    del symbols_counts
 
-    symbols_padded = LongTensor(len(batch), max_input_len)
+    ids_sorted_decreasing = range(len(batch))
+    # input_lengths, ids_sorted_decreasing = torch.sort(
+    #   IntTensor([len(symbols_tensor) for symbols_tensor, _, _, _ in batch]), dim=0, descending=True)
+    # max_input_len = input_lengths[0]
+
+    # pad symbols
+    symbols_padded = IntTensor(len(batch), max_input_len)
     torch.nn.init.constant_(symbols_padded, self.padding_symbol_id)
-
-    stresses_padded = None
-    if self.use_stress:
-      stresses_padded = LongTensor(len(batch), max_input_len)
-      torch.nn.init.constant_(stresses_padded, 0)
-
-      for i, batch_id in enumerate(ids_sorted_decreasing):
-        _, _, _, stesses_tensor = batch[batch_id]
-        stresses_padded[i, :stesses_tensor.size(0)] = stesses_tensor
 
     for i, batch_id in enumerate(ids_sorted_decreasing):
       symbols_tensor, _, _, _ = batch[batch_id]
       symbols_padded[i, :symbols_tensor.size(0)] = symbols_tensor
 
-    # Right zero-pad mel-spec
-    _, first_mel, _, _ = batch[0]
-    num_mels = first_mel.size(0)
-    max_target_len = max([mel_tensor.size(1) for _, mel_tensor, _, _ in batch])
-    if max_target_len % self.n_frames_per_step != 0:
-      max_target_len += self.n_frames_per_step - max_target_len % self.n_frames_per_step
-      assert max_target_len % self.n_frames_per_step == 0
+    # pad stresses
+    stresses_padded = None
+    if self.use_stress:
+      stresses_padded = LongTensor(len(batch), max_input_len)
+      stresses_padded.zero_()
+      #torch.nn.init.constant_(stresses_padded, self.padding_stress_id)
 
-    # include mel padded and gate padded
-    mel_padded = FloatTensor(len(batch), num_mels, max_target_len)
+      for i, batch_id in enumerate(ids_sorted_decreasing):
+        _, _, _, stresses_tensor = batch[batch_id]
+        stresses_padded[i, :stresses_tensor.size(0)] = stresses_tensor
+
+    # pad speakers
+    speakers_padded = LongTensor(len(batch), max_input_len)
+    speakers_padded.zero_()
+    #torch.nn.init.constant_(stresses_padded, self.padding_stress_id)
+
+    for i, batch_id in enumerate(ids_sorted_decreasing):
+      symbols_tensor, _, speaker_id, _ = batch[batch_id]
+      speaker_id += 1
+      speakers_padded[i, :symbols_tensor.size(0)] = speaker_id
+
+    # calculate mel lengths
+    mel_lengths = IntTensor(len(batch))
+    for i, batch_id in enumerate(ids_sorted_decreasing):
+      _, mel_tensor, _, _ = batch[batch_id]
+      mel_lengths[i] = mel_tensor.size(1)
+
+    # prepare mel padding
+    max_mel_len = max([mel_tensor.size(1) for _, mel_tensor, _, _ in batch])
+    if max_mel_len % self.n_frames_per_step != 0:
+      max_mel_len += self.n_frames_per_step - max_mel_len % self.n_frames_per_step
+      assert max_mel_len % self.n_frames_per_step == 0
+
+    # pad mels
+    _, first_mel, _, _ = batch[0]
+    # 80
+    num_mels = first_mel.size(0)
+    mel_padded = FloatTensor(len(batch), num_mels, max_mel_len)
     mel_padded.zero_()
 
-    gate_padded = FloatTensor(len(batch), max_target_len)
-    gate_padded.zero_()
-
-    output_lengths = LongTensor(len(batch))
     for i, batch_id in enumerate(ids_sorted_decreasing):
       _, mel_tensor, _, _ = batch[batch_id]
       mel_padded[i, :, :mel_tensor.size(1)] = mel_tensor
-      gate_padded[i, mel_tensor.size(1) - 1:] = 1
-      output_lengths[i] = mel_tensor.size(1)
 
-    # count number of items - characters in text
-    # len_x = []
-    speaker_ids = []
+    # pad gates
+    gate_padded = FloatTensor(len(batch), max_mel_len)
+    gate_padded.zero_()
+
     for i, batch_id in enumerate(ids_sorted_decreasing):
-      # len_symb = batch[batch_id][0].get_shape()[0]
-      # len_x.append(len_symb)
-      _, _, speaker_id, _ = batch[batch_id]
-      speaker_ids.append(speaker_id)
+      _, mel_tensor, _, _ = batch[batch_id]
+      gate_padded[i, mel_tensor.size(1) - 1:] = 1
 
-    # len_x = Tensor(len_x)
-    speaker_ids = LongTensor(speaker_ids)
+    # # count number of items - characters in text
+    # # len_x = []
+    # speaker_ids = []
+    # for i, batch_id in enumerate(ids_sorted_decreasing):
+    #   # len_symb = batch[batch_id][0].get_shape()[0]
+    #   # len_x.append(len_symb)
+    #   _, _, speaker_id, _ = batch[batch_id]
+    #   speaker_ids.append(speaker_id)
+
+    # # len_x = Tensor(len_x)
+    # speaker_ids = IntTensor(speaker_ids)
+
+    # symbols_padded.cuda()
+    # input_lengths.cuda()
+    # mel_padded.cuda()
+    # gate_padded.cuda()
+    # output_lengths.cuda()
+    # speaker_ids.cuda()
+
+    # if stresses_padded is not None:
+    #   stresses_padded.cuda()
 
     return (
       symbols_padded,
-      input_lengths,
+      symbol_lens,
       mel_padded,
       gate_padded,
-      output_lengths,
-      speaker_ids,
+      mel_lengths,
+      speakers_padded,
       stresses_padded
     )
 
 
 def parse_batch(batch: Batch) -> Tuple[Tuple[torch.LongTensor, torch.LongTensor, torch.LongTensor, torch.FloatTensor, torch.LongTensor, torch.LongTensor, torch.LongTensor, Optional[torch.LongTensor]], Tuple[torch.FloatTensor, torch.FloatTensor]]:
   symbols_padded, input_lengths, mel_padded, gate_padded, output_lengths, speaker_ids, stress_ids = batch
-  symbols_padded = to_gpu(symbols_padded).long()
-  input_lengths = to_gpu(input_lengths).long()
+  symbols_padded = to_gpu(symbols_padded)  # .int()
+  input_lengths = to_gpu(input_lengths)  # .long()
   max_len = torch.max(input_lengths.data).item()
-  mel_padded = to_gpu(mel_padded).float()
-  gate_padded = to_gpu(gate_padded).float()
-  output_lengths = to_gpu(output_lengths).long()
-  speaker_ids = to_gpu(speaker_ids).long()
+  mel_padded = to_gpu(mel_padded)  # .float()
+  gate_padded = to_gpu(gate_padded)  # .float()
+  output_lengths = to_gpu(output_lengths)  # .long()
+  speaker_ids = to_gpu(speaker_ids)  # .long()
   if stress_ids is not None:
-    stress_ids = to_gpu(stress_ids).long()
+    stress_ids = to_gpu(stress_ids)  # .long()
 
   x = (symbols_padded, input_lengths,
        mel_padded, max_len, output_lengths, speaker_ids, stress_ids)
@@ -265,11 +305,11 @@ def prepare_valloader(hparams: HParams, collate_fn: SymbolsMelCollate, valset: P
 
   val_loader = DataLoader(
     dataset=val,
-    num_workers=1,
+    num_workers=16,
     shuffle=False,
     sampler=None,
     batch_size=hparams.batch_size,
-    pin_memory=False,
+    pin_memory=True,
     drop_last=False,
     collate_fn=collate_fn,
   )
@@ -286,11 +326,14 @@ def prepare_trainloader(hparams: HParams, collate_fn: SymbolsMelCollate, trainse
 
   train_loader = DataLoader(
     dataset=trn,
-    num_workers=1,
+    num_workers=16,
+    # shuffle for better training and to fix that the last batch is dropped
     shuffle=True,
     sampler=None,
     batch_size=hparams.batch_size,
-    pin_memory=False,
+    # https://discuss.pytorch.org/t/when-to-set-pin-memory-to-true/19723/7
+    pin_memory=True,
+    #  drop the last incomplete batch, if the dataset size is not divisible by the batch size
     drop_last=True,
     collate_fn=collate_fn,
   )

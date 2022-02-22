@@ -425,12 +425,13 @@ def is_pytorch_file(filename: str) -> None:
   return filename.endswith(PYTORCH_EXT)
 
 
-def to_gpu(x) -> torch.autograd.Variable:
+def to_gpu(x) -> torch.Tensor:
   x = x.contiguous()
 
   if torch.cuda.is_available():
     x = x.cuda(non_blocking=True)
-  return torch.autograd.Variable(x)
+  result = torch.autograd.Variable(x)
+  return result
 
 
 def figure_to_numpy_rgb(figure: Figure) -> np.ndarray:

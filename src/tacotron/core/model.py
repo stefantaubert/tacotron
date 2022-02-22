@@ -564,13 +564,13 @@ class Tacotron2(nn.Module):
     # symbol_inputs: [70, 174] -> [batch_size, maximum count of symbols]
 
     # shape: [70, 174, 512] -> [batch_size, maximum count of symbols, symbols_emb_dim]
-    embedded_inputs: FloatTensor = self.symbol_embeddings(input=symbol_inputs)
+    embedded_inputs: FloatTensor = self.symbol_embeddings(input=symbol_inputs.int())
     assert embedded_inputs.dtype == torch.float32
 
     if self.use_stress_embedding:
       # Note: num_classes need to be defined because otherwise the dimension is not always the same since not all batches contain all stresses
       stress_embeddings: LongTensor = F.one_hot(
-        stress_ids, num_classes=self.stress_embedding_dim)  # _, -, 0, 1, 2
+        stress_ids.long(), num_classes=self.stress_embedding_dim)  # _, -, 0, 1, 2
       stress_embeddings = stress_embeddings.type(torch.float32)
       embedded_inputs = torch.cat([embedded_inputs, stress_embeddings], -1)
 
@@ -592,7 +592,8 @@ class Tacotron2(nn.Module):
       assert embedded_speakers.dtype == torch.float32
       # From [20, 1, 16] to [20, 133, 16]
       # copies the values from one speaker to all max_len dimension arrays
-      embedded_speakers = embedded_speakers.expand(-1, max_len, -1)
+      max_count_symbols = symbol_inputs.shape[1]
+      embedded_speakers = embedded_speakers.expand(-1, max_count_symbols, -1)
 
       # concatenate symbol and speaker embeddings (-1 means last dimension)
       merged_outputs = torch.cat([encoder_outputs, embedded_speakers], -1)

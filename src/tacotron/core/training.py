@@ -267,6 +267,8 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
 
   train_start = time.perf_counter()
   start = train_start
+  
+  model.cuda()
   model.train()
   continue_epoch = get_continue_epoch(iteration, batch_iterations)
 
@@ -427,7 +429,8 @@ def set_lr(optimizer: Optimizer, lr: float) -> None:
 
 
 def load_model(hparams: HParams, state_dict: Optional[Dict], logger: logging.Logger) -> None:
-  model = Tacotron2(hparams, logger).cuda()
+  model = Tacotron2(hparams, logger)
+  #model.cuda()
   if state_dict is not None:
     model.load_state_dict(state_dict)
 
