@@ -31,14 +31,14 @@ class ModelHParams():
   n_speakers: int = 0
   symbols_embedding_dim: int = 512
   speakers_embedding_dim: int = 128  # 16
-  # stress_embedding_dim: int = 128  # 16 only if not 1-hot
+  stress_embedding_dim: int = 5  # optimize: only if not 1-hot
   use_speaker_embedding: bool = True
   use_stress_embedding: bool = True
 
   # Encoder parameters
   encoder_kernel_size: int = 5
   encoder_n_convolutions: int = 3
-  encoder_embedding_dim: int = 512
+  # encoder_embedding_dim: int = 512 is equal to symbols_embedding_dim + stress_embedding_dim
 
   # Decoder parameters
   n_frames_per_step: int = 1  # currently only 1 is supported

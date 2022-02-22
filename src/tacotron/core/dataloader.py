@@ -154,6 +154,10 @@ class SymbolsMelLoader(Dataset):
     return len(self.data)
 
 
+Batch = Tuple[torch.LongTensor, torch.LongTensor, torch.LongTensor, torch.FloatTensor,
+              torch.FloatTensor, torch.LongTensor, torch.LongTensor, Optional[torch.LongTensor]]
+
+
 class SymbolsMelCollate():
   """ Zero-pads model inputs and targets based on number of frames per step
   """
@@ -163,7 +167,7 @@ class SymbolsMelCollate():
     self.padding_symbol_id = padding_symbol_id
     self.use_stress = use_stress
 
-  def __call__(self, batch: List[LoaderEntry]):
+  def __call__(self, batch: List[LoaderEntry]) -> Batch:
     """Collate's training batch from normalized text and mel-spectrogram
     PARAMS
     ------
@@ -224,23 +228,19 @@ class SymbolsMelCollate():
     # len_x = Tensor(len_x)
     speaker_ids = LongTensor(speaker_ids)
 
-    return make_batch(
+    return (
       symbols_padded,
       input_lengths,
       mel_padded,
       gate_padded,
       output_lengths,
       speaker_ids,
-      # stresses_padded
+      stresses_padded
     )
 
 
-def make_batch(symbols_padded: torch.LongTensor, input_lengths: torch.LongTensor, mel_padded: torch.FloatTensor, gate_padded: torch.FloatTensor, output_lengths: torch.LongTensor, speaker_ids: torch.LongTensor) -> Tuple[torch.LongTensor, torch.LongTensor, torch.LongTensor, torch.FloatTensor, torch.FloatTensor, torch.LongTensor, torch.LongTensor]:
-  return symbols_padded, input_lengths, mel_padded, gate_padded, output_lengths, speaker_ids
-
-
-def parse_batch(batch: Tuple[torch.LongTensor, torch.LongTensor, torch.LongTensor, torch.FloatTensor, torch.FloatTensor, torch.LongTensor, torch.LongTensor]) -> Tuple[Tuple[torch.LongTensor, torch.LongTensor, torch.LongTensor, torch.FloatTensor, torch.LongTensor, torch.LongTensor, torch.LongTensor], Tuple[torch.FloatTensor, torch.FloatTensor]]:
-  symbols_padded, input_lengths, mel_padded, gate_padded, output_lengths, speaker_ids = batch
+def parse_batch(batch: Batch) -> Tuple[Tuple[torch.LongTensor, torch.LongTensor, torch.LongTensor, torch.FloatTensor, torch.LongTensor, torch.LongTensor, torch.LongTensor, Optional[torch.LongTensor]], Tuple[torch.FloatTensor, torch.FloatTensor]]:
+  symbols_padded, input_lengths, mel_padded, gate_padded, output_lengths, speaker_ids, stress_ids = batch
   symbols_padded = to_gpu(symbols_padded).long()
   input_lengths = to_gpu(input_lengths).long()
   max_len = torch.max(input_lengths.data).item()
@@ -248,9 +248,11 @@ def parse_batch(batch: Tuple[torch.LongTensor, torch.LongTensor, torch.LongTenso
   gate_padded = to_gpu(gate_padded).float()
   output_lengths = to_gpu(output_lengths).long()
   speaker_ids = to_gpu(speaker_ids).long()
+  if stress_ids is not None:
+    stress_ids = to_gpu(stress_ids).long()
 
   x = (symbols_padded, input_lengths,
-       mel_padded, max_len, output_lengths, speaker_ids)
+       mel_padded, max_len, output_lengths, speaker_ids, stress_ids)
   y = (mel_padded, gate_padded)
   return x, y
 

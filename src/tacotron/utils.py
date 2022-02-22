@@ -183,25 +183,31 @@ def get_mask_from_lengths(lengths) -> None:
 
 def get_uniform_weights(dimension: int, emb_dim: int) -> Tensor:
   # TODO check cuda is correct here
-  weight = torch.zeros(size=(dimension, emb_dim), device="cuda")
+  weight = torch.zeros(size=(dimension, emb_dim), device="cuda", requires_grad=True)
   std = sqrt(2.0 / (dimension + emb_dim))
   val = sqrt(3.0) * std  # uniform bounds for std
   nn.init.uniform_(weight, -val, val)
+  assert weight.is_cuda
+  assert weight.requires_grad
+  assert weight.is_leaf
   return weight
 
 
 def get_xavier_weights(dimension: int, emb_dim: int) -> Tensor:
-  weight = torch.zeros(size=(dimension, emb_dim), device="cuda")
+  weight = torch.zeros(size=(dimension, emb_dim), device="cuda", requires_grad=True)
   torch.nn.init.xavier_uniform_(weight)
+  assert weight.is_cuda
+  assert weight.requires_grad
+  assert weight.is_leaf
   return weight
 
 
 def update_weights(emb: nn.Embedding, weights: Tensor) -> None:
-  emb.weight = nn.Parameter(weights)
+  emb.weight = nn.Parameter(weights, requires_grad=True)
 
 
 def weights_to_embedding(weights: Tensor) -> nn.Embedding:
-  embedding = nn.Embedding(weights.shape[0], weights.shape[1])
+  embedding = nn.Embedding(weights.shape[0], weights.shape[1], device="cuda")
   update_weights(embedding, weights)
   return embedding
 

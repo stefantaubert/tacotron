@@ -1,12 +1,13 @@
-from logging import Logger
-from typing import Tuple
+from logging import Logger, getLogger
+from math import ceil
+from typing import Optional, Tuple
 
 import torch
 from tacotron.core.hparams import HParams
 from tacotron.core.layers import ConvNorm, LinearNorm
 from tacotron.utils import (get_mask_from_lengths, get_uniform_weights,
                             get_xavier_weights, weights_to_embedding)
-from torch import nn
+from torch import FloatTensor, IntTensor, LongTensor, Tensor, nn
 from torch.autograd import Variable
 from torch.nn import functional as F
 
@@ -16,7 +17,7 @@ SPEAKER_EMBEDDING_LAYER_NAME = "speakers_embeddings.weight"
 
 class LocationLayer(nn.Module):
   def __init__(self, hparams: HParams):
-    super(LocationLayer, self).__init__()
+    super().__init__()
     self.location_conv = ConvNorm(
       in_channels=2,
       out_channels=hparams.attention_location_n_filters,
@@ -42,8 +43,8 @@ class LocationLayer(nn.Module):
 
 
 class Attention(nn.Module):
-  def __init__(self, hparams: HParams):
-    super(Attention, self).__init__()
+  def __init__(self, hparams: HParams, dims: int):
+    super().__init__()
     self.query_layer = LinearNorm(
       in_dim=hparams.attention_rnn_dim,
       out_dim=hparams.attention_dim,
@@ -51,12 +52,8 @@ class Attention(nn.Module):
       w_init_gain='tanh'
     )
 
-    merged_dimensions = hparams.encoder_embedding_dim
-    if hparams.use_speaker_embedding:
-      merged_dimensions += hparams.speakers_embedding_dim
-
     self.memory_layer = LinearNorm(
-      in_dim=merged_dimensions,
+      in_dim=dims,
       out_dim=hparams.attention_dim,
       bias=False,
       w_init_gain='tanh'
@@ -118,7 +115,7 @@ class Attention(nn.Module):
 
 class Prenet(nn.Module):
   def __init__(self, hparams: HParams):
-    super(Prenet, self).__init__()
+    super().__init__()
     self.layers = nn.ModuleList([
       LinearNorm(
         in_dim=hparams.n_mel_channels * hparams.n_frames_per_step,
@@ -146,7 +143,7 @@ class Postnet(nn.Module):
   """
 
   def __init__(self, hparams: HParams):
-    super(Postnet, self).__init__()
+    super().__init__()
     self.convolutions = nn.ModuleList()
 
     self.convolutions.append(
@@ -218,28 +215,32 @@ class Encoder(nn.Module):
   def __init__(self, hparams: HParams):
     super().__init__()
 
+    encoder_embedding_dim = hparams.symbols_embedding_dim
+    if hparams.use_stress_embedding:
+      encoder_embedding_dim += hparams.stress_embedding_dim
     convolutions = []
     for _ in range(hparams.encoder_n_convolutions):
       conv_norm = ConvNorm(
-        in_channels=hparams.encoder_embedding_dim,
-        out_channels=hparams.encoder_embedding_dim,
+        in_channels=encoder_embedding_dim,
+        out_channels=encoder_embedding_dim,
         kernel_size=hparams.encoder_kernel_size,
         stride=1,
         padding=int((hparams.encoder_kernel_size - 1) / 2),
         dilation=1,
         w_init_gain='relu'
       )
-      batch_norm = nn.BatchNorm1d(hparams.encoder_embedding_dim)
+      batch_norm = nn.BatchNorm1d(encoder_embedding_dim)
       conv_layer = nn.Sequential(conv_norm, batch_norm)
       convolutions.append(conv_layer)
     self.convolutions = nn.ModuleList(convolutions)
 
     self.lstm = nn.LSTM(
-      input_size=hparams.encoder_embedding_dim,
-      hidden_size=int(hparams.encoder_embedding_dim / 2),
+      input_size=encoder_embedding_dim,
+      hidden_size=ceil(encoder_embedding_dim / 2),
+      # hidden_size=128,
       num_layers=1,
       batch_first=True,
-      bidirectional=True
+      bidirectional=True,
     )
 
   def forward(self, x, input_lengths):
@@ -271,23 +272,26 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-  def __init__(self, hparams: HParams, logger: Logger):
+  def __init__(self, hparams: HParams):
     super().__init__()
-    self.logger = logger
     self.n_mel_channels = hparams.n_mel_channels
     self.n_frames_per_step = hparams.n_frames_per_step
-    self.encoder_embedding_dim = hparams.encoder_embedding_dim
-    self.speakers_embedding_dim = hparams.speakers_embedding_dim
     self.attention_rnn_dim = hparams.attention_rnn_dim
     self.decoder_rnn_dim = hparams.decoder_rnn_dim
-    self.prenet_dim = hparams.prenet_dim
     self.gate_threshold = hparams.gate_threshold
     self.p_attention_dropout = hparams.p_attention_dropout
     self.p_decoder_dropout = hparams.p_decoder_dropout
 
     self.prenet = Prenet(hparams)
 
-    self.merged_dimensions = hparams.encoder_embedding_dim
+    encoder_embedding_dim = hparams.symbols_embedding_dim
+    if hparams.use_stress_embedding:
+      encoder_embedding_dim += hparams.stress_embedding_dim
+
+    lstm_hidden_size = ceil(encoder_embedding_dim / 2)
+    lstm_out_dim = lstm_hidden_size * 2
+
+    self.merged_dimensions = lstm_out_dim
 
     if hparams.use_speaker_embedding:
       self.merged_dimensions += hparams.speakers_embedding_dim
@@ -297,7 +301,7 @@ class Decoder(nn.Module):
       hidden_size=hparams.attention_rnn_dim
     )
 
-    self.attention_layer = Attention(hparams)
+    self.attention_layer = Attention(hparams, self.merged_dimensions)
 
     # Deep Voice 2: "one site-speciﬁc embedding as the initial decoder GRU hidden state" -> is in Tacotron 2 now a LSTM
     self.decoder_rnn = nn.LSTMCell(
@@ -507,7 +511,8 @@ class Decoder(nn.Module):
         break
 
       if max_decoder_steps > 0 and len(mel_outputs) == max_decoder_steps:
-        self.logger.warn("Reached max decoder steps.")
+        logger = getLogger(__name__)
+        logger.warning("Reached max decoder steps.")
         reached_max_decoder_steps = True
         break
 
@@ -529,11 +534,10 @@ def get_symbol_weights(hparams: HParams) -> torch.Tensor:
 
 class Tacotron2(nn.Module):
   def __init__(self, hparams: HParams, logger: Logger):
-    super(Tacotron2, self).__init__()
+    super().__init__()
     self.use_speaker_embedding = hparams.use_speaker_embedding
     self.use_stress_embedding = hparams.use_stress_embedding
 
-    self.logger = logger
     self.mask_padding = hparams.mask_padding
     self.n_mel_channels = hparams.n_mel_channels
 
@@ -546,25 +550,29 @@ class Tacotron2(nn.Module):
       speaker_emb_weights = get_speaker_weights(hparams)
       self.speakers_embeddings = weights_to_embedding(speaker_emb_weights)
 
+    if self.use_stress_embedding:
+      self.stress_embedding_dim = hparams.stress_embedding_dim
+
     self.encoder = Encoder(hparams)
-    self.decoder = Decoder(hparams, logger)
+    self.decoder = Decoder(hparams)
     self.postnet = Postnet(hparams)
 
-  def forward(self, inputs: Tuple[torch.LongTensor, torch.LongTensor, torch.LongTensor, torch.FloatTensor, torch.LongTensor, torch.LongTensor, torch.LongTensor]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    symbol_inputs, symbol_lengths, mels, max_len, output_lengths, speaker_ids = inputs
+  def forward(self, inputs: Tuple[LongTensor, LongTensor, LongTensor, FloatTensor, LongTensor, LongTensor, LongTensor, Optional[LongTensor]]) -> Tuple[FloatTensor, FloatTensor, FloatTensor, FloatTensor]:
+    symbol_inputs, symbol_lengths, mels, max_len, output_lengths, speaker_ids, stress_ids = inputs
     symbol_lengths, output_lengths = symbol_lengths.data, output_lengths.data
-  
+
     # symbol_inputs: [70, 174] -> [batch_size, maximum count of symbols]
-    
+
     # shape: [70, 174, 512] -> [batch_size, maximum count of symbols, symbols_emb_dim]
-    embedded_inputs = self.symbol_embeddings(input=symbol_inputs)
-    
-    if False and self.use_stress_embedding:
-      stress_embeddings = F.one_hot(speaker_ids, num_classes=5)  # _, -, 0, 1, 2
-      embedded_inputs = torch.cat([
-        embedded_inputs,
-        stress_embeddings,
-      ], 1)
+    embedded_inputs: FloatTensor = self.symbol_embeddings(input=symbol_inputs)
+    assert embedded_inputs.dtype == torch.float32
+
+    if self.use_stress_embedding:
+      # Note: num_classes need to be defined because otherwise the dimension is not always the same since not all batches contain all stresses
+      stress_embeddings: LongTensor = F.one_hot(
+        stress_ids, num_classes=self.stress_embedding_dim)  # _, -, 0, 1, 2
+      stress_embeddings = stress_embeddings.type(torch.float32)
+      embedded_inputs = torch.cat([embedded_inputs, stress_embeddings], -1)
 
     # from [20, 133, 512]) to [20, 512, 133]
     embedded_inputs = embedded_inputs.transpose(1, 2)
@@ -580,7 +588,8 @@ class Tacotron2(nn.Module):
       # Extract speaker embeddings
       # From [20] to [20, 1]
       speaker_ids = speaker_ids.unsqueeze(1)
-      embedded_speakers = self.speakers_embeddings(input=speaker_ids)
+      embedded_speakers: FloatTensor = self.speakers_embeddings(input=speaker_ids)
+      assert embedded_speakers.dtype == torch.float32
       # From [20, 1, 16] to [20, 133, 16]
       # copies the values from one speaker to all max_len dimension arrays
       embedded_speakers = embedded_speakers.expand(-1, max_len, -1)
@@ -613,7 +622,8 @@ class Tacotron2(nn.Module):
     if torch.isnan(embedded_inputs).any():
       # embedding_inputs can be nan if training was not good
       msg = "Symbol embeddings returned nan!"
-      self.logger.error(msg)
+      logger = getLogger(__name__)
+      logger.error(msg)
       raise Exception(msg)
 
     encoder_outputs = self.encoder.inference(embedded_inputs)
