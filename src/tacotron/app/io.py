@@ -1,3 +1,4 @@
+from general_utils import save_obj, load_obj
 import datetime
 import os
 from pathlib import Path
@@ -11,6 +12,8 @@ from audio_utils.mel import plot_melspec
 from general_utils import parse_json, save_json
 from image_utils import stack_images_vertically
 from tts_preparation import PreparedData
+
+from tacotron.core.checkpoint_handling import CheckpointDict
 
 
 def get_train_dir(base_dir: Path, train_name: str) -> Path:
@@ -109,6 +112,14 @@ def get_mel_out_dict(name: str, root_dir: Path, mel_info_dict: Dict[str, Any]) -
 
   return info_json
 
+
+def save_checkpoint(checkpoint: CheckpointDict, path: Path) -> None:
+  path.parent.mkdir(exist_ok=True, parents=True)
+  save_obj(checkpoint, path)
+
+
+def load_checkpoint(path: Path) -> CheckpointDict:
+  return load_obj(path)
 
 # def split_dataset(prep_dir: Path, train_dir: Path, test_size: float = 0.01, validation_size: float = 0.05, split_seed: int = 1234):
 #   wholeset = load_filelist(prep_dir)

@@ -19,9 +19,8 @@ from tacotron.app.defaults import (DEFAULT_MAX_DECODER_STEPS,
                                    DEFAULT_SEED)
 from tacotron.app.io import (_get_validation_root_dir, get_checkpoints_dir,
                              get_mel_info_dict, get_mel_out_dict,
-                             get_train_dir, load_prep_settings)
-from tacotron.core import (CheckpointTacotron, ValidationEntries,
-                           ValidationEntryOutput)
+                             get_train_dir, load_checkpoint, load_prep_settings)
+from tacotron.core import (ValidationEntries, ValidationEntryOutput)
 from tacotron.core import validate as validate_core
 from tacotron.core.validation import get_df
 from tacotron.globals import DEFAULT_CSV_SEPERATOR
@@ -210,7 +209,7 @@ def validate(base_dir: Path, train_name: str, entry_ids: Optional[Set[int]] = No
     mel_postnet_npy_paths: List[str] = []
     logger.info(f"Current checkpoint: {iteration}")
     checkpoint_path = get_checkpoint(checkpoint_dir, iteration)
-    taco_checkpoint = CheckpointTacotron.load(checkpoint_path, logger)
+    taco_checkpoint = load_checkpoint(checkpoint_path)
     save_callback = partial(save_results, val_dir=val_dir, iteration=iteration,
                             mel_postnet_npy_paths=mel_postnet_npy_paths)
 

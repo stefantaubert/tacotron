@@ -20,8 +20,8 @@ from ordered_set import OrderedSet
 from pandas import DataFrame
 from scipy.io.wavfile import read
 from sklearn.metrics import mean_squared_error
+from tacotron.core.checkpoint_handling import CheckpointDict, get_iteration
 from tacotron.core.synthesizer import Synthesizer
-from tacotron.core.training import CheckpointTacotron
 from tacotron.utils import (cosine_dist_mels, make_same_dim,
                             plot_alignment_np_new)
 from text_selection import get_rarity_ngrams
@@ -224,9 +224,10 @@ def wav_to_text(wav: np.ndarray) -> str:
   return ""
 
 
-def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: PreparedDataList, custom_hparams: Optional[Dict[str, str]], entry_ids: Optional[Set[int]], speaker_name: Optional[str], train_name: str, full_run: bool, save_callback: Callable[[PreparedData, ValidationEntryOutput], None], max_decoder_steps: int, fast: bool, mcd_no_of_coeffs_per_frame: int, repetitions: int, seed: Optional[int], select_best_from: Optional[pd.DataFrame], logger: Logger) -> ValidationEntries:
+def validate(checkpoint: CheckpointDict, data: PreparedDataList, trainset: PreparedDataList, custom_hparams: Optional[Dict[str, str]], entry_ids: Optional[Set[int]], speaker_name: Optional[str], train_name: str, full_run: bool, save_callback: Callable[[PreparedData, ValidationEntryOutput], None], max_decoder_steps: int, fast: bool, mcd_no_of_coeffs_per_frame: int, repetitions: int, seed: Optional[int], select_best_from: Optional[pd.DataFrame], logger: Logger) -> ValidationEntries:
   seeds: List[int]
   validation_data: PreparedDataList
+  iteration = get_iteration(checkpoint)
 
   if seed is None:
     seed = random.randint(1, 9999)
@@ -244,7 +245,7 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
       assert False
     entry_ids_order_from_valdata = OrderedSet([x.entry_id for x in validation_data.items()])
     seeds = get_best_seeds(select_best_from, entry_ids_order_from_valdata,
-                           checkpoint.iteration, logger)
+                           iteration, logger)
   #   entry_ids = [entry_id for entry_id, _ in entry_ids_w_seed]
   #   have_no_double_entries = len(set(entry_ids)) == len(entry_ids)
   #   assert have_no_double_entries
@@ -312,7 +313,7 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
     for entry, entry_seed in zip(validation_data.items(True), seeds):
       rep_seed = entry_seed + repetition
       logger.info(
-        f"Current --> entry_id: {entry.entry_id}; seed: {rep_seed}; iteration: {checkpoint.iteration}; rep: {rep_human_readable}/{repetitions}")
+        f"Current --> entry_id: {entry.entry_id}; seed: {rep_seed}; iteration: {iteration}; rep: {rep_human_readable}/{repetitions}")
 
       infer_sent = InferableUtterance(
         utterance_id=1,
@@ -336,7 +337,7 @@ def validate(checkpoint: CheckpointTacotron, data: PreparedDataList, trainset: P
       val_entry.repetition = rep_human_readable
       val_entry.repetitions = repetitions
       val_entry.seed = rep_seed
-      val_entry.iteration = checkpoint.iteration
+      val_entry.iteration = iteration
       val_entry.timepoint = timepoint
       val_entry.train_name = train_name
       val_entry.sampling_rate = synth.get_sampling_rate()

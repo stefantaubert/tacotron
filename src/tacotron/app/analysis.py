@@ -6,7 +6,6 @@ import plotly.offline as plt
 from tacotron.analysis import embeddings_to_csv
 from tacotron.analysis import plot_embeddings as plot_embeddings_core
 from tacotron.app.io import get_checkpoints_dir, get_train_dir
-from tacotron.core import CheckpointTacotron
 from tacotron.utils import get_custom_or_last_checkpoint, prepare_logger
 
 

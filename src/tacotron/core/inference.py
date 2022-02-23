@@ -8,8 +8,8 @@ import numpy as np
 from audio_utils.mel import plot_melspec_np
 from general_utils import GenericList
 from pandas.core.frame import DataFrame
+from tacotron.core.checkpoint_handling import CheckpointDict, get_iteration, get_speaker_mapping
 from tacotron.core.synthesizer import Synthesizer
-from tacotron.core.training import CheckpointTacotron
 from tacotron.utils import plot_alignment_np_new
 from text_utils.types import Speaker, SpeakerId, Symbols
 from tts_preparation import InferableUtterance, InferableUtterances
@@ -92,8 +92,8 @@ def get_subset(utterances: InferableUtterances, utterance_ids: Set[int]) -> Infe
   return result
 
 
-def infer(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict[str, str]], speaker_name: Optional[Speaker], train_name: str, utterances: InferableUtterances, utterance_ids: Optional[Set[int]], full_run: bool, save_callback: Callable[[InferableUtterance, InferenceEntryOutput], None], max_decoder_steps: int, seed: Optional[int], logger: Logger) -> InferenceEntries:
-  model_speakers = checkpoint.get_speakers()
+def infer(checkpoint: CheckpointDict, custom_hparams: Optional[Dict[str, str]], speaker_name: Optional[Speaker], train_name: str, utterances: InferableUtterances, utterance_ids: Optional[Set[int]], full_run: bool, save_callback: Callable[[InferableUtterance, InferenceEntryOutput], None], max_decoder_steps: int, seed: Optional[int], logger: Logger) -> InferenceEntries:
+  model_speakers = get_speaker_mapping(checkpoint)
   if seed is None:
     seed = random.randint(1, 9999)
     logger.info(f"As no seed was given, using random seed: {seed}.")
@@ -110,7 +110,8 @@ def infer(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict[str, str
     logger=logger,
   )
 
-  speaker_id = model_speakers.get_id(speaker_name)
+  speaker_id = model_speakers[speaker_name]
+  iteration = get_iteration(checkpoint)
 
   result = InferenceEntries()
   for utterance in utterances.items():
@@ -126,7 +127,7 @@ def infer(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict[str, str
       utterance=utterance,
       speaker_id=speaker_id,
       speaker_name=speaker_name,
-      iteration=checkpoint.iteration,
+      iteration=iteration,
       timepoint=timepoint,
       train_name=train_name,
       sampling_rate=inf_sent_output.sampling_rate,

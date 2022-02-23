@@ -7,11 +7,12 @@ from typing import Dict, Optional
 
 from tacotron.app.io import (get_checkpoints_dir,
                              get_train_checkpoints_log_file, get_train_dir,
-                             get_train_log_file, get_train_logs_dir,
-                             load_prep_settings, save_prep_settings)
-from tacotron.core import CheckpointTacotron, Tacotron2Logger
+                             get_train_log_file, get_train_logs_dir, load_checkpoint,
+                             load_prep_settings, save_checkpoint, save_prep_settings)
+from tacotron.core import Tacotron2Logger
 from tacotron.core import continue_train as continue_train_core
 from tacotron.core import train as train_core
+from tacotron.core.checkpoint_handling import CheckpointDict, get_iteration
 from tacotron.utils import (get_custom_or_last_checkpoint, get_last_checkpoint,
                             get_pytorch_filename, prepare_logger)
 from tts_preparation import (get_merged_dir, get_prep_dir,
@@ -20,21 +21,23 @@ from tts_preparation import (get_merged_dir, get_prep_dir,
 from tts_preparation.app.io import load_merged_symbol_converter
 
 
-def try_load_checkpoint(base_dir: Path, train_name: Optional[str], checkpoint: Optional[int], logger: Logger) -> Optional[CheckpointTacotron]:
+def try_load_checkpoint(base_dir: Path, train_name: Optional[str], checkpoint: Optional[int], logger: Logger) -> Optional[CheckpointDict]:
   result = None
   if train_name:
     train_dir = get_train_dir(base_dir, train_name)
     checkpoint_path, _ = get_custom_or_last_checkpoint(
       get_checkpoints_dir(train_dir), checkpoint)
-    result = CheckpointTacotron.load(checkpoint_path, logger)
+    result = load_checkpoint(checkpoint_path)
     logger.info(f"Using warm start model: {checkpoint_path}")
   return result
 
 
-def save_checkpoint(checkpoint: CheckpointTacotron, save_checkpoint_dir: Path, logger: Logger) -> None:
-  save_checkpoint_dir.mkdir(exist_ok=True, parents=True)
-  checkpoint_path = save_checkpoint_dir / get_pytorch_filename(checkpoint.iteration)
-  checkpoint.save(checkpoint_path, logger)
+def save_checkpoint_iteration(checkpoint: CheckpointDict, save_checkpoint_dir: Path) -> None:
+  iteration = get_iteration(checkpoint)
+  # TODO
+  #checkpoint_path = save_checkpoint_dir / f"{iteration}.pkl"
+  checkpoint_path = save_checkpoint_dir / get_pytorch_filename(iteration)
+  save_checkpoint(checkpoint, checkpoint_path)
 
 
 # def restore_model(base_dir: Path, train_name: str, checkpoint_dir: Path) -> None:
@@ -90,9 +93,8 @@ def train(base_dir: Path, ttsp_dir: Path, train_name: str, merge_name: str, prep
   )
 
   save_callback = partial(
-    save_checkpoint,
+    save_checkpoint_iteration,
     save_checkpoint_dir=get_checkpoints_dir(train_dir),
-    logger=logger,
   )
 
   train_core(
@@ -127,12 +129,11 @@ def continue_train(base_dir: Path, train_name: str, custom_hparams: Optional[Dic
 
   checkpoints_dir = get_checkpoints_dir(train_dir)
   last_checkpoint_path, _ = get_last_checkpoint(checkpoints_dir)
-  last_checkpoint = CheckpointTacotron.load(last_checkpoint_path, logger)
+  last_checkpoint = load_checkpoint(last_checkpoint_path)
 
   save_callback = partial(
-    save_checkpoint,
+    save_checkpoint_iteration,
     save_checkpoint_dir=checkpoints_dir,
-    logger=logger,
   )
 
   ttsp_dir, merge_name, prep_name = load_prep_settings(train_dir)

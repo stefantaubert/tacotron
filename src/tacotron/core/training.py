@@ -7,13 +7,13 @@ import numpy as np
 import torch
 from general_utils import overwrite_custom_hparams
 from tacotron.checkpoint import Checkpoint, get_iteration
-from tacotron.core.dataloader import (SymbolsMelCollate, get_symbols_dict, get_symbols_stresses_dicts, parse_batch,
+from tacotron.core.checkpoint_handling import CheckpointDict, create, get_hparams
+from tacotron.core.dataloader import (SymbolsMelCollate, create_speaker_mapping, create_symbol_mapping, create_symbol_and_stress_mapping, parse_batch,
                                       prepare_trainloader, prepare_valloader)
 from tacotron.core.hparams import ExperimentHParams, HParams, OptimizerHParams
 from tacotron.core.logger import Tacotron2Logger
 from tacotron.core.model import (SPEAKER_EMBEDDING_LAYER_NAME,
                                  SYMBOL_EMBEDDING_LAYER_NAME, Tacotron2)
-from tacotron.core.model_checkpoint import CheckpointTacotron
 from tacotron.core.model_weights import (get_mapped_speaker_weights,
                                          get_mapped_symbol_weights)
 from tacotron.globals import DEFAULT_PADDING_SYMBOL
@@ -22,7 +22,7 @@ from tacotron.utils import (SaveIterationSettings, check_save_it,
                             get_continue_epoch, get_formatted_current_total,
                             get_last_iteration, get_next_save_it, init_cuddn,
                             init_cuddn_benchmark, init_global_seeds,
-                            iteration_to_epoch, log_hparams, skip_batch,
+                            iteration_to_epoch, log_hparams, skip_batch, try_copy_tensors_to_gpu_iterable,
                             update_weights, validate_model)
 from text_utils import SpeakersDict, SymbolIdDict, SymbolsMap
 from torch import nn
@@ -75,7 +75,7 @@ def validate(model: nn.Module, criterion: nn.Module, val_loader: DataLoader, ite
   return avg_val_loss
 
 
-def train(warm_model: Optional[CheckpointTacotron], custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, symbols: SymbolIdDict, speakers: SpeakersDict, trainset: PreparedDataList, valset: PreparedDataList, save_callback: Callable[[str], None], weights_checkpoint: Optional[CheckpointTacotron], weights_map: Optional[SymbolsMap], map_symbol_weights: bool, map_from_speaker_name: Optional[str], logger: Logger, checkpoint_logger: Logger) -> None:
+def train(warm_model: Optional[CheckpointDict], custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, symbols: SymbolIdDict, speakers: SpeakersDict, trainset: PreparedDataList, valset: PreparedDataList, save_callback: Callable[[CheckpointDict], None], weights_checkpoint: Optional[CheckpointDict], weights_map: Optional[SymbolsMap], map_symbol_weights: bool, map_from_speaker_name: Optional[str], logger: Logger, checkpoint_logger: Logger) -> None:
   logger.info("Starting new model...")
   _train(
     custom_hparams=custom_hparams,
@@ -83,8 +83,6 @@ def train(warm_model: Optional[CheckpointTacotron], custom_hparams: Optional[Dic
     trainset=trainset,
     valset=valset,
     save_callback=save_callback,
-    speakers=speakers,
-    symbols=symbols,
     weights_checkpoint=weights_checkpoint,
     weights_map=weights_map,
     warm_model=warm_model,
@@ -96,7 +94,7 @@ def train(warm_model: Optional[CheckpointTacotron], custom_hparams: Optional[Dic
   )
 
 
-def continue_train(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, trainset: PreparedDataList, valset: PreparedDataList, save_callback: Callable[[str], None], logger: Logger, checkpoint_logger: Logger) -> None:
+def continue_train(checkpoint: CheckpointDict, custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, trainset: PreparedDataList, valset: PreparedDataList, save_callback: Callable[[CheckpointDict], None], logger: Logger, checkpoint_logger: Logger) -> None:
   logger.info("Continuing training from checkpoint...")
   _train(
     custom_hparams=custom_hparams,
@@ -104,8 +102,6 @@ def continue_train(checkpoint: CheckpointTacotron, custom_hparams: Optional[Dict
     trainset=trainset,
     valset=valset,
     save_callback=save_callback,
-    speakers=checkpoint.get_speakers(),
-    symbols=checkpoint.get_symbols(),
     weights_checkpoint=None,
     weights_map=None,
     warm_model=None,
@@ -127,7 +123,7 @@ def log_symbol_weights(model: Tacotron2, logger: Logger) -> None:
   logger.info(str(model.state_dict()[SYMBOL_EMBEDDING_LAYER_NAME]))
 
 
-def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, trainset: PreparedDataList, valset: PreparedDataList, save_callback: Callable[[str], None], speakers: SpeakersDict, symbols: SymbolIdDict, checkpoint: Optional[CheckpointTacotron], warm_model: Optional[CheckpointTacotron], weights_checkpoint: Optional[CheckpointTacotron], weights_map: SymbolsMap, map_symbol_weights: bool, map_from_speaker_name: Optional[str], logger: Logger, checkpoint_logger: Logger) -> None:
+def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, trainset: PreparedDataList, valset: PreparedDataList, save_callback: Callable[[CheckpointDict], None], checkpoint: Optional[CheckpointDict], warm_model: Optional[CheckpointDict], weights_checkpoint: Optional[CheckpointDict], weights_map: SymbolsMap, map_symbol_weights: bool, map_from_speaker_name: Optional[str], logger: Logger, checkpoint_logger: Logger) -> None:
   """Training and validation logging results to tensorboard and stdout
   Params
   ------
@@ -142,52 +138,50 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
   complete_start = time.time()
 
   if checkpoint is not None:
-    hparams = checkpoint.get_hparams(logger)
+    hparams = get_hparams(checkpoint)
   else:
     hparams = HParams(
-      n_speakers=len(speakers),
-      n_symbols=len(symbols)
+      n_speakers=0,
+      n_symbols=0
     )
   # TODO: it should not be recommended to change the batch size on a trained model
   hparams = overwrite_custom_hparams(hparams, custom_hparams)
-
-  assert hparams.n_speakers > 0
-  assert hparams.n_symbols > 0
 
   log_hparams(hparams, logger)
   init_global_seeds(hparams.seed)
   init_torch(hparams)
 
   n_stresses = None
-  stresses_dict = None
+  stresses_mapping = None
   if hparams.use_stress_embedding:
-    symbols_dict, stresses_dict = get_symbols_stresses_dicts(valset, trainset)
-    n_stresses = len(stresses_dict)
+    symbol_mapping, stresses_mapping = create_symbol_and_stress_mapping(valset, trainset)
+    n_stresses = len(stresses_mapping)
   else:
-    symbols_dict = get_symbols_dict(valset, trainset)
+    symbol_mapping = create_symbol_mapping(valset, trainset)
 
-  n_symbols = len(symbols_dict)
+  n_symbols = len(symbol_mapping)
 
   n_speakers = None
+  speaker_mapping = None
   if hparams.use_speaker_embedding:
-    n_speakers = len(speakers)
+    speaker_mapping = create_speaker_mapping(valset, trainset)
+    n_speakers = len(speaker_mapping)
 
   logger.info(
-    f"Symbols: {' '.join(symbols_dict.keys())} (#{n_symbols}, dim: {hparams.symbols_embedding_dim})")
+    f"Symbols: {' '.join(symbol_mapping.keys())} (#{n_symbols}, dim: {hparams.symbols_embedding_dim})")
   if hparams.use_stress_embedding:
-    logger.info(f"Stresses: {' '.join(stresses_dict.keys())} (#{n_stresses})")
+    logger.info(f"Stresses: {' '.join(stresses_mapping.keys())} (#{n_stresses})")
   else:
     logger.info(f"Use no stress embedding.")
   if hparams.use_speaker_embedding:
     logger.info(
-      f"Speakers: {', '.join(sorted(speakers.keys()))} (#{n_speakers}, dim: {hparams.speakers_embedding_dim})")
+      f"Speakers: {', '.join(sorted(speaker_mapping.keys()))} (#{n_speakers}, dim: {hparams.speakers_embedding_dim})")
   else:
     logger.info(f"Use no speaker embedding.")
 
   model, optimizer, scheduler = load_model_and_optimizer_and_scheduler(
     hparams=hparams,
     checkpoint=checkpoint,
-    logger=logger,
     n_stresses=n_stresses,
     n_speakers=n_speakers,
     n_symbols=n_symbols,
@@ -207,17 +201,18 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
         logger.error("Couldn't map symbol embeddings because no weights checkpoint was provided!")
         return
 
-      logger.info("Mapping symbol embeddings...")
-      pretrained_symbol_weights = get_mapped_symbol_weights(
-        model_symbols=symbols,
-        trained_weights=weights_checkpoint.get_symbol_embedding_weights(),
-        trained_symbols=weights_checkpoint.get_symbols(),
-        custom_mapping=weights_map,
-        hparams=hparams,
-        logger=logger,
-      )
+      # TODO
+      # logger.info("Mapping symbol embeddings...")
+      # pretrained_symbol_weights = get_mapped_symbol_weights(
+      #   model_symbols=symbols,
+      #   trained_weights=weights_checkpoint.get_symbol_embedding_weights(),
+      #   trained_symbols=weights_checkpoint.get_symbols(),
+      #   custom_mapping=weights_map,
+      #   hparams=hparams,
+      #   logger=logger,
+      # )
 
-      update_weights(model.symbol_embeddings, pretrained_symbol_weights)
+      # update_weights(model.symbol_embeddings, pretrained_symbol_weights)
       logger.info("Mapped symbol embeddings.")
     else:
       logger.info("Don't mapping symbol embeddings.")
@@ -235,35 +230,37 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
           "Couldn't map speaker embeddings because no the weights checkpoint or the current model use no speaker embeddings!")
         return
 
-      logger.info("Mapping speaker embeddings...")
-      pretrained_speaker_weights = get_mapped_speaker_weights(
-        model_speaker_id_dict=speakers,
-        trained_weights=weights_checkpoint.get_speaker_embedding_weights(),
-        trained_speaker=weights_checkpoint.get_speakers(),
-        map_from_speaker_name=map_from_speaker_name,
-        hparams=hparams,
-        logger=logger,
-      )
+      # TODO
+      # logger.info("Mapping speaker embeddings...")
+      # pretrained_speaker_weights = get_mapped_speaker_weights(
+      #   model_speaker_id_dict=speakers,
+      #   trained_weights=weights_checkpoint.get_speaker_embedding_weights(),
+      #   trained_speaker=weights_checkpoint.get_speakers(),
+      #   map_from_speaker_name=map_from_speaker_name,
+      #   hparams=hparams,
+      #   logger=logger,
+      # )
 
-      update_weights(model.speakers_embeddings, pretrained_speaker_weights)
+      # update_weights(model.speakers_embeddings, pretrained_speaker_weights)
       logger.info("Mapped speaker embeddings.")
     else:
       logger.info("Don't mapping speaker embeddings.")
 
   log_symbol_weights(model, logger)
 
-  logger.info(f"Symbols: {' '.join(sorted(symbols.get_all_symbols()))} (#{len(symbols)})")
-  logger.info(f"Speakers: {', '.join(sorted(speakers.get_all_speakers()))} (#{len(speakers)})")
+  # logger.info(f"Symbols: {' '.join(sorted(symbols.get_all_symbols()))} (#{len(symbols)})")
+  # logger.info(f"Speakers: {', '.join(sorted(speakers.get_all_speakers()))} (#{len(speakers)})")
 
   collate_fn = SymbolsMelCollate(
     n_frames_per_step=hparams.n_frames_per_step,
-    padding_symbol_id=symbols.get_id(DEFAULT_PADDING_SYMBOL),
     use_stress=hparams.use_stress_embedding,
+    use_speakers=hparams.use_speaker_embedding,
   )
 
-  val_loader = prepare_valloader(hparams, collate_fn, valset, symbols_dict, stresses_dict, logger)
+  val_loader = prepare_valloader(hparams, collate_fn, valset,
+                                 symbol_mapping, stresses_mapping, logger)
   train_loader = prepare_trainloader(
-    hparams, collate_fn, trainset, symbols_dict, stresses_dict, logger)
+    hparams, collate_fn, trainset, symbol_mapping, stresses_mapping, logger)
 
   batch_iterations = len(train_loader)
   enough_traindata = batch_iterations > 0
@@ -322,6 +319,7 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
       # update_learning_rate_optimizer(optimizer, hparams.learning_rate)
 
       model.zero_grad()
+      batch = tuple(try_copy_tensors_to_gpu_iterable(batch))
       x, y = parse_batch(batch)
       y_pred = model(x)
 
@@ -384,13 +382,15 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
 
       save_it = check_save_it(epoch, iteration, save_it_settings)
       if save_it:
-        checkpoint = CheckpointTacotron.from_instances(
+        checkpoint = create(
           model=model,
           optimizer=optimizer,
           hparams=hparams,
           iteration=iteration,
-          symbols=symbols,
-          speakers=speakers,
+          speaker_mapping=speaker_mapping,
+          learning_rate=get_lr(optimizer),
+          stress_mapping=stresses_mapping,
+          symbol_mapping=symbol_mapping,
           scheduler=scheduler,
         )
 
@@ -418,7 +418,7 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
   logger.info(f'Finished training. Total duration: {duration_s / 60:.2f}m')
 
 
-def adjust_lr(hparams, optimizer, epoch, scheduler, logger) -> None:
+def adjust_lr(hparams: HParams, optimizer: Optimizer, epoch: int, scheduler, logger: Logger) -> None:
   assert hparams.lr_decay_start_after_epoch is not None
   assert hparams.lr_decay_start_after_epoch >= 1
   assert hparams.lr_decay_min is not None
@@ -451,8 +451,8 @@ def set_lr(optimizer: Optimizer, lr: float) -> None:
     g['lr'] = lr
 
 
-def load_model(hparams: HParams, state_dict: Optional[Dict], logger: logging.Logger, n_symbols: int, n_stresses: Optional[int], n_speakers: Optional[int]) -> None:
-  model = Tacotron2(hparams, logger, n_symbols, n_stresses, n_speakers)
+def load_model(hparams: HParams, state_dict: Optional[Dict], n_symbols: int, n_stresses: Optional[int], n_speakers: Optional[int]) -> Tacotron2:
+  model = Tacotron2(hparams, n_symbols, n_stresses, n_speakers)
   if state_dict is not None:
     model.load_state_dict(state_dict)
 
@@ -498,10 +498,9 @@ def load_scheduler(optimizer: Adam, hparams: OptimizerHParams, state_dict: Optio
   return scheduler
 
 
-def load_model_and_optimizer_and_scheduler(hparams: HParams, checkpoint: Optional[Checkpoint], logger: Logger, n_symbols: int, n_stresses: Optional[int], n_speakers: Optional[int]) -> Tuple[Tacotron2, Adam, Optional[ExponentialLR]]:
+def load_model_and_optimizer_and_scheduler(hparams: HParams, checkpoint: Optional[Checkpoint], n_symbols: int, n_stresses: Optional[int], n_speakers: Optional[int]) -> Tuple[Tacotron2, Adam, Optional[ExponentialLR]]:
   model = load_model(
     hparams=hparams,
-    logger=logger,
     #state_dict=checkpoint.state_dict if checkpoint is not None else None,
     state_dict=None,
     n_symbols=n_symbols,
@@ -536,8 +535,8 @@ def load_model_and_optimizer_and_scheduler(hparams: HParams, checkpoint: Optiona
   return model, optimizer, scheduler
 
 
-def warm_start_model(model: nn.Module, warm_model: CheckpointTacotron, hparams: HParams, logger: Logger) -> None:
-  warm_model_hparams = warm_model.get_hparams(logger)
+def warm_start_model(model: nn.Module, warm_model: CheckpointDict, hparams: HParams, logger: Logger) -> None:
+  warm_model_hparams = get_hparams(warm_model)
   use_speaker_emb = hparams.use_speaker_embedding and warm_model_hparams.use_speaker_embedding
 
   speakers_embedding_dim_mismatch = use_speaker_emb and (

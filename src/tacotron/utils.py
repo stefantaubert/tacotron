@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass
 from logging import Logger
 from math import floor, sqrt
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, TypeVar, Union
+from typing import Dict, Generator, Iterable, List, Optional, Tuple, TypeVar, Union
 
 import matplotlib.ticker as ticker
 import numpy as np
@@ -16,6 +16,7 @@ from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 from scipy.spatial.distance import cosine
 from torch import Tensor, nn
+from torch.nn import Module
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -140,7 +141,7 @@ def plot_alignment_np_new(alignment: np.ndarray, mel_dim_x=16, mel_dim_y=5, fact
   return figa_core, figa_labeled
 
 
-def get_last_checkpoint(checkpoint_dir: Path) -> Tuple[str, int]:
+def get_last_checkpoint(checkpoint_dir: Path) -> Tuple[Path, int]:
   '''
   Returns the full path of the last checkpoint and its iteration.
   '''
@@ -163,14 +164,14 @@ def get_all_checkpoint_iterations(checkpoint_dir: Path) -> List[int]:
   return checkpoints
 
 
-def get_checkpoint(checkpoint_dir: Path, iteration: int) -> str:
+def get_checkpoint(checkpoint_dir: Path, iteration: int) -> Path:
   checkpoint_path = checkpoint_dir / get_pytorch_filename(iteration)
   if not checkpoint_path.is_file():
     raise Exception(f"Checkpoint with iteration {iteration} not found!")
   return checkpoint_path
 
 
-def get_custom_or_last_checkpoint(checkpoint_dir: Path, custom_iteration: Optional[int]) -> Tuple[str, int]:
+def get_custom_or_last_checkpoint(checkpoint_dir: Path, custom_iteration: Optional[int]) -> Tuple[Path, int]:
   return (get_checkpoint(checkpoint_dir, custom_iteration), custom_iteration) if custom_iteration is not None else get_last_checkpoint(checkpoint_dir)
 
 
@@ -207,7 +208,7 @@ def update_weights(emb: nn.Embedding, weights: Tensor) -> None:
 
 
 def weights_to_embedding(weights: Tensor) -> nn.Embedding:
-  embedding = nn.Embedding(weights.shape[0], weights.shape[1], device="cuda")
+  embedding = nn.Embedding(weights.shape[0], weights.shape[1])
   update_weights(embedding, weights)
   return embedding
 
@@ -242,6 +243,7 @@ def validate_model(model: nn.Module, criterion: nn.Module, val_loader: DataLoade
     total_val_loss = 0.0
     # val_loader count is: ceil(validation set length / batch size)
     for batch in tqdm(val_loader):
+      batch = tuple(try_copy_tensors_to_gpu_iterable(batch))
       x, y = batch_parse_method(batch)
       y_pred = model(x)
       loss = criterion(y_pred, y)
@@ -425,7 +427,20 @@ def is_pytorch_file(filename: str) -> None:
   return filename.endswith(PYTORCH_EXT)
 
 
-def to_gpu(x) -> torch.Tensor:
+def try_copy_to_gpu(x: Union[Tensor, Module]) -> Union[Tensor, Module]:
+  if torch.cuda.is_available():
+    x = x.to("cuda:0", non_blocking=True)
+  return x
+
+
+def try_copy_tensors_to_gpu_iterable(tensors: Iterable[Optional[Tensor]]) -> Generator[Optional[Tensor], None, None]:
+  for tensor in tensors:
+    if tensor is not None:
+      yield try_copy_to_gpu(tensor)
+    yield None
+
+
+def to_gpu_old(x: Tensor) -> Tensor:
   x = x.contiguous()
 
   if torch.cuda.is_available():

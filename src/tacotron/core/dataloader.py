@@ -9,8 +9,8 @@ import torch
 from audio_utils.mel import TacotronSTFT
 from tacotron.core.hparams import HParams
 from tacotron.core.model import ForwardXIn
-from tacotron.utils import to_gpu
-from text_utils import SpeakerId, Symbol, Symbols
+from tacotron.utils import try_copy_to_gpu
+from text_utils import SpeakerId, Symbol, Symbols, Speaker
 from text_utils.pronunciation.arpa_symbols import VOWELS_WITH_STRESSES
 from torch import (ByteTensor, FloatTensor, IntTensor,  # pylint: disable=no-name-in-module
                    LongTensor, ShortTensor, Tensor)
@@ -48,22 +48,37 @@ def split_stresses_arpa(symbols: Symbols) -> Tuple[Symbols, Tuple[str, ...]]:
 PADDING_SHIFT = 1
 
 
-def get_symbols_dict(valset: PreparedDataList, trainset: PreparedDataList) -> OrderedDictType[Symbol, int]:
+def create_speaker_mapping(valset: PreparedDataList, trainset: PreparedDataList) -> OrderedDictType[Speaker, SpeakerId]:
+  all_valspeakers = (entry.speaker_name for entry in valset.items())
+  all_trainspeakers = (entry.speaker_name for entry in trainset.items())
+  all_speakers = chain(all_valspeakers, all_trainspeakers)
+
+  unique_speakers = {speaker for speaker in all_speakers}
+
+  speaker_ids = OrderedDict((
+    (speaker, speaker_nr + PADDING_SHIFT)
+    for speaker_nr, speaker in enumerate(sorted(unique_speakers))
+  ))
+
+  return speaker_ids
+
+
+def create_symbol_mapping(valset: PreparedDataList, trainset: PreparedDataList) -> OrderedDictType[Symbol, int]:
   all_valsymbols = (entry.symbols for entry in valset.items())
   all_trainsymbols = (entry.symbols for entry in trainset.items())
   all_symbols = chain(all_valsymbols, all_trainsymbols)
 
   unique_symbols = {symbol for symbols in all_symbols for symbol in symbols}
 
-  symbol_ids = OrderedDict((
+  symbol_mapping = OrderedDict((
     (symbol, symbol_nr + PADDING_SHIFT)
     for symbol_nr, symbol in enumerate(sorted(unique_symbols))
   ))
 
-  return symbol_ids
+  return symbol_mapping
 
 
-def get_symbols_stresses_dicts(valset: PreparedDataList, trainset: PreparedDataList) -> Tuple[OrderedDictType[Symbol, int], OrderedDictType[str, int]]:
+def create_symbol_and_stress_mapping(valset: PreparedDataList, trainset: PreparedDataList) -> Tuple[OrderedDictType[Symbol, int], OrderedDictType[str, int]]:
   all_valsymbols = (entry.symbols for entry in valset.items())
   all_trainsymbols = (entry.symbols for entry in trainset.items())
   all_symbols = chain(all_valsymbols, all_trainsymbols)
@@ -73,30 +88,24 @@ def get_symbols_stresses_dicts(valset: PreparedDataList, trainset: PreparedDataL
   unique_symbols = {symbol for symbols in all_symbols for symbol in symbols}
   unique_stresses = {stress for stresses in all_stresses for stress in stresses}
 
-  symbol_ids = OrderedDict((
+  symbol_mapping = OrderedDict((
     (symbol, symbol_nr + PADDING_SHIFT)
     for symbol_nr, symbol in enumerate(sorted(unique_symbols))
   ))
 
-  stress_ids = OrderedDict((
+  stress_mapping = OrderedDict((
     (stress, stress_nr + PADDING_SHIFT)
     for stress_nr, stress in enumerate(sorted(unique_stresses))
   ))
 
-  return symbol_ids, stress_ids
+  return symbol_mapping, stress_mapping
 
 
-LoaderEntry = Tuple[IntTensor, Tensor, SpeakerId, Optional[IntTensor]]
+LoaderEntry = Tuple[IntTensor, Tensor, Optional[SpeakerId], Optional[IntTensor]]
 
 
 class SymbolsMelLoader(Dataset):
-  """
-    1) loads audio,text pairs
-    2) normalizes text and converts them to sequences of one-hot vectors
-    3) computes mel-spectrograms from audio files.
-  """
-
-  def __init__(self, data: PreparedDataList, hparams: HParams, symbols_dict: Dict[Symbol, int], stress_dict: Optional[Dict[str, int]], logger: Logger):
+  def __init__(self, data: PreparedDataList, hparams: HParams, symbols_dict: Dict[Symbol, int], stress_dict: Optional[Dict[str, int]], speakers_dict: Optional[Dict[Speaker, SpeakerId]], logger: Logger):
     # random.seed(hparams.seed)
     # random.shuffle(data)
     self.use_saved_mels = hparams.use_saved_mels
@@ -105,7 +114,7 @@ class SymbolsMelLoader(Dataset):
 
     logger.info("Reading files...")
 
-    self.data: Dict[int, Tuple[IntTensor, Path, SpeakerId, Optional[IntTensor]]] = {}
+    self.data: Dict[int, Tuple[IntTensor, Path, Optional[SpeakerId], Optional[IntTensor]]] = {}
 
     # for i, entry, symbols in enumerate(zip(data.items(True), )
 
@@ -114,6 +123,7 @@ class SymbolsMelLoader(Dataset):
 
       stress_tensor = None
       if hparams.use_stress_embedding:
+        assert stress_dict is not None
         symbols, stresses = split_stresses_arpa(symbols)
         stress_ids = (stress_dict[stress] for stress in stresses)
         stress_tensor = IntTensor(list(stress_ids))
@@ -121,10 +131,15 @@ class SymbolsMelLoader(Dataset):
       symbol_ids = (symbols_dict[symbol] for symbol in symbols)
       symbols_tensor = IntTensor(list(symbol_ids))
 
+      speaker_id = None
+      if hparams.use_speaker_embedding:
+        assert speakers_dict is not None
+        speaker_id = speakers_dict[entry.speaker_name]
+
       if hparams.use_saved_mels:
-        self.data[i] = (symbols_tensor, entry.mel_absolute_path, entry.speaker_id, stress_tensor)
+        self.data[i] = (symbols_tensor, entry.mel_absolute_path, speaker_id, stress_tensor)
       else:
-        self.data[i] = (symbols_tensor, entry.wav_absolute_path, entry.speaker_id, stress_tensor)
+        self.data[i] = (symbols_tensor, entry.wav_absolute_path, speaker_id, stress_tensor)
 
     if hparams.use_saved_mels and hparams.cache_mels:
       logger.info("Loading mels into memory...")
@@ -160,17 +175,17 @@ class SymbolsMelLoader(Dataset):
 
 
 Batch = Tuple[LongTensor, LongTensor, LongTensor, FloatTensor,
-              FloatTensor, LongTensor, LongTensor, Optional[LongTensor]]
+              FloatTensor, LongTensor, Optional[LongTensor], Optional[LongTensor]]
 
 
 class SymbolsMelCollate():
   """ Zero-pads model inputs and targets based on number of frames per step
   """
 
-  def __init__(self, n_frames_per_step: int, padding_symbol_id: int, use_stress: bool):
+  def __init__(self, n_frames_per_step: int, use_stress: bool, use_speakers: bool):
     self.n_frames_per_step = n_frames_per_step
     self.use_stress = use_stress
-    self.use_speakers = True
+    self.use_speakers = use_speakers
 
   def __call__(self, batch: List[LoaderEntry]) -> Batch:
     # batches need to be sorted descending for encoder part: nn.utils.rnn.pack_padded_sequence
@@ -245,15 +260,6 @@ class SymbolsMelCollate():
 
 def parse_batch(batch: Batch) -> Tuple[ForwardXIn, Tuple[FloatTensor, FloatTensor]]:
   symbols_padded, input_lengths, mel_padded, gate_padded, output_lengths, speaker_ids, stress_ids = batch
-  symbols_padded = to_gpu(symbols_padded)
-  input_lengths = to_gpu(input_lengths)
-  mel_padded = to_gpu(mel_padded)
-  gate_padded = to_gpu(gate_padded)
-  output_lengths = to_gpu(output_lengths)
-  if speaker_ids is not None:
-    speaker_ids = to_gpu(speaker_ids)
-  if stress_ids is not None:
-    stress_ids = to_gpu(stress_ids)
 
   x = (symbols_padded, input_lengths,
        mel_padded, output_lengths, speaker_ids, stress_ids)

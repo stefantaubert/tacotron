@@ -13,8 +13,8 @@ from tacotron.app.defaults import (DEFAULT_MAX_DECODER_STEPS,
                                    DEFAULT_SEED)
 from tacotron.app.io import (get_checkpoints_dir, get_inference_root_dir,
                              get_mel_info_dict, get_mel_out_dict,
-                             get_train_dir, load_prep_settings)
-from tacotron.core import (CheckpointTacotron, InferenceEntries,
+                             get_train_dir, load_checkpoint, load_prep_settings)
+from tacotron.core import (InferenceEntries,
                            InferenceEntryOutput)
 from tacotron.core import infer as infer_core
 from tacotron.core.inference import get_df
@@ -131,7 +131,7 @@ def infer(base_dir: Path, train_name: str, text_name: str, speaker: Speaker, utt
 
   checkpoint_path, iteration = get_custom_or_last_checkpoint(
     get_checkpoints_dir(train_dir), custom_checkpoint)
-  taco_checkpoint = CheckpointTacotron.load(checkpoint_path, logger)
+  taco_checkpoint = load_checkpoint(checkpoint_path)
 
   ttsp_dir, merge_name, _ = load_prep_settings(train_dir)
   # merge_dir = get_merged_dir(ttsp_dir, merge_name)

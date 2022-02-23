@@ -27,13 +27,21 @@ class DataHParams():
 
 @dataclass
 class ModelHParams():
-  n_symbols: int = 0
-  n_speakers: int = 0
+  # TODO remove
+  n_symbols: int = None
+  # TODO remove
+  n_speakers: int = None
+
   symbols_embedding_dim: int = 512
-  speakers_embedding_dim: int = 128  # 16
-  stress_embedding_dim: int = 5  # optimize: only if not 1-hot
+
   use_speaker_embedding: bool = True
+  speakers_embedding_dim: Optional[int] = 128  # 16
+
+  # TODO rename to: train_stress_separately: bool = True
   use_stress_embedding: bool = True
+
+  # TODO remove
+  stress_embedding_dim: Optional[int] = None  # only if not 1-hot
 
   # Encoder parameters
   encoder_kernel_size: int = 5
