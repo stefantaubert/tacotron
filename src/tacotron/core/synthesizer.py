@@ -8,7 +8,7 @@ from audio_utils.mel import mel_to_numpy
 from general_utils import overwrite_custom_hparams
 from torch import IntTensor, LongTensor  # pylint: disable=no-name-in-module
 import torch
-from tacotron.core.checkpoint_handling import CheckpointDict, get_hparams, get_model_state, get_speaker_mapping, get_stress_mapping, get_symbol_mapping
+from tacotron.core.checkpoint_handling import CheckpointDict, get_hparams, get_speaker_mapping, get_stress_mapping, get_symbol_mapping
 from tacotron.core.dataloader import split_stresses_arpa
 from tacotron.core.model import Tacotron2
 from tacotron.core.training import load_model
@@ -62,20 +62,19 @@ class Synthesizer():
       self.speaker_mapping = get_speaker_mapping(checkpoint)
       n_speakers = len(self.speaker_mapping)
 
-    model_state = get_model_state(checkpoint)
     model = load_model(
       hparams=hparams,
-      state_dict=model_state,
+      checkpoint=checkpoint,
       n_speakers=n_speakers,
       n_stresses=n_stresses,
       n_symbols=n_symbols,
     )
 
+    model = cast(Tacotron2, try_copy_to_gpu(model))
     model = model.eval()
-    model = try_copy_to_gpu(model)
 
     self.hparams = hparams
-    self.model = cast(Tacotron2, model)
+    self.model = model
 
   def get_sampling_rate(self) -> int:
     return self.hparams.sampling_rate

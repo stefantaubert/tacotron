@@ -2,7 +2,7 @@ import logging
 import os
 import random
 from dataclasses import asdict, dataclass
-from logging import Logger
+from logging import Logger, getLogger
 from math import floor, sqrt
 from pathlib import Path
 from typing import Dict, Generator, Iterable, List, Optional, Tuple, TypeVar, Union
@@ -430,14 +430,22 @@ def is_pytorch_file(filename: str) -> None:
 def try_copy_to_gpu(x: Union[Tensor, Module]) -> Union[Tensor, Module]:
   if torch.cuda.is_available():
     x = x.to("cuda:0", non_blocking=True)
+  else:
+    logger = getLogger(__name__)
+    logger.warning("No GPU found to copy data to!")
   return x
+
+
+def check_is_on_gpu(x: Union[Tensor, Module]) -> bool:
+  return x.is_cuda
 
 
 def try_copy_tensors_to_gpu_iterable(tensors: Iterable[Optional[Tensor]]) -> Generator[Optional[Tensor], None, None]:
   for tensor in tensors:
     if tensor is not None:
       yield try_copy_to_gpu(tensor)
-    yield None
+    else:
+      yield None
 
 
 def to_gpu_old(x: Tensor) -> Tensor:

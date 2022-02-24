@@ -220,7 +220,7 @@ class SymbolsMelCollate():
       speakers_padded_tensor = IntTensor(len(speaker_ids), max_symbol_len)
       speakers_padded_tensor.zero_()
       for i, (symbols_len, speaker_id) in enumerate(zip(symbol_lens, speaker_ids)):
-        speakers_padded_tensor[i, :symbols_len] = speaker_id + 1
+        speakers_padded_tensor[i, :symbols_len] = speaker_id
 
     # calculate mel lengths
     mel_lens = [tensor.size(1) for tensor in mel_tensors]
@@ -267,11 +267,11 @@ def parse_batch(batch: Batch) -> Tuple[ForwardXIn, Tuple[FloatTensor, FloatTenso
   return x, y
 
 
-def prepare_valloader(hparams: HParams, collate_fn: SymbolsMelCollate, valset: PreparedDataList, symbols_dict: Dict[Symbol, int], stress_dict: Optional[Dict[str, int]], logger: Logger) -> DataLoader:
+def prepare_valloader(hparams: HParams, collate_fn: SymbolsMelCollate, valset: PreparedDataList, symbols_dict: Dict[Symbol, int], stress_dict: Optional[Dict[str, int]], speakers_dict: Optional[Dict[Speaker, SpeakerId]], logger: Logger) -> DataLoader:
   logger.info(
     f"Duration valset {valset.total_duration_s / 60:.2f}m / {valset.total_duration_s / 60 / 60:.2f}h")
 
-  val = SymbolsMelLoader(valset, hparams, symbols_dict, stress_dict, logger)
+  val = SymbolsMelLoader(valset, hparams, symbols_dict, stress_dict, speakers_dict, logger)
 
   val_loader = DataLoader(
     dataset=val,
@@ -287,12 +287,12 @@ def prepare_valloader(hparams: HParams, collate_fn: SymbolsMelCollate, valset: P
   return val_loader
 
 
-def prepare_trainloader(hparams: HParams, collate_fn: SymbolsMelCollate, trainset: PreparedDataList, symbols_dict: Dict[Symbol, int], stress_dict: Optional[Dict[str, int]], logger: Logger) -> DataLoader:
+def prepare_trainloader(hparams: HParams, collate_fn: SymbolsMelCollate, trainset: PreparedDataList, symbols_dict: Dict[Symbol, int], stress_dict: Optional[Dict[str, int]], speakers_dict: Optional[Dict[Speaker, SpeakerId]], logger: Logger) -> DataLoader:
   # Get data, data loaders and collate function ready
   logger.info(
     f"Duration trainset {trainset.total_duration_s / 60:.2f}m / {trainset.total_duration_s / 60 / 60:.2f}h")
 
-  trn = SymbolsMelLoader(trainset, hparams, symbols_dict, stress_dict, logger)
+  trn = SymbolsMelLoader(trainset, hparams, symbols_dict, stress_dict, speakers_dict, logger)
 
   train_loader = DataLoader(
     dataset=trn,

@@ -1,13 +1,12 @@
 import logging
 import time
 from logging import Logger
-from typing import Callable, Dict, Iterator, List, Optional, Tuple
+from typing import Callable, Dict, Iterator, List, Optional, Tuple, cast
 
 import numpy as np
 import torch
 from general_utils import overwrite_custom_hparams
-from tacotron.checkpoint import Checkpoint, get_iteration
-from tacotron.core.checkpoint_handling import CheckpointDict, create, get_hparams
+from tacotron.core.checkpoint_handling import CheckpointDict, create, get_hparams, get_iteration, get_model_state, get_optimizer_state, get_scheduler_state, get_speaker_mapping, get_stress_mapping, get_symbol_mapping
 from tacotron.core.dataloader import (SymbolsMelCollate, create_speaker_mapping, create_symbol_mapping, create_symbol_and_stress_mapping, parse_batch,
                                       prepare_trainloader, prepare_valloader)
 from tacotron.core.hparams import ExperimentHParams, HParams, OptimizerHParams
@@ -17,12 +16,12 @@ from tacotron.core.model import (SPEAKER_EMBEDDING_LAYER_NAME,
 from tacotron.core.model_weights import (get_mapped_speaker_weights,
                                          get_mapped_symbol_weights)
 from tacotron.globals import DEFAULT_PADDING_SYMBOL
-from tacotron.utils import (SaveIterationSettings, check_save_it,
+from tacotron.utils import (SaveIterationSettings, check_is_on_gpu, check_save_it,
                             copy_state_dict, get_continue_batch_iteration,
                             get_continue_epoch, get_formatted_current_total,
                             get_last_iteration, get_next_save_it, init_cuddn,
                             init_cuddn_benchmark, init_global_seeds,
-                            iteration_to_epoch, log_hparams, skip_batch, try_copy_tensors_to_gpu_iterable,
+                            iteration_to_epoch, log_hparams, skip_batch, try_copy_tensors_to_gpu_iterable, try_copy_to_gpu,
                             update_weights, validate_model)
 from text_utils import SpeakersDict, SymbolIdDict, SymbolsMap
 from torch import nn
@@ -152,42 +151,73 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
   init_torch(hparams)
 
   n_stresses = None
-  stresses_mapping = None
+  stress_mapping = None
   if hparams.use_stress_embedding:
-    symbol_mapping, stresses_mapping = create_symbol_and_stress_mapping(valset, trainset)
-    n_stresses = len(stresses_mapping)
+    if checkpoint is None:
+      symbol_mapping, stress_mapping = create_symbol_and_stress_mapping(valset, trainset)
+    else:
+      symbol_mapping = get_symbol_mapping(checkpoint)
+      stress_mapping = get_stress_mapping(checkpoint)
+    n_stresses = len(stress_mapping)
   else:
-    symbol_mapping = create_symbol_mapping(valset, trainset)
+    if checkpoint is None:
+      symbol_mapping = create_symbol_mapping(valset, trainset)
+    else:
+      symbol_mapping = get_symbol_mapping(checkpoint)
 
   n_symbols = len(symbol_mapping)
 
   n_speakers = None
   speaker_mapping = None
   if hparams.use_speaker_embedding:
-    speaker_mapping = create_speaker_mapping(valset, trainset)
+    if checkpoint is None:
+      speaker_mapping = create_speaker_mapping(valset, trainset)
+    else:
+      speaker_mapping = get_speaker_mapping(checkpoint)
     n_speakers = len(speaker_mapping)
 
   logger.info(
     f"Symbols: {' '.join(symbol_mapping.keys())} (#{n_symbols}, dim: {hparams.symbols_embedding_dim})")
   if hparams.use_stress_embedding:
-    logger.info(f"Stresses: {' '.join(stresses_mapping.keys())} (#{n_stresses})")
+    logger.info(f"Stresses: {' '.join(stress_mapping.keys())} (#{n_stresses})")
   else:
     logger.info(f"Use no stress embedding.")
   if hparams.use_speaker_embedding:
     logger.info(
       f"Speakers: {', '.join(sorted(speaker_mapping.keys()))} (#{n_speakers}, dim: {hparams.speakers_embedding_dim})")
   else:
-    logger.info(f"Use no speaker embedding.")
+    logger.info("Use no speaker embedding.")
 
-  model, optimizer, scheduler = load_model_and_optimizer_and_scheduler(
+  model = load_model(
     hparams=hparams,
     checkpoint=checkpoint,
+    n_symbols=n_symbols,
     n_stresses=n_stresses,
     n_speakers=n_speakers,
-    n_symbols=n_symbols,
   )
 
-  iteration = get_iteration(checkpoint)
+  model = cast(Tacotron2, try_copy_to_gpu(model))
+  model = model.train()
+
+  optimizer = load_optimizer(
+    model=model,
+    hparams=hparams,
+    checkpoint=checkpoint
+  )
+
+  scheduler = None
+
+  if hparams.use_exponential_lr_decay:
+    scheduler = load_scheduler(
+      optimizer=optimizer,
+      hparams=hparams,
+      checkpoint=checkpoint,
+    )
+
+  if checkpoint is None:
+    iteration = 0
+  else:
+    iteration = get_iteration(checkpoint)
 
   if checkpoint is None:
     if warm_model is not None:
@@ -221,9 +251,7 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
       if weights_checkpoint is None:
         logger.error("Couldn't map speaker embeddings because no weights checkpoint was provided!")
         return
-
-      weights_checkpoint_hparams = weights_checkpoint.get_hparams(
-        logger)
+      weights_checkpoint_hparams = get_hparams(weights_checkpoint)
       can_map_speaker_weights = hparams.use_speaker_embedding and weights_checkpoint_hparams.use_speaker_embedding
       if not can_map_speaker_weights:
         logger.error(
@@ -258,9 +286,9 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
   )
 
   val_loader = prepare_valloader(hparams, collate_fn, valset,
-                                 symbol_mapping, stresses_mapping, logger)
+                                 symbol_mapping, stress_mapping, speaker_mapping, logger)
   train_loader = prepare_trainloader(
-    hparams, collate_fn, trainset, symbol_mapping, stresses_mapping, logger)
+    hparams, collate_fn, trainset, symbol_mapping, stress_mapping, speaker_mapping, logger)
 
   batch_iterations = len(train_loader)
   enough_traindata = batch_iterations > 0
@@ -288,8 +316,6 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
   train_start = time.perf_counter()
   start = train_start
 
-  model.cuda()
-  model.train()
   continue_epoch = get_continue_epoch(iteration, batch_iterations)
 
   for epoch in range(continue_epoch, last_epoch_one_based):
@@ -389,7 +415,7 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
           iteration=iteration,
           speaker_mapping=speaker_mapping,
           learning_rate=get_lr(optimizer),
-          stress_mapping=stresses_mapping,
+          stress_mapping=stress_mapping,
           symbol_mapping=symbol_mapping,
           scheduler=scheduler,
         )
@@ -451,17 +477,22 @@ def set_lr(optimizer: Optimizer, lr: float) -> None:
     g['lr'] = lr
 
 
-def load_model(hparams: HParams, state_dict: Optional[Dict], n_symbols: int, n_stresses: Optional[int], n_speakers: Optional[int]) -> Tacotron2:
+def load_model(hparams: HParams, checkpoint: Optional[CheckpointDict], n_symbols: int, n_stresses: Optional[int], n_speakers: Optional[int]) -> Tacotron2:
   model = Tacotron2(hparams, n_symbols, n_stresses, n_speakers)
-  if state_dict is not None:
-    model.load_state_dict(state_dict)
+  if checkpoint is not None:
+    model_state = get_model_state(checkpoint)
+    model.load_state_dict(model_state)
 
   return model
 
 
-def load_optimizer(model_parameters: Iterator[Parameter], hparams: OptimizerHParams, state_dict: Optional[Dict]) -> Adam:
+def load_optimizer(model: Tacotron2, hparams: OptimizerHParams, checkpoint: Optional[CheckpointDict]) -> Adam:
+  # see: https://discuss.pytorch.org/t/code-that-loads-sgd-fails-to-load-adam-state-to-gpu/61783/3
+  for parameter in model.parameters():
+    assert check_is_on_gpu(parameter)
+
   optimizer = Adam(
-    params=model_parameters,
+    params=model.parameters(),
     lr=hparams.learning_rate,
     betas=(hparams.beta1, hparams.beta2),
     eps=hparams.eps,
@@ -469,25 +500,26 @@ def load_optimizer(model_parameters: Iterator[Parameter], hparams: OptimizerHPar
     amsgrad=hparams.amsgrad,
   )
 
-  if state_dict is not None:
-    optimizer.load_state_dict(state_dict)
+  if checkpoint is not None:
+    optimizer_state = get_optimizer_state(checkpoint)
+    optimizer.load_state_dict(optimizer_state)
 
   return optimizer
 
 
-def load_scheduler(optimizer: Adam, hparams: OptimizerHParams, state_dict: Optional[Dict]) -> ExponentialLR:
+def load_scheduler(optimizer: Adam, hparams: OptimizerHParams, checkpoint: Optional[CheckpointDict]) -> ExponentialLR:
+  assert hparams.lr_decay_gamma is not None
   scheduler: ExponentialLR
-  if state_dict is not None:
+  if checkpoint is not None:
+    scheduler_state = get_scheduler_state(checkpoint)
     scheduler = ExponentialLR(
       optimizer=optimizer,
-      gamma=state_dict["gamma"],
-      last_epoch=state_dict["last_epoch"],
-      verbose=state_dict["verbose"],
+      gamma=scheduler_state["gamma"],
+      last_epoch=scheduler_state["last_epoch"],
+      verbose=scheduler_state["verbose"],
     )
-    scheduler.load_state_dict(state_dict)
+    scheduler.load_state_dict(scheduler_state)
   else:
-    assert hparams.lr_decay_gamma is not None
-
     scheduler = ExponentialLR(
       optimizer=optimizer,
       gamma=hparams.lr_decay_gamma,
@@ -498,44 +530,7 @@ def load_scheduler(optimizer: Adam, hparams: OptimizerHParams, state_dict: Optio
   return scheduler
 
 
-def load_model_and_optimizer_and_scheduler(hparams: HParams, checkpoint: Optional[Checkpoint], n_symbols: int, n_stresses: Optional[int], n_speakers: Optional[int]) -> Tuple[Tacotron2, Adam, Optional[ExponentialLR]]:
-  model = load_model(
-    hparams=hparams,
-    #state_dict=checkpoint.state_dict if checkpoint is not None else None,
-    state_dict=None,
-    n_symbols=n_symbols,
-    n_stresses=n_stresses,
-    n_speakers=n_speakers,
-  )
-
-  optimizer = load_optimizer(
-    model_parameters=model.parameters(),
-    hparams=hparams,
-    #state_dict=checkpoint.optimizer if checkpoint is not None else None
-    state_dict=None,
-  )
-
-  scheduler = None
-
-  if hparams.use_exponential_lr_decay:
-    scheduler = load_scheduler(
-      optimizer=optimizer,
-      hparams=hparams,
-      #state_dict=checkpoint.scheduler_state_dict if checkpoint is not None else None
-        state_dict=None,
-    )
-
-  if checkpoint is not None:
-    model.load_state_dict(checkpoint.model_state_dict)
-    optimizer.load_state_dict(checkpoint.optimizer_state_dict)
-
-    if hparams.use_exponential_lr_decay:
-      scheduler.load_state_dict(checkpoint.scheduler_state_dict)
-
-  return model, optimizer, scheduler
-
-
-def warm_start_model(model: nn.Module, warm_model: CheckpointDict, hparams: HParams, logger: Logger) -> None:
+def warm_start_model(model: Tacotron2, warm_model: CheckpointDict, hparams: HParams, logger: Logger) -> None:
   warm_model_hparams = get_hparams(warm_model)
   use_speaker_emb = hparams.use_speaker_embedding and warm_model_hparams.use_speaker_embedding
 
