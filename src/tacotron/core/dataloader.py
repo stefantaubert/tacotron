@@ -1,3 +1,4 @@
+from text_utils import symbols_strip
 from typing import OrderedDict as OrderedDictType
 from collections import OrderedDict
 from itertools import chain
@@ -11,6 +12,7 @@ from tacotron.core.hparams import HParams
 from tacotron.core.model import ForwardXIn
 from tacotron.utils import try_copy_to_gpu
 from text_utils import SpeakerId, Symbol, Symbols, Speaker
+from text_utils.pronunciation.ipa_symbols import APPENDIX, STRESSES, VOWELS, ENG_ARPA_DIPHTONGS, STRESS_PRIMARY, STRESS_SECONDARY
 from text_utils.pronunciation.arpa_symbols import VOWELS_WITH_STRESSES
 from torch import (ByteTensor, FloatTensor, IntTensor,  # pylint: disable=no-name-in-module
                    LongTensor, ShortTensor, Tensor)
@@ -27,6 +29,25 @@ def split_stress_arpa(symbol: Symbol) -> Tuple[Symbol, Optional[str]]:
     vowel = symbol[0:-1]
     stress = symbol[-1]
     return vowel, stress
+  return symbol, DEFAULT_NA_STRESS
+
+
+def split_stress_ipa(symbol: Symbol) -> Tuple[Symbol, Optional[str]]:
+  assert len(symbol) > 0
+  parts = tuple(symbol)
+  parts = symbols_strip(parts, strip=APPENDIX)
+  if len(symbol) >= 2:
+    first_symbol = parts[0]
+    if first_symbol == STRESS_PRIMARY:
+      vowel = symbol[1:]
+      return vowel, "1"
+    elif first_symbol == STRESS_SECONDARY:
+      vowel = symbol[1:]
+      return vowel, "2"
+  elif len(parts) == 1:
+    symb = parts[0]
+    if symb in ENG_ARPA_DIPHTONGS or symb in VOWELS:
+      return symb, "0"
   return symbol, DEFAULT_NA_STRESS
 
 
@@ -78,11 +99,14 @@ def create_symbol_mapping(valset: PreparedDataList, trainset: PreparedDataList) 
   return symbol_mapping
 
 
-def create_symbol_and_stress_mapping(valset: PreparedDataList, trainset: PreparedDataList) -> Tuple[OrderedDictType[Symbol, int], OrderedDictType[str, int]]:
+def create_symbol_and_stress_mapping(valset: PreparedDataList, trainset: PreparedDataList, symbols_are_ipa: bool) -> Tuple[OrderedDictType[Symbol, int], OrderedDictType[str, int]]:
   all_valsymbols = (entry.symbols for entry in valset.items())
   all_trainsymbols = (entry.symbols for entry in trainset.items())
   all_symbols = chain(all_valsymbols, all_trainsymbols)
-  all_symbols_stress_splitted = (split_stresses_arpa(symbols) for symbols in all_symbols)
+  split_stress_method = split_stresses_arpa
+  if symbols_are_ipa:
+    split_stress_method = split_stress_ipa
+  all_symbols_stress_splitted = (split_stress_method(symbols) for symbols in all_symbols)
 
   all_symbols, all_stresses = zip(*all_symbols_stress_splitted)
   unique_symbols = {symbol for symbols in all_symbols for symbol in symbols}
@@ -118,13 +142,16 @@ class SymbolsMelLoader(Dataset):
 
     # for i, entry, symbols in enumerate(zip(data.items(True), )
 
+    split_stress_method = split_stresses_arpa
+    if hparams.symbols_are_ipa:
+      split_stress_method = split_stress_ipa
     for i, entry in enumerate(data.items(True)):
       symbols = entry.symbols
 
       stress_tensor = None
       if hparams.use_stress_embedding:
         assert stress_dict is not None
-        symbols, stresses = split_stresses_arpa(symbols)
+        symbols, stresses = split_stress_method(symbols)
         stress_ids = (stress_dict[stress] for stress in stresses)
         stress_tensor = IntTensor(list(stress_ids))
 

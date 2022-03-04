@@ -39,6 +39,7 @@ class ModelHParams():
 
   # TODO rename to: train_stress_separately: bool = True
   use_stress_embedding: bool = True
+  symbols_are_ipa: bool = True
 
   # TODO remove
   stress_embedding_dim: Optional[int] = None  # only if not 1-hot

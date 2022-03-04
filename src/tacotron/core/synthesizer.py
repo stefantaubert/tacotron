@@ -9,7 +9,7 @@ from general_utils import overwrite_custom_hparams
 from torch import IntTensor, LongTensor  # pylint: disable=no-name-in-module
 import torch
 from tacotron.core.checkpoint_handling import CheckpointDict, get_hparams, get_speaker_mapping, get_stress_mapping, get_symbol_mapping
-from tacotron.core.dataloader import split_stresses_arpa
+from tacotron.core.dataloader import split_stress_ipa, split_stresses_arpa
 from tacotron.core.model import Tacotron2
 from tacotron.core.training import load_model
 from tacotron.core.typing import SymbolMapping
@@ -56,6 +56,10 @@ class Synthesizer():
       self.stress_mapping = get_stress_mapping(checkpoint)
       n_stresses = len(self.stress_mapping)
 
+      self.split_stress_method = split_stresses_arpa
+      if hparams.symbols_are_ipa:
+        self.split_stress_method = split_stress_ipa
+
     self.speaker_mapping = None
     n_speakers = None
     if hparams.use_speaker_embedding:
@@ -82,7 +86,8 @@ class Synthesizer():
   def infer(self, utterance: InferableUtterance, speaker: Optional[Speaker], max_decoder_steps: int, seed: int) -> InferenceResult:
     marker = NOT_INFERABLE_SYMBOL_MARKER
     if self.hparams.use_stress_embedding:
-      symbols, stresses = split_stresses_arpa(utterance.symbols)
+
+      symbols, stresses = self.split_stress_method(utterance.symbols)
 
       mappable_entries = tuple(
         symbol in self.symbol_mapping and stress in self.stress_mapping

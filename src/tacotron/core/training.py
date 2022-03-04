@@ -154,7 +154,8 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
   stress_mapping = None
   if hparams.use_stress_embedding:
     if checkpoint is None:
-      symbol_mapping, stress_mapping = create_symbol_and_stress_mapping(valset, trainset)
+      symbol_mapping, stress_mapping = create_symbol_and_stress_mapping(
+        valset, trainset, hparams.symbols_are_ipa)
     else:
       symbol_mapping = get_symbol_mapping(checkpoint)
       stress_mapping = get_stress_mapping(checkpoint)
