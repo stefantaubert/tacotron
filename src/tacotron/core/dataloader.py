@@ -1,80 +1,57 @@
-from text_utils import symbols_strip
 from typing import OrderedDict as OrderedDictType
 from collections import OrderedDict
 from itertools import chain
 from logging import Logger
 from pathlib import Path
-from typing import Dict, Generator, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import torch
 from audio_utils.mel import TacotronSTFT
 from tacotron.core.hparams import HParams
 from tacotron.core.model import ForwardXIn
-from tacotron.utils import try_copy_to_gpu
+from tacotron.core.typing import SpeakerMapping, StressMapping, Stress, Stresses, SymbolMapping
 from text_utils import SpeakerId, Symbol, Symbols, Speaker
-from text_utils.pronunciation.ipa_symbols import APPENDIX, STRESSES, VOWELS, ENG_ARPA_DIPHTONGS, STRESS_PRIMARY, STRESS_SECONDARY
-from text_utils.pronunciation.arpa_symbols import VOWELS_WITH_STRESSES
-from torch import (ByteTensor, FloatTensor, IntTensor,  # pylint: disable=no-name-in-module
-                   LongTensor, ShortTensor, Tensor)
+from torch import (FloatTensor, IntTensor,  # pylint: disable=no-name-in-module
+                   LongTensor, Tensor)
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 from tts_preparation import PreparedDataList
+from text_utils import StressType, split_stress_arpa, split_stress_ipa
 
-DEFAULT_NA_STRESS = "-"
+PADDING_SHIFT = 1
 
-
-def split_stress_arpa(symbol: Symbol) -> Tuple[Symbol, Optional[str]]:
-  has_stress_mark = symbol in VOWELS_WITH_STRESSES
-  if has_stress_mark:
-    vowel = symbol[0:-1]
-    stress = symbol[-1]
-    return vowel, stress
-  return symbol, DEFAULT_NA_STRESS
-
-
-def split_stress_ipa(symbol: Symbol) -> Tuple[Symbol, Optional[str]]:
-  assert len(symbol) > 0
-  parts = tuple(symbol)
-  parts = symbols_strip(parts, strip=APPENDIX)
-  if len(symbol) >= 2:
-    first_symbol = parts[0]
-    if first_symbol == STRESS_PRIMARY:
-      vowel = symbol[1:]
-      return vowel, "1"
-    elif first_symbol == STRESS_SECONDARY:
-      vowel = symbol[1:]
-      return vowel, "2"
-  elif len(parts) == 1:
-    symb = parts[0]
-    if symb in ENG_ARPA_DIPHTONGS or symb in VOWELS:
-      return symb, "0"
-  return symbol, DEFAULT_NA_STRESS
+STRESS_LABELS: OrderedDictType[StressType, Stress] = OrderedDict((
+  (StressType.UNSTRESSED, "0"),
+  (StressType.PRIMARY, "1"),
+  (StressType.SECONDARY, "2"),
+  (StressType.NOT_APPLICABLE, "N/A"),
+))
 
 
-# def split_stresses_arpa(symbols: Symbols, na_stress: str) -> Generator[Tuple[Symbol, str], None, None]:
-#   for symbol in symbols:
-#     yield split_stress_arpa(symbol, na_stress)
+def split_stress(symbol: Symbol, is_ipa: bool) -> Tuple[Symbol, Stress]:
+  method = split_stress_arpa
+  if is_ipa:
+    method = split_stress_ipa
+  new_symbol, stress_type = method(symbol)
+  stress = STRESS_LABELS[stress_type]
+  return new_symbol, stress
 
 
-def split_stresses_arpa(symbols: Symbols) -> Tuple[Symbols, Tuple[str, ...]]:
+def split_stresses(symbols: Symbols, is_ipa: bool) -> Tuple[Symbols, Stresses]:
   res_symbols = []
   stresses = []
   for symbol in symbols:
-    symbol_core, stress = split_stress_arpa(symbol)
+    symbol_core, stress = split_stress(symbol, is_ipa)
     res_symbols.append(symbol_core)
     stresses.append(stress)
   return tuple(res_symbols), tuple(stresses)
 
 
-PADDING_SHIFT = 1
-
-
-def create_speaker_mapping(valset: PreparedDataList, trainset: PreparedDataList) -> OrderedDictType[Speaker, SpeakerId]:
+def create_speaker_mapping(valset: PreparedDataList, trainset: PreparedDataList) -> SpeakerMapping:
   all_valspeakers = (entry.speaker_name for entry in valset.items())
   all_trainspeakers = (entry.speaker_name for entry in trainset.items())
   all_speakers = chain(all_valspeakers, all_trainspeakers)
-
-  unique_speakers = {speaker for speaker in all_speakers}
+  unique_speakers = set(all_speakers)
 
   speaker_ids = OrderedDict((
     (speaker, speaker_nr + PADDING_SHIFT)
@@ -84,11 +61,10 @@ def create_speaker_mapping(valset: PreparedDataList, trainset: PreparedDataList)
   return speaker_ids
 
 
-def create_symbol_mapping(valset: PreparedDataList, trainset: PreparedDataList) -> OrderedDictType[Symbol, int]:
+def create_symbol_mapping(valset: PreparedDataList, trainset: PreparedDataList) -> SymbolMapping:
   all_valsymbols = (entry.symbols for entry in valset.items())
   all_trainsymbols = (entry.symbols for entry in trainset.items())
   all_symbols = chain(all_valsymbols, all_trainsymbols)
-
   unique_symbols = {symbol for symbols in all_symbols for symbol in symbols}
 
   symbol_mapping = OrderedDict((
@@ -99,14 +75,14 @@ def create_symbol_mapping(valset: PreparedDataList, trainset: PreparedDataList) 
   return symbol_mapping
 
 
-def create_symbol_and_stress_mapping(valset: PreparedDataList, trainset: PreparedDataList, symbols_are_ipa: bool) -> Tuple[OrderedDictType[Symbol, int], OrderedDictType[str, int]]:
+def create_symbol_and_stress_mapping(valset: PreparedDataList, trainset: PreparedDataList, symbols_are_ipa: bool) -> Tuple[SymbolMapping, StressMapping]:
   all_valsymbols = (entry.symbols for entry in valset.items())
   all_trainsymbols = (entry.symbols for entry in trainset.items())
   all_symbols = chain(all_valsymbols, all_trainsymbols)
-  split_stress_method = split_stresses_arpa
-  if symbols_are_ipa:
-    split_stress_method = split_stress_ipa
-  all_symbols_stress_splitted = (split_stress_method(symbols) for symbols in all_symbols)
+  all_symbols_stress_splitted = (
+    split_stress(symbols, symbols_are_ipa)
+    for symbols in all_symbols
+  )
 
   all_symbols, all_stresses = zip(*all_symbols_stress_splitted)
   unique_symbols = {symbol for symbols in all_symbols for symbol in symbols}
@@ -129,7 +105,7 @@ LoaderEntry = Tuple[IntTensor, Tensor, Optional[SpeakerId], Optional[IntTensor]]
 
 
 class SymbolsMelLoader(Dataset):
-  def __init__(self, data: PreparedDataList, hparams: HParams, symbols_dict: Dict[Symbol, int], stress_dict: Optional[Dict[str, int]], speakers_dict: Optional[Dict[Speaker, SpeakerId]], logger: Logger):
+  def __init__(self, data: PreparedDataList, hparams: HParams, symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], speaker_mapping: Optional[SpeakerMapping], logger: Logger):
     # random.seed(hparams.seed)
     # random.shuffle(data)
     self.use_saved_mels = hparams.use_saved_mels
@@ -142,26 +118,23 @@ class SymbolsMelLoader(Dataset):
 
     # for i, entry, symbols in enumerate(zip(data.items(True), )
 
-    split_stress_method = split_stresses_arpa
-    if hparams.symbols_are_ipa:
-      split_stress_method = split_stress_ipa
     for i, entry in enumerate(data.items(True)):
       symbols = entry.symbols
 
       stress_tensor = None
       if hparams.use_stress_embedding:
-        assert stress_dict is not None
-        symbols, stresses = split_stress_method(symbols)
-        stress_ids = (stress_dict[stress] for stress in stresses)
+        assert stress_mapping is not None
+        symbols, stresses = split_stresses(symbols, hparams.symbols_are_ipa)
+        stress_ids = (stress_mapping[stress] for stress in stresses)
         stress_tensor = IntTensor(list(stress_ids))
 
-      symbol_ids = (symbols_dict[symbol] for symbol in symbols)
+      symbol_ids = (symbol_mapping[symbol] for symbol in symbols)
       symbols_tensor = IntTensor(list(symbol_ids))
 
       speaker_id = None
       if hparams.use_speaker_embedding:
-        assert speakers_dict is not None
-        speaker_id = speakers_dict[entry.speaker_name]
+        assert speaker_mapping is not None
+        speaker_id = speaker_mapping[entry.speaker_name]
 
       if hparams.use_saved_mels:
         self.data[i] = (symbols_tensor, entry.mel_absolute_path, speaker_id, stress_tensor)
