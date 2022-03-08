@@ -9,7 +9,7 @@ from general_utils import overwrite_custom_hparams
 from torch import IntTensor, LongTensor  # pylint: disable=no-name-in-module
 import torch
 from tacotron.core.checkpoint_handling import CheckpointDict, get_hparams, get_speaker_mapping, get_stress_mapping, get_symbol_mapping
-from tacotron.core.dataloader import split_stresses
+from tacotron.core.dataloader import get_speaker_mappings_count, get_stress_mappings_count, get_symbol_mappings_count, split_stresses
 from tacotron.core.model import Tacotron2
 from tacotron.core.training import load_model
 from tacotron.core.typing import SymbolMapping
@@ -48,19 +48,19 @@ class Synthesizer():
     hparams = overwrite_custom_hparams(hparams, custom_hparams)
 
     self.symbol_mapping = get_symbol_mapping(checkpoint)
-    n_symbols = len(self.symbol_mapping)
+    n_symbols = get_symbol_mappings_count(self.symbol_mapping)
 
     self.stress_mapping = None
     n_stresses = None
     if hparams.use_stress_embedding:
       self.stress_mapping = get_stress_mapping(checkpoint)
-      n_stresses = len(self.stress_mapping)
+      n_stresses = get_stress_mappings_count(self.stress_mapping)
 
     self.speaker_mapping = None
     n_speakers = None
     if hparams.use_speaker_embedding:
       self.speaker_mapping = get_speaker_mapping(checkpoint)
-      n_speakers = len(self.speaker_mapping)
+      n_speakers = get_speaker_mappings_count(self.speaker_mapping)
 
     model = load_model(
       hparams=hparams,

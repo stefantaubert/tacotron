@@ -12,3 +12,5 @@ Stresses = Tuple[Stress, ...]
 SpeakerMapping = OrderedDictType[Speaker, int]
 SymbolMapping = OrderedDictType[Symbol, int]
 StressMapping = OrderedDictType[Stress, int]
+
+SymbolToSymbolMapping = Dict[Symbol, Symbol]

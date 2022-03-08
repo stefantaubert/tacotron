@@ -1,3 +1,4 @@
+from general_utils import parse_json
 import logging
 import os
 from functools import partial
@@ -13,6 +14,7 @@ from tacotron.core import Tacotron2Logger
 from tacotron.core import continue_train as continue_train_core
 from tacotron.core import train as train_core
 from tacotron.core.checkpoint_handling import CheckpointDict, get_iteration
+from tacotron.core.training import start_training
 from tacotron.utils import (get_custom_or_last_checkpoint, get_last_checkpoint,
                             get_pytorch_filename, prepare_logger)
 from tts_preparation import (get_merged_dir, get_prep_dir,
@@ -51,7 +53,9 @@ def save_checkpoint_iteration(checkpoint: CheckpointDict, save_checkpoint_dir: P
 #   logger.info("Restoring done.")
 
 
-def train(base_dir: Path, ttsp_dir: Path, train_name: str, merge_name: str, prep_name: str, warm_start_train_name: Optional[str] = None, warm_start_checkpoint: Optional[int] = None, custom_hparams: Optional[Dict[str, str]] = None, weights_train_name: Optional[str] = None, weights_checkpoint: Optional[int] = None, map_symbol_weights: bool = False, use_weights_map: Optional[bool] = None, map_from_speaker: Optional[str] = None) -> None:
+def train(base_dir: Path, ttsp_dir: Path, train_name: str, merge_name: str, prep_name: str, custom_hparams: Optional[Dict[str, str]], pretrained_model: Path, warm_start: bool, map_symbol_weights: bool, custom_symbol_weights_map: Optional[Path], map_speaker_weights: bool, map_from_speaker: Optional[str]) -> None:
+  # Parameter: custom_symbol_weights_map -> a JSON file that contains keys equals to symbols from the weights model checkpoint and values equals to the symbols which are in the model to be trained.
+
   merge_dir = get_merged_dir(ttsp_dir, merge_name)
   prep_dir = get_prep_dir(merge_dir, prep_name)
 
@@ -72,46 +76,42 @@ def train(base_dir: Path, ttsp_dir: Path, train_name: str, merge_name: str, prep
   trainset = load_trainset(prep_dir)
   valset = load_valset(prep_dir)
 
-  weights_model = try_load_checkpoint(
-    base_dir=base_dir,
-    train_name=weights_train_name,
-    checkpoint=weights_checkpoint,
-    logger=logger
-  )
+  pretrained_model_checkpoint = None
+  if pretrained_model is not None:
+    pretrained_model_checkpoint = load_checkpoint(pretrained_model)
 
-  weights_map = None
-  if use_weights_map is not None and use_weights_map:
-    weights_train_dir = get_train_dir(base_dir, weights_train_name)
-    _, weights_merge_name, _ = load_prep_settings(weights_train_dir)
-    weights_map = load_weights_map(merge_dir, weights_merge_name)
-
-  warm_model = try_load_checkpoint(
-    base_dir=base_dir,
-    train_name=warm_start_train_name,
-    checkpoint=warm_start_checkpoint,
-    logger=logger
-  )
+    if custom_symbol_weights_map is not None:
+      if not custom_symbol_weights_map.is_file():
+        logger.error("Weights map does not exist!")
+        return
+      weights_map = parse_json(custom_symbol_weights_map)
+      weights_map_contains_duplicate_values = len(
+        weights_map.values()) > len(set(weights_map.values()))
+      if weights_map_contains_duplicate_values:
+        logger.error("Invalid weights map: Mapped to the same symbol multiple times!")
+        return
 
   save_callback = partial(
     save_checkpoint_iteration,
     save_checkpoint_dir=get_checkpoints_dir(train_dir),
   )
 
-  train_core(
+  logger.info("Starting new model...")
+  start_training(
     custom_hparams=custom_hparams,
     taco_logger=taco_logger,
-    symbols=load_merged_symbol_converter(merge_dir),
-    speakers=load_merged_speakers_json(merge_dir),
     trainset=trainset,
     valset=valset,
     save_callback=save_callback,
-    weights_map=weights_map,
-    weights_checkpoint=weights_model,
-    warm_model=warm_model,
+    custom_symbol_weights_map=weights_map,
+    pretrained_model=pretrained_model_checkpoint,
+    warm_start=warm_start,
     map_symbol_weights=map_symbol_weights,
+    map_speaker_weights=map_speaker_weights,
     map_from_speaker_name=map_from_speaker,
     logger=logger,
     checkpoint_logger=checkpoint_logger,
+    checkpoint=None,
   )
 
 
@@ -142,13 +142,20 @@ def continue_train(base_dir: Path, train_name: str, custom_hparams: Optional[Dic
   trainset = load_trainset(prep_dir)
   valset = load_valset(prep_dir)
 
-  continue_train_core(
-    checkpoint=last_checkpoint,
+  logger.info("Continuing training from checkpoint...")
+  start_training(
     custom_hparams=custom_hparams,
     taco_logger=taco_logger,
     trainset=trainset,
     valset=valset,
+    save_callback=save_callback,
+    custom_symbol_weights_map=None,
+    pretrained_model=None,
+    map_from_speaker_name=None,
+    map_symbol_weights=False,
+    checkpoint=last_checkpoint,
     logger=logger,
     checkpoint_logger=checkpoint_logger,
-    save_callback=save_callback
+    warm_start=False,
+    map_speaker_weights=False,
   )

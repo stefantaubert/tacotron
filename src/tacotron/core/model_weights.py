@@ -8,8 +8,7 @@ from typing import Set
 import numpy as np
 import torch
 from tacotron.core.hparams import HParams
-from tacotron.core.model import (SYMBOL_EMBEDDING_LAYER_NAME,
-                                 get_speaker_weights, get_symbol_weights)
+from tacotron.core.model import (SYMBOL_EMBEDDING_LAYER_NAME)
 from tacotron.core.model_checkpoint import CheckpointTacotron
 from text_utils import SpeakersDict, SymbolIdDict, SymbolsMap
 from text_utils.types import Speaker, Symbol, SymbolId

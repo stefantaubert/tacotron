@@ -1,31 +1,26 @@
-import logging
 import time
 from logging import Logger
-from typing import Callable, Dict, Iterator, List, Optional, Tuple, cast
+from typing import Callable, Dict, List, Optional, Tuple, cast
 
 import numpy as np
 import torch
 from general_utils import overwrite_custom_hparams
-from tacotron.core.checkpoint_handling import CheckpointDict, create, get_hparams, get_iteration, get_model_state, get_optimizer_state, get_scheduler_state, get_speaker_mapping, get_stress_mapping, get_symbol_mapping
-from tacotron.core.dataloader import (SymbolsMelCollate, create_speaker_mapping, create_symbol_mapping, create_symbol_and_stress_mapping, parse_batch,
+from tacotron.core.checkpoint_handling import CheckpointDict, create, get_hparams, get_iteration, get_model_state, get_optimizer_state, get_scheduler_state, get_speaker_embedding_weights, get_speaker_mapping, get_stress_mapping, get_symbol_embedding_weights, get_symbol_mapping
+from tacotron.core.dataloader import (SymbolsMelCollate, create_speaker_mapping, create_symbol_mapping, create_symbol_and_stress_mapping, get_speaker_mappings_count, get_stress_mappings_count, get_symbol_mappings_count, parse_batch,
                                       prepare_trainloader, prepare_valloader)
 from tacotron.core.hparams import ExperimentHParams, HParams, OptimizerHParams
 from tacotron.core.logger import Tacotron2Logger
 from tacotron.core.model import (SPEAKER_EMBEDDING_LAYER_NAME,
                                  SYMBOL_EMBEDDING_LAYER_NAME, Tacotron2)
-from tacotron.core.model_weights import (get_mapped_speaker_weights,
-                                         get_mapped_symbol_weights)
-from tacotron.globals import DEFAULT_PADDING_SYMBOL
+from tacotron.core.typing import SymbolToSymbolMapping
 from tacotron.utils import (SaveIterationSettings, check_is_on_gpu, check_save_it,
                             copy_state_dict, get_continue_batch_iteration,
                             get_continue_epoch, get_formatted_current_total,
                             get_last_iteration, get_next_save_it, init_cuddn,
                             init_cuddn_benchmark, init_global_seeds,
                             iteration_to_epoch, log_hparams, skip_batch, try_copy_tensors_to_gpu_iterable, try_copy_to_gpu,
-                            update_weights, validate_model)
-from text_utils import SpeakersDict, SymbolIdDict, SymbolsMap
+                            validate_model)
 from torch import nn
-from torch.nn import Parameter
 from torch.nn.utils.clip_grad import clip_grad_norm_
 from torch.optim.adam import Adam
 from torch.optim.lr_scheduler import ExponentialLR
@@ -74,44 +69,6 @@ def validate(model: nn.Module, criterion: nn.Module, val_loader: DataLoader, ite
   return avg_val_loss
 
 
-def train(warm_model: Optional[CheckpointDict], custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, symbols: SymbolIdDict, speakers: SpeakersDict, trainset: PreparedDataList, valset: PreparedDataList, save_callback: Callable[[CheckpointDict], None], weights_checkpoint: Optional[CheckpointDict], weights_map: Optional[SymbolsMap], map_symbol_weights: bool, map_from_speaker_name: Optional[str], logger: Logger, checkpoint_logger: Logger) -> None:
-  logger.info("Starting new model...")
-  _train(
-    custom_hparams=custom_hparams,
-    taco_logger=taco_logger,
-    trainset=trainset,
-    valset=valset,
-    save_callback=save_callback,
-    weights_checkpoint=weights_checkpoint,
-    weights_map=weights_map,
-    warm_model=warm_model,
-    map_from_speaker_name=map_from_speaker_name,
-    checkpoint=None,
-    logger=logger,
-    map_symbol_weights=map_symbol_weights,
-    checkpoint_logger=checkpoint_logger
-  )
-
-
-def continue_train(checkpoint: CheckpointDict, custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, trainset: PreparedDataList, valset: PreparedDataList, save_callback: Callable[[CheckpointDict], None], logger: Logger, checkpoint_logger: Logger) -> None:
-  logger.info("Continuing training from checkpoint...")
-  _train(
-    custom_hparams=custom_hparams,
-    taco_logger=taco_logger,
-    trainset=trainset,
-    valset=valset,
-    save_callback=save_callback,
-    weights_checkpoint=None,
-    weights_map=None,
-    warm_model=None,
-    map_from_speaker_name=None,
-    map_symbol_weights=False,
-    checkpoint=checkpoint,
-    logger=logger,
-    checkpoint_logger=checkpoint_logger
-  )
-
-
 def init_torch(hparams: ExperimentHParams) -> None:
   init_cuddn(hparams.cudnn_enabled)
   init_cuddn_benchmark(hparams.cudnn_benchmark)
@@ -122,27 +79,13 @@ def log_symbol_weights(model: Tacotron2, logger: Logger) -> None:
   logger.info(str(model.state_dict()[SYMBOL_EMBEDDING_LAYER_NAME]))
 
 
-def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, trainset: PreparedDataList, valset: PreparedDataList, save_callback: Callable[[CheckpointDict], None], checkpoint: Optional[CheckpointDict], warm_model: Optional[CheckpointDict], weights_checkpoint: Optional[CheckpointDict], weights_map: SymbolsMap, map_symbol_weights: bool, map_from_speaker_name: Optional[str], logger: Logger, checkpoint_logger: Logger) -> None:
-  """Training and validation logging results to tensorboard and stdout
-  Params
-  ------
-  output_directory (string): directory to save checkpoints
-  log_directory (string) directory to save tensorboard logs
-  checkpoint_path(string): checkpoint path
-  n_gpus (int): number of gpus
-  rank (int): rank of current gpu
-  hparams (object): comma separated list of "name=value" pairs.
-  """
-
+def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, trainset: PreparedDataList, valset: PreparedDataList, save_callback: Callable[[CheckpointDict], None], checkpoint: Optional[CheckpointDict], pretrained_model: Optional[CheckpointDict], warm_start: bool, map_symbol_weights: bool, custom_symbol_weights_map: Optional[SymbolToSymbolMapping], map_speaker_weights: bool, map_from_speaker_name: Optional[str], logger: Logger, checkpoint_logger: Logger) -> None:
   complete_start = time.time()
 
   if checkpoint is not None:
     hparams = get_hparams(checkpoint)
   else:
-    hparams = HParams(
-      n_speakers=0,
-      n_symbols=0
-    )
+    hparams = HParams()
   # TODO: it should not be recommended to change the batch size on a trained model
   hparams = overwrite_custom_hparams(hparams, custom_hparams)
 
@@ -159,14 +102,14 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
     else:
       symbol_mapping = get_symbol_mapping(checkpoint)
       stress_mapping = get_stress_mapping(checkpoint)
-    n_stresses = len(stress_mapping)
+    n_stresses = get_stress_mappings_count(stress_mapping)
   else:
     if checkpoint is None:
       symbol_mapping = create_symbol_mapping(valset, trainset)
     else:
       symbol_mapping = get_symbol_mapping(checkpoint)
 
-  n_symbols = len(symbol_mapping)
+  n_symbols = get_symbol_mappings_count(symbol_mapping)
 
   n_speakers = None
   speaker_mapping = None
@@ -175,17 +118,17 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
       speaker_mapping = create_speaker_mapping(valset, trainset)
     else:
       speaker_mapping = get_speaker_mapping(checkpoint)
-    n_speakers = len(speaker_mapping)
+    n_speakers = get_speaker_mappings_count(speaker_mapping)
 
   logger.info(
-    f"Symbols: {' '.join(symbol_mapping.keys())} (#{n_symbols}, dim: {hparams.symbols_embedding_dim})")
+    f"Symbols: {' '.join(symbol_mapping.keys())} (#{len(symbol_mapping)}, dim: {hparams.symbols_embedding_dim})")
   if hparams.use_stress_embedding:
-    logger.info(f"Stresses: {' '.join(stress_mapping.keys())} (#{n_stresses})")
+    logger.info(f"Stresses: {' '.join(stress_mapping.keys())} (#{len(stress_mapping)})")
   else:
-    logger.info(f"Use no stress embedding.")
+    logger.info("Use no stress embedding.")
   if hparams.use_speaker_embedding:
     logger.info(
-      f"Speakers: {', '.join(sorted(speaker_mapping.keys()))} (#{n_speakers}, dim: {hparams.speakers_embedding_dim})")
+      f"Speakers: {', '.join(sorted(speaker_mapping.keys()))} (#{len(speaker_mapping)}, dim: {hparams.speakers_embedding_dim})")
   else:
     logger.info("Use no speaker embedding.")
 
@@ -221,17 +164,71 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
     iteration = get_iteration(checkpoint)
 
   if checkpoint is None:
-    if warm_model is not None:
+    if warm_start:
+      if pretrained_model is None:
+        logger.error("Warm start: For warm start a pretrained model must be provided!")
+        return
+
       logger.info("Loading states from pretrained model...")
-      warm_start_model(model, warm_model, hparams, logger)
+      success = warm_start_model(model, pretrained_model, hparams, logger)
+      if not success:
+        return
     else:
       logger.info("Don't use warm model.")
 
     if map_symbol_weights:
-      if weights_checkpoint is None:
-        logger.error("Couldn't map symbol embeddings because no weights checkpoint was provided!")
+      if pretrained_model is None:
+        logger.error(
+          "Mapping symbol weights: For mapping symbol weights a pretrained model must be provided!")
         return
 
+      pre_hparams = get_hparams(pretrained_model)
+      if pre_hparams.stress_embedding_dim != hparams.stress_embedding_dim:
+        logger.error("Mapping symbol weights: Stress embedding dimensions do not match!")
+        return
+
+      pre_stress_mapping = get_stress_mapping(pretrained_model)
+      if pre_stress_mapping.keys() != stress_mapping.keys():
+        logger.error("Mapping symbol weights: Stress mappings are not equal!")
+        return
+
+      pre_symbol_weights = get_symbol_embedding_weights(pretrained_model)
+      pre_symbol_mapping = get_symbol_mapping(pretrained_model)
+      # map padding
+      model.symbol_embeddings[0] = pre_symbol_weights[0]
+      mapped_symbols = set()
+      if custom_symbol_weights_map is None:
+        common_symbols = set(pre_symbol_mapping.keys()
+                             ).intersection(symbol_mapping.keys())
+        logger.info(f"Common symbols that will be mapped: {' '.join(sorted(common_symbols))}")
+        for common_symbol in common_symbols:
+          from_id = pre_symbol_mapping[common_symbol]
+          to_id = symbol_mapping[common_symbol]
+          assert from_id > 0 and to_id > 0
+          model.symbol_embeddings[to_id] = pre_symbol_weights[from_id]
+        mapped_symbols = mapped_symbols.union(common_symbols)
+      else:
+        weights_map_contains_duplicate_values = len(
+          custom_symbol_weights_map.values()) > len(set(custom_symbol_weights_map.values()))
+        assert not weights_map_contains_duplicate_values
+
+        for from_symbol, to_symbol in custom_symbol_weights_map.items():
+          if to_symbol in symbol_mapping:
+            from_id = pre_symbol_mapping[from_symbol]
+            to_id = symbol_mapping[to_symbol]
+            assert from_id > 0 and to_id > 0
+            model.symbol_embeddings[to_id] = pre_symbol_weights[from_id]
+            mapped_symbols.add(to_symbol)
+          else:
+            logger.info(
+              f"Skipped {from_symbol} -> {to_symbol} because latter does not exist in the current model.")
+      nonmapped_symbols = set(symbol_mapping.key()).difference(mapped_symbols)
+      if len(nonmapped_symbols) > 0:
+        logger.info(f"Mapped symbols: {''.join(sorted(mapped_symbols))} (#{len(mapped_symbols)})")
+        logger.info(
+          f"Non-mapped symbols: {''.join(sorted(nonmapped_symbols))} (#{len(nonmapped_symbols)})")
+      else:
+        logger.info(f"Mapped all {len(symbol_mapping)} symbols!")
       # TODO
       # logger.info("Mapping symbol embeddings...")
       # pretrained_symbol_weights = get_mapped_symbol_weights(
@@ -248,37 +245,44 @@ def _train(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logge
     else:
       logger.info("Don't mapping symbol embeddings.")
 
-    if map_from_speaker_name is not None:
-      if weights_checkpoint is None:
-        logger.error("Couldn't map speaker embeddings because no weights checkpoint was provided!")
-        return
-      weights_checkpoint_hparams = get_hparams(weights_checkpoint)
-      can_map_speaker_weights = hparams.use_speaker_embedding and weights_checkpoint_hparams.use_speaker_embedding
-      if not can_map_speaker_weights:
+    if map_speaker_weights:
+      if pretrained_model is None:
         logger.error(
-          "Couldn't map speaker embeddings because no the weights checkpoint or the current model use no speaker embeddings!")
+          "Mapping speaker weights: For mapping speaker weights a pretrained model must be provided!")
         return
 
-      # TODO
-      # logger.info("Mapping speaker embeddings...")
-      # pretrained_speaker_weights = get_mapped_speaker_weights(
-      #   model_speaker_id_dict=speakers,
-      #   trained_weights=weights_checkpoint.get_speaker_embedding_weights(),
-      #   trained_speaker=weights_checkpoint.get_speakers(),
-      #   map_from_speaker_name=map_from_speaker_name,
-      #   hparams=hparams,
-      #   logger=logger,
-      # )
+      if map_from_speaker_name is None:
+        logger.error("Mapping speaker weights: A speaker name is required for mapping speaker weights.")
+        return
 
-      # update_weights(model.speakers_embeddings, pretrained_speaker_weights)
+      pre_hparams = get_hparams(pretrained_model)
+      both_models_use_speaker_emb = hparams.use_speaker_embedding and pre_hparams.use_speaker_embedding
+      if not both_models_use_speaker_emb:
+        logger.error(
+          "Mapping speaker weights: Couldn't map speaker embeddings because one of the models use no speaker embeddings!")
+        return
+
+      pre_speaker_mapping = get_speaker_mapping(pretrained_model)
+      if map_from_speaker_name not in pre_speaker_mapping:
+        logger.error(
+          f"Mapping speaker weights: Speaker '{map_from_speaker_name}' was not found in weights checkpoint.")
+        return
+
+      pre_speaker_embedding = get_speaker_embedding_weights(pretrained_model)
+      # map padding
+      model.speakers_embeddings[0] = pre_speaker_embedding[0]
+
+      from_id = pre_speaker_mapping[map_from_speaker_name]
+      assert from_id > 0
+      for to_speaker in speaker_mapping.keys():
+        to_id = speaker_mapping[to_speaker]
+        assert to_id > 0
+        model.speakers_embeddings[to_id] = pre_speaker_embedding[from_id]
       logger.info("Mapped speaker embeddings.")
     else:
       logger.info("Don't mapping speaker embeddings.")
 
   log_symbol_weights(model, logger)
-
-  # logger.info(f"Symbols: {' '.join(sorted(symbols.get_all_symbols()))} (#{len(symbols)})")
-  # logger.info(f"Speakers: {', '.join(sorted(speakers.get_all_speakers()))} (#{len(speakers)})")
 
   collate_fn = SymbolsMelCollate(
     n_frames_per_step=hparams.n_frames_per_step,
@@ -531,32 +535,34 @@ def load_scheduler(optimizer: Adam, hparams: OptimizerHParams, checkpoint: Optio
   return scheduler
 
 
-def warm_start_model(model: Tacotron2, warm_model: CheckpointDict, hparams: HParams, logger: Logger) -> None:
+def warm_start_model(model: Tacotron2, warm_model: CheckpointDict, hparams: HParams, logger: Logger) -> bool:
   warm_model_hparams = get_hparams(warm_model)
   use_speaker_emb = hparams.use_speaker_embedding and warm_model_hparams.use_speaker_embedding
 
-  speakers_embedding_dim_mismatch = use_speaker_emb and (
-    warm_model_hparams.speakers_embedding_dim != hparams.speakers_embedding_dim)
+  speakers_embedding_dim_mismatch = warm_model_hparams.speakers_embedding_dim != hparams.speakers_embedding_dim
 
-  if speakers_embedding_dim_mismatch:
-    msg = "Mismatch in speaker embedding dimensions!"
-    logger.exception(msg)
-    raise Exception(msg)
+  if use_speaker_emb and speakers_embedding_dim_mismatch:
+    msg = "Warm start: Mismatch in speaker embedding dimensions!"
+    logger.error(msg)
+    return False
 
   symbols_embedding_dim_mismatch = warm_model_hparams.symbols_embedding_dim != hparams.symbols_embedding_dim
   if symbols_embedding_dim_mismatch:
-    msg = "Mismatch in symbol embedding dimensions!"
-    logger.exception(msg)
-    raise Exception(msg)
+    msg = "Warm start: Mismatch in symbol embedding dimensions!"
+    logger.error(msg)
+    return False
 
+  model_state = get_model_state(warm_model)
   copy_state_dict(
-    state_dict=warm_model.model_state_dict,
+    state_dict=model_state,
     to_model=model,
     ignore=hparams.ignore_layers + [
       SYMBOL_EMBEDDING_LAYER_NAME,
       SPEAKER_EMBEDDING_LAYER_NAME
     ]
   )
+
+  return True
 
 
 def log_checkpoint_score(iteration: int, gradloss: float, trainloss: float, valloss: float, epoch_one_based: int, batch_it_one_based: int, batch_size: int, checkpoint_logger: Logger) -> None:

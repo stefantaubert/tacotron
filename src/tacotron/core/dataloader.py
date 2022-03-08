@@ -28,6 +28,18 @@ STRESS_LABELS: OrderedDictType[StressType, Stress] = OrderedDict((
 ))
 
 
+def get_symbol_mappings_count(symbol_mapping: SymbolMapping) -> int:
+  return len(symbol_mapping) + PADDING_SHIFT
+
+
+def get_stress_mappings_count(stress_mapping: StressMapping) -> int:
+  return len(stress_mapping) + PADDING_SHIFT
+
+
+def get_speaker_mappings_count(speaker_mapping: SpeakerMapping) -> int:
+  return len(speaker_mapping) + PADDING_SHIFT
+
+
 def split_stress(symbol: Symbol, is_ipa: bool) -> Tuple[Symbol, Stress]:
   method = split_stress_arpa
   if is_ipa:
@@ -54,8 +66,8 @@ def create_speaker_mapping(valset: PreparedDataList, trainset: PreparedDataList)
   unique_speakers = set(all_speakers)
 
   speaker_ids = OrderedDict((
-    (speaker, speaker_nr + PADDING_SHIFT)
-    for speaker_nr, speaker in enumerate(sorted(unique_speakers))
+    (speaker, speaker_nr)
+    for speaker_nr, speaker in enumerate(sorted(unique_speakers), start=PADDING_SHIFT)
   ))
 
   return speaker_ids
@@ -68,8 +80,8 @@ def create_symbol_mapping(valset: PreparedDataList, trainset: PreparedDataList) 
   unique_symbols = {symbol for symbols in all_symbols for symbol in symbols}
 
   symbol_mapping = OrderedDict((
-    (symbol, symbol_nr + PADDING_SHIFT)
-    for symbol_nr, symbol in enumerate(sorted(unique_symbols))
+    (symbol, symbol_nr)
+    for symbol_nr, symbol in enumerate(sorted(unique_symbols), start=PADDING_SHIFT)
   ))
 
   return symbol_mapping
@@ -80,22 +92,22 @@ def create_symbol_and_stress_mapping(valset: PreparedDataList, trainset: Prepare
   all_trainsymbols = (entry.symbols for entry in trainset.items())
   all_symbols = chain(all_valsymbols, all_trainsymbols)
   all_symbols_stress_splitted = (
-    split_stress(symbols, symbols_are_ipa)
+    split_stresses(symbols, symbols_are_ipa)
     for symbols in all_symbols
   )
 
   all_symbols, all_stresses = zip(*all_symbols_stress_splitted)
-  unique_symbols = {symbol for symbols in all_symbols for symbol in symbols}
-  unique_stresses = {stress for stresses in all_stresses for stress in stresses}
 
+  unique_symbols = {symbol for symbols in all_symbols for symbol in symbols}
   symbol_mapping = OrderedDict((
-    (symbol, symbol_nr + PADDING_SHIFT)
-    for symbol_nr, symbol in enumerate(sorted(unique_symbols))
+    (symbol, symbol_nr)
+    for symbol_nr, symbol in enumerate(sorted(unique_symbols), start=PADDING_SHIFT)
   ))
 
+  unique_stresses = {stress for stresses in all_stresses for stress in stresses}
   stress_mapping = OrderedDict((
-    (stress, stress_nr + PADDING_SHIFT)
-    for stress_nr, stress in enumerate(sorted(unique_stresses))
+    (stress, stress_nr)
+    for stress_nr, stress in enumerate(sorted(unique_stresses), start=PADDING_SHIFT)
   ))
 
   return symbol_mapping, stress_mapping

@@ -28,9 +28,9 @@ class DataHParams():
 @dataclass
 class ModelHParams():
   # TODO remove
-  n_symbols: int = None
+  # n_symbols: int = None
   # TODO remove
-  n_speakers: int = None
+  # n_speakers: int = None
 
   symbols_embedding_dim: int = 512
 
@@ -41,8 +41,8 @@ class ModelHParams():
   use_stress_embedding: bool = True
   symbols_are_ipa: bool = True
 
-  # TODO remove
-  stress_embedding_dim: Optional[int] = None  # only if not 1-hot
+  # None for 1-hot encoding
+  stress_embedding_dim: Optional[int] = None
 
   # Encoder parameters
   encoder_kernel_size: int = 5

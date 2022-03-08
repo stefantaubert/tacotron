@@ -522,14 +522,14 @@ class Decoder(nn.Module):
     return decoder_outputs, reached_max_decoder_steps
 
 
-def get_speaker_weights(hparams: HParams) -> torch.Tensor:
-  weights = get_xavier_weights(hparams.n_speakers + 1, hparams.speakers_embedding_dim)
-  return weights
+# def get_speaker_weights(hparams: HParams) -> torch.Tensor:
+#   weights = get_xavier_weights(hparams.n_speakers + 1, hparams.speakers_embedding_dim)
+#   return weights
 
 
-def get_symbol_weights(hparams: HParams) -> torch.Tensor:
-  model_weights = get_uniform_weights(hparams.n_symbols, hparams.symbols_embedding_dim)
-  return model_weights
+# def get_symbol_weights(hparams: HParams) -> torch.Tensor:
+#   model_weights = get_uniform_weights(hparams.n_symbols, hparams.symbols_embedding_dim)
+#   return model_weights
 
 
 ForwardXIn = Tuple[IntTensor, IntTensor, FloatTensor,
@@ -546,19 +546,19 @@ class Tacotron2(nn.Module):
     self.n_mel_channels = hparams.n_mel_channels
 
     # +1 because of padding
-    symbol_emb_weights = get_uniform_weights(n_symbols + 1, hparams.symbols_embedding_dim)
+    symbol_emb_weights = get_uniform_weights(n_symbols, hparams.symbols_embedding_dim)
     # rename will destroy all previous trained models
     self.symbol_embeddings = weights_to_embedding(symbol_emb_weights)
 
     if self.use_speaker_embedding:
       assert n_speakers is not None
-      speaker_emb_weights = get_xavier_weights(n_speakers + 1, hparams.speakers_embedding_dim)
+      speaker_emb_weights = get_xavier_weights(n_speakers, hparams.speakers_embedding_dim)
       self.speakers_embeddings = weights_to_embedding(speaker_emb_weights)
 
     self.stress_embedding_dim = None
     if self.use_stress_embedding:
       assert n_stresses is not None
-      self.stress_embedding_dim = n_stresses + 1
+      self.stress_embedding_dim = n_stresses
 
     self.encoder = Encoder(hparams, self.stress_embedding_dim)
     self.decoder = Decoder(hparams, self.stress_embedding_dim)

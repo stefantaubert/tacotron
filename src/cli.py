@@ -47,14 +47,15 @@ def init_train_parser(parser: ArgumentParser) -> None:
   parser.add_argument('--train_name', type=str, required=True)
   parser.add_argument('--merge_name', type=str, required=True)
   parser.add_argument('--prep_name', type=str, required=True)
-  parser.add_argument('--warm_start_train_name', type=str)
-  parser.add_argument('--warm_start_checkpoint', type=int)
-  parser.add_argument('--custom_hparams', type=str)
-  parser.add_argument('--weights_train_name', type=str)
-  parser.add_argument('--weights_checkpoint', type=int)
-  parser.add_argument('--map_from_speaker', type=str)
+  parser.add_argument('--warm_start_train_name', type=str, default=None)
+  parser.add_argument('--warm_start_checkpoint', type=int, default=None)
+  parser.add_argument('--custom_hparams', type=str, default=None)
+  parser.add_argument('--weights_train_name', type=str, default=None)
+  parser.add_argument('--weights_checkpoint', type=int, default=None)
+  parser.add_argument('--map_from_speaker', type=str, default=None)
   parser.add_argument('--map_symbol_weights', action='store_true')
-  parser.add_argument('--use_weights_map', action='store_true')
+  parser.add_argument('--custom_symbol_weights_map', type=Path, default=None)
+  parser.add_argument('--map_stress', action='store_true')
   return train_cli
 
 
