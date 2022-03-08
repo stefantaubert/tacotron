@@ -1,6 +1,6 @@
 import faulthandler
 import os
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
 from general_utils import split_hparams_string, split_int_set_str
@@ -47,15 +47,17 @@ def init_train_parser(parser: ArgumentParser) -> None:
   parser.add_argument('--train_name', type=str, required=True)
   parser.add_argument('--merge_name', type=str, required=True)
   parser.add_argument('--prep_name', type=str, required=True)
-  parser.add_argument('--warm_start_train_name', type=str, default=None)
-  parser.add_argument('--warm_start_checkpoint', type=int, default=None)
   parser.add_argument('--custom_hparams', type=str, default=None)
-  parser.add_argument('--weights_train_name', type=str, default=None)
-  parser.add_argument('--weights_checkpoint', type=int, default=None)
-  parser.add_argument('--map_from_speaker', type=str, default=None)
+  # Pretrained model
+  parser.add_argument('--pretrained_model', type=Path, default=None)
+  # Warm start
+  parser.add_argument('--warm_start', action='store_true')
+  # Symbol weights
   parser.add_argument('--map_symbol_weights', action='store_true')
   parser.add_argument('--custom_symbol_weights_map', type=Path, default=None)
-  parser.add_argument('--map_stress', action='store_true')
+  # Speaker weights
+  parser.add_argument('--map_speaker_weights', action='store_true')
+  parser.add_argument('--map_from_speaker', type=str, default=None)
   return train_cli
 
 
@@ -153,7 +155,9 @@ def _init_parser():
   return result
 
 
-def _process_args(args) -> None:
+def _process_args(args: Namespace) -> None:
+  print("Received args:")
+  print(args)
   params = vars(args)
   invoke_handler = params.pop("invoke_handler")
   invoke_handler(**params)

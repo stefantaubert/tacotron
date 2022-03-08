@@ -11,8 +11,6 @@ from tacotron.app.io import (get_checkpoints_dir,
                              get_train_log_file, get_train_logs_dir, load_checkpoint,
                              load_prep_settings, save_checkpoint, save_prep_settings)
 from tacotron.core import Tacotron2Logger
-from tacotron.core import continue_train as continue_train_core
-from tacotron.core import train as train_core
 from tacotron.core.checkpoint_handling import CheckpointDict, get_iteration
 from tacotron.core.training import start_training
 from tacotron.utils import (get_custom_or_last_checkpoint, get_last_checkpoint,

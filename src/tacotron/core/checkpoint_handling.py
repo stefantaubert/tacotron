@@ -121,7 +121,7 @@ def get_hparams(checkpoint: CheckpointDict) -> HParams:
   if len(ignored) > 0:
     logger = getLogger(__name__)
     logger.warning(
-      f"Ignored these hparams from checkpoint because they did not exist in the current HParams: {ignored}.")
+      f"Ignored these hparams from checkpoint because they did not exist in the current HParams: {', '.join(sorted(ignored))} (#{len(ignored)})")
   return result
 
 

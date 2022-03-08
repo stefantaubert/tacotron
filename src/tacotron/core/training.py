@@ -174,7 +174,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
       if not success:
         return
     else:
-      logger.info("Don't use warm model.")
+      logger.info("Didn't used warm start.")
 
     if map_symbol_weights:
       if pretrained_model is None:
@@ -243,7 +243,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
       # update_weights(model.symbol_embeddings, pretrained_symbol_weights)
       logger.info("Mapped symbol embeddings.")
     else:
-      logger.info("Don't mapping symbol embeddings.")
+      logger.info("Didn't mapped symbol embeddings.")
 
     if map_speaker_weights:
       if pretrained_model is None:
@@ -274,13 +274,14 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
 
       from_id = pre_speaker_mapping[map_from_speaker_name]
       assert from_id > 0
+      assert speaker_mapping is not None
       for to_speaker in speaker_mapping.keys():
         to_id = speaker_mapping[to_speaker]
         assert to_id > 0
         model.speakers_embeddings[to_id] = pre_speaker_embedding[from_id]
       logger.info("Mapped speaker embeddings.")
     else:
-      logger.info("Don't mapping speaker embeddings.")
+      logger.info("Didn't mapped speaker embeddings.")
 
   log_symbol_weights(model, logger)
 
@@ -300,7 +301,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
   if not enough_traindata:
     msg = "Not enough training data!"
     logger.error(msg)
-    raise Exception(msg)
+    return
 
   save_it_settings = SaveIterationSettings(
     epochs=hparams.epochs,
