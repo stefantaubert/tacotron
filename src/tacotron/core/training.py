@@ -13,6 +13,7 @@ from tacotron.core.logger import Tacotron2Logger
 from tacotron.core.model import (SPEAKER_EMBEDDING_LAYER_NAME,
                                  SYMBOL_EMBEDDING_LAYER_NAME, Tacotron2)
 from tacotron.core.typing import SymbolToSymbolMapping
+from tacotron.core.utils import get_symbol_printable
 from tacotron.utils import (SaveIterationSettings, check_is_on_gpu, check_save_it,
                             copy_state_dict, get_continue_batch_iteration,
                             get_continue_epoch, get_formatted_current_total,
@@ -121,7 +122,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
     n_speakers = get_speaker_mappings_count(speaker_mapping)
 
   logger.info(
-    f"Symbols: {' '.join(symbol_mapping.keys())} (#{len(symbol_mapping)}, dim: {hparams.symbols_embedding_dim})")
+    f"Symbols: {' '.join(get_symbol_printable(symbol) for symbol in symbol_mapping.keys())} (#{len(symbol_mapping)}, dim: {hparams.symbols_embedding_dim})")
   if hparams.use_stress_embedding:
     logger.info(f"Stresses: {' '.join(stress_mapping.keys())} (#{len(stress_mapping)})")
   else:
@@ -165,11 +166,11 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
 
   if checkpoint is None:
     if warm_start:
+      logger.info("Warm starting from pretrained model...")
       if pretrained_model is None:
         logger.error("Warm start: For warm start a pretrained model must be provided!")
         return
 
-      logger.info("Loading states from pretrained model...")
       success = warm_start_model(model, pretrained_model, hparams, logger)
       if not success:
         return
@@ -177,6 +178,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
       logger.info("Didn't used warm start.")
 
     if map_symbol_weights:
+      logger.info("Mapping symbol weights...")
       if pretrained_model is None:
         logger.error(
           "Mapping symbol weights: For mapping symbol weights a pretrained model must be provided!")
@@ -189,63 +191,70 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
 
       pre_stress_mapping = get_stress_mapping(pretrained_model)
       if pre_stress_mapping.keys() != stress_mapping.keys():
-        logger.error("Mapping symbol weights: Stress mappings are not equal!")
+        logger.error(
+          f"Mapping symbol weights: Stress mappings are not equal! '{' '.join(pre_stress_mapping.keys())}' vs. '{' '.join(stress_mapping.keys())}'")
         return
 
       pre_symbol_weights = get_symbol_embedding_weights(pretrained_model)
       pre_symbol_mapping = get_symbol_mapping(pretrained_model)
       # map padding
-      model.symbol_embeddings[0] = pre_symbol_weights[0]
+      with torch.no_grad():
+        model.symbol_embeddings.weight[0] = pre_symbol_weights[0]
       mapped_symbols = set()
-      if custom_symbol_weights_map is None:
-        common_symbols = set(pre_symbol_mapping.keys()
-                             ).intersection(symbol_mapping.keys())
-        logger.info(f"Common symbols that will be mapped: {' '.join(sorted(common_symbols))}")
+      if custom_symbol_weights_map is not None:
+        for to_symbol, from_symbol in custom_symbol_weights_map.items():
+          if from_symbol not in pre_symbol_mapping:
+            logger.info(
+              f"Skipped '{get_symbol_printable(from_symbol)}' -> '{get_symbol_printable(to_symbol)}' because former does not exist in the pretrained model.")
+            continue
+
+          if to_symbol not in symbol_mapping:
+            logger.info(
+              f"Skipped '{get_symbol_printable(from_symbol)}' -> '{get_symbol_printable(to_symbol)}' because latter does not exist in the current model.")
+            continue
+
+          from_id = pre_symbol_mapping[from_symbol]
+          to_id = symbol_mapping[to_symbol]
+          assert from_id > 0 and to_id > 0
+          # logger.debug("Current model")
+          # logger.debug(model.symbol_embeddings.weight[to_id][:5])
+          # logger.debug("Pretrained model")
+          # logger.debug(pre_symbol_weights[from_id][:5])
+          with torch.no_grad():
+            model.symbol_embeddings.weight[to_id] = pre_symbol_weights[from_id]
+
+          # logger.debug(model.symbol_embeddings.weight[to_id][:5])
+          # logger.debug("Pretrained model")
+          # logger.debug(pre_symbol_weights[from_id][:5])
+          logger.info(
+            f"Mapped '{get_symbol_printable(from_symbol)}' ({from_id}) to '{get_symbol_printable(to_symbol)}' ({to_id}).")
+          mapped_symbols.add(to_symbol)
+      else:
+        common_symbols = set(pre_symbol_mapping.keys()).intersection(symbol_mapping.keys())
+        logger.info(
+          f"Common symbols that will be mapped: {' '.join(get_symbol_printable(symbol) for symbol in sorted(common_symbols))}")
         for common_symbol in common_symbols:
           from_id = pre_symbol_mapping[common_symbol]
           to_id = symbol_mapping[common_symbol]
           assert from_id > 0 and to_id > 0
-          model.symbol_embeddings[to_id] = pre_symbol_weights[from_id]
-        mapped_symbols = mapped_symbols.union(common_symbols)
-      else:
-        weights_map_contains_duplicate_values = len(
-          custom_symbol_weights_map.values()) > len(set(custom_symbol_weights_map.values()))
-        assert not weights_map_contains_duplicate_values
-
-        for from_symbol, to_symbol in custom_symbol_weights_map.items():
-          if to_symbol in symbol_mapping:
-            from_id = pre_symbol_mapping[from_symbol]
-            to_id = symbol_mapping[to_symbol]
-            assert from_id > 0 and to_id > 0
+          with torch.no_grad():
             model.symbol_embeddings[to_id] = pre_symbol_weights[from_id]
-            mapped_symbols.add(to_symbol)
-          else:
-            logger.info(
-              f"Skipped {from_symbol} -> {to_symbol} because latter does not exist in the current model.")
-      nonmapped_symbols = set(symbol_mapping.key()).difference(mapped_symbols)
+        mapped_symbols = mapped_symbols.union(common_symbols)
+
+      nonmapped_symbols = set(symbol_mapping.keys()).difference(mapped_symbols)
       if len(nonmapped_symbols) > 0:
-        logger.info(f"Mapped symbols: {''.join(sorted(mapped_symbols))} (#{len(mapped_symbols)})")
         logger.info(
-          f"Non-mapped symbols: {''.join(sorted(nonmapped_symbols))} (#{len(nonmapped_symbols)})")
+          f"Mapped symbols: {' '.join(get_symbol_printable(symbol) for symbol in sorted(mapped_symbols))} (#{len(mapped_symbols)})")
+        logger.info(
+          f"Non-mapped symbols: {' '.join(get_symbol_printable(symbol) for symbol in sorted(nonmapped_symbols))} (#{len(nonmapped_symbols)})")
       else:
         logger.info(f"Mapped all {len(symbol_mapping)} symbols!")
-      # TODO
-      # logger.info("Mapping symbol embeddings...")
-      # pretrained_symbol_weights = get_mapped_symbol_weights(
-      #   model_symbols=symbols,
-      #   trained_weights=weights_checkpoint.get_symbol_embedding_weights(),
-      #   trained_symbols=weights_checkpoint.get_symbols(),
-      #   custom_mapping=weights_map,
-      #   hparams=hparams,
-      #   logger=logger,
-      # )
-
-      # update_weights(model.symbol_embeddings, pretrained_symbol_weights)
       logger.info("Mapped symbol embeddings.")
     else:
       logger.info("Didn't mapped symbol embeddings.")
 
     if map_speaker_weights:
+      logger.info("Mapping speaker weights...")
       if pretrained_model is None:
         logger.error(
           "Mapping speaker weights: For mapping speaker weights a pretrained model must be provided!")
@@ -270,7 +279,8 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
 
       pre_speaker_embedding = get_speaker_embedding_weights(pretrained_model)
       # map padding
-      model.speakers_embeddings[0] = pre_speaker_embedding[0]
+      with torch.no_grad():
+        model.speakers_embeddings.weight[0] = pre_speaker_embedding[0]
 
       from_id = pre_speaker_mapping[map_from_speaker_name]
       assert from_id > 0
@@ -278,12 +288,14 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
       for to_speaker in speaker_mapping.keys():
         to_id = speaker_mapping[to_speaker]
         assert to_id > 0
-        model.speakers_embeddings[to_id] = pre_speaker_embedding[from_id]
+        with torch.no_grad():
+          model.speakers_embeddings.weight[to_id] = pre_speaker_embedding[from_id]
+        logger.info(f"Mapped '{map_from_speaker_name}' ({from_id}) to '{to_speaker}' ({to_id}).")
       logger.info("Mapped speaker embeddings.")
     else:
       logger.info("Didn't mapped speaker embeddings.")
 
-  log_symbol_weights(model, logger)
+  # log_symbol_weights(model, logger)
 
   collate_fn = SymbolsMelCollate(
     n_frames_per_step=hparams.n_frames_per_step,
@@ -538,20 +550,29 @@ def load_scheduler(optimizer: Adam, hparams: OptimizerHParams, checkpoint: Optio
 
 def warm_start_model(model: Tacotron2, warm_model: CheckpointDict, hparams: HParams, logger: Logger) -> bool:
   warm_model_hparams = get_hparams(warm_model)
-  use_speaker_emb = hparams.use_speaker_embedding and warm_model_hparams.use_speaker_embedding
-
-  speakers_embedding_dim_mismatch = warm_model_hparams.speakers_embedding_dim != hparams.speakers_embedding_dim
-
-  if use_speaker_emb and speakers_embedding_dim_mismatch:
-    msg = "Warm start: Mismatch in speaker embedding dimensions!"
-    logger.error(msg)
-    return False
 
   symbols_embedding_dim_mismatch = warm_model_hparams.symbols_embedding_dim != hparams.symbols_embedding_dim
   if symbols_embedding_dim_mismatch:
     msg = "Warm start: Mismatch in symbol embedding dimensions!"
     logger.error(msg)
     return False
+
+  if hparams.use_stress_embedding and not warm_model_hparams.use_stress_embedding:
+    msg = "Warm start: Warm model did not used a stress embedding!"
+    logger.error(msg)
+    return False
+
+  if hparams.use_speaker_embedding:
+    if not warm_model_hparams.use_speaker_embedding:
+      msg = "Warm start: Warm model did not used a speaker embedding!"
+      logger.error(msg)
+      return False
+
+    speakers_embedding_dim_mismatch = warm_model_hparams.speakers_embedding_dim != hparams.speakers_embedding_dim
+    if speakers_embedding_dim_mismatch:
+      msg = "Warm start: Mismatch in speaker embedding dimensions!"
+      logger.error(msg)
+      return False
 
   model_state = get_model_state(warm_model)
   copy_state_dict(

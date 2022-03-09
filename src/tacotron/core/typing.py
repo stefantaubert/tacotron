@@ -1,11 +1,6 @@
-
-from collections import OrderedDict
-from dataclasses import asdict, dataclass
-from logging import Logger
-from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Dict, Tuple
 from typing import OrderedDict as OrderedDictType
-from text_utils import Speaker, SpeakersDict, Symbol, SymbolIdDict
+from text_utils import Speaker, Symbol
 
 Stress = str
 Stresses = Tuple[Stress, ...]

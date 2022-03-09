@@ -24,7 +24,8 @@ STRESS_LABELS: OrderedDictType[StressType, Stress] = OrderedDict((
   (StressType.UNSTRESSED, "0"),
   (StressType.PRIMARY, "1"),
   (StressType.SECONDARY, "2"),
-  (StressType.NOT_APPLICABLE, "N/A"),
+  #(StressType.NOT_APPLICABLE, "N/A"),
+  (StressType.NOT_APPLICABLE, "-"),
 ))
 
 

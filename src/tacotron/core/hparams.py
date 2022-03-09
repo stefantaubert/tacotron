@@ -27,11 +27,6 @@ class DataHParams():
 
 @dataclass
 class ModelHParams():
-  # TODO remove
-  # n_symbols: int = None
-  # TODO remove
-  # n_speakers: int = None
-
   symbols_embedding_dim: int = 512
 
   use_speaker_embedding: bool = True
@@ -39,6 +34,7 @@ class ModelHParams():
 
   # TODO rename to: train_stress_separately: bool = True
   use_stress_embedding: bool = True
+  # use_stress_one_hot: bool = True
   symbols_are_ipa: bool = True
 
   # None for 1-hot encoding

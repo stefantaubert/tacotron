@@ -52,7 +52,7 @@ def save_checkpoint_iteration(checkpoint: CheckpointDict, save_checkpoint_dir: P
 
 
 def train(base_dir: Path, ttsp_dir: Path, train_name: str, merge_name: str, prep_name: str, custom_hparams: Optional[Dict[str, str]], pretrained_model: Path, warm_start: bool, map_symbol_weights: bool, custom_symbol_weights_map: Optional[Path], map_speaker_weights: bool, map_from_speaker: Optional[str]) -> None:
-  # Parameter: custom_symbol_weights_map -> a JSON file that contains keys equals to symbols from the weights model checkpoint and values equals to the symbols which are in the model to be trained.
+  # Parameter: custom_symbol_weights_map -> a JSON file that contains keys equal to symbols from the model to be trained checkpoint and values equal to the symbols which are in the pretrained model.
 
   merge_dir = get_merged_dir(ttsp_dir, merge_name)
   prep_dir = get_prep_dir(merge_dir, prep_name)
@@ -83,11 +83,6 @@ def train(base_dir: Path, ttsp_dir: Path, train_name: str, merge_name: str, prep
         logger.error("Weights map does not exist!")
         return
       weights_map = parse_json(custom_symbol_weights_map)
-      weights_map_contains_duplicate_values = len(
-        weights_map.values()) > len(set(weights_map.values()))
-      if weights_map_contains_duplicate_values:
-        logger.error("Invalid weights map: Mapped to the same symbol multiple times!")
-        return
 
   save_callback = partial(
     save_checkpoint_iteration,

@@ -1,5 +1,3 @@
-from general_utils import save_obj, load_obj
-from pathlib import Path
 from general_utils import get_dataclass_from_dict
 from collections import OrderedDict
 from dataclasses import asdict
@@ -21,12 +19,15 @@ CheckpointDict = OrderedDictType[str, Any]
 # Renaming of any of these fields will destroy previous models!
 KEY_HPARAMS = "hparams"
 KEY_OPTIMIZER_STATE = "optimizer_state"
+# optional
 KEY_SCHEDULER_STATE = "scheduler_state"
 KEY_MODEL_STATE = "model_state"
 KEY_ITERATION = "iteration"
 KEY_LEARNING_RATE = "learning_rate"
-KEY_SPEAKER_MAPPING = "speaker_mapping"
 KEY_SYMBOL_MAPPING = "symbol_mapping"
+# optional
+KEY_SPEAKER_MAPPING = "speaker_mapping"
+# optional
 KEY_STRESS_MAPPING = "stress_mapping"
 
 
