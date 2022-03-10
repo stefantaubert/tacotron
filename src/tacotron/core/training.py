@@ -1,3 +1,4 @@
+from torch.backends import cudnn
 import time
 from logging import Logger, getLogger
 from typing import Callable, Dict, List, Optional, Tuple, cast
@@ -345,6 +346,8 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
   mel_post_mse_losses = []
   gate_bce_losses = []
   total_losses = []
+
+  logger.info(f"Use cuDNN: {cudnn.enabled}")
 
   for epoch in range(continue_epoch, last_epoch_one_based):
     current_lr = get_lr(optimizer)
