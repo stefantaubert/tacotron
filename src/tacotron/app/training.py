@@ -75,6 +75,7 @@ def train(base_dir: Path, ttsp_dir: Path, train_name: str, merge_name: str, prep
   valset = load_valset(prep_dir)
 
   pretrained_model_checkpoint = None
+  weights_map = None
   if pretrained_model is not None:
     pretrained_model_checkpoint = load_checkpoint(pretrained_model)
 

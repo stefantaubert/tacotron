@@ -17,12 +17,10 @@ from tacotron.core.typing import SymbolToSymbolMapping
 from tacotron.core.utils import get_symbol_printable
 from tacotron.utils import (SaveIterationSettings, check_is_on_gpu, check_save_it,
                             copy_state_dict, get_continue_batch_iteration,
-                            get_continue_epoch, get_formatted_current_total,
-                            get_last_iteration, get_next_save_it, init_cuddn,
+                            get_continue_epoch, get_last_iteration, get_next_save_it, init_cuddn,
                             init_cuddn_benchmark, init_global_seeds,
-                            iteration_to_epoch, log_hparams, skip_batch, try_copy_tensors_to_gpu_iterable, try_copy_to_gpu,
-                            validate_model)
-from torch import FloatTensor, Tensor, nn
+                            iteration_to_epoch, log_hparams, skip_batch, try_copy_tensors_to_gpu_iterable, try_copy_to_gpu)
+from torch import FloatTensor, nn
 from torch.nn.utils.clip_grad import clip_grad_norm_
 from torch.optim.adam import Adam
 from torch.optim.lr_scheduler import ExponentialLR
@@ -41,7 +39,7 @@ class Tacotron2Loss(nn.Module):
     self.mse_criterion = nn.MSELoss()
     self.bce_criterion = nn.BCEWithLogitsLoss()
 
-  def forward(self, y_pred: Tuple[FloatTensor, FloatTensor, FloatTensor, FloatTensor], y: Tuple[FloatTensor, FloatTensor]) -> FloatTensor:
+  def forward(self, y_pred: Tuple[FloatTensor, FloatTensor, FloatTensor, FloatTensor], y: Tuple[FloatTensor, FloatTensor]) -> Tuple[FloatTensor, FloatTensor, FloatTensor]:
     mel_target, gate_target = y[0], y[1]
     mel_target.requires_grad = False
     gate_target.requires_grad = False
@@ -74,6 +72,30 @@ def validate(model: nn.Module, criterion: nn.Module, val_loader: DataLoader, ite
   logger.debug("Finished.")
 
   return avg_val_loss
+
+
+def validate_model(model: nn.Module, criterion: Tacotron2Loss, val_loader: DataLoader, batch_parse_method) -> Tuple[float, Tuple[float, nn.Module, Tuple, Tuple]]:
+  res = []
+  logger = getLogger(__name__)
+  with torch.no_grad():
+    total_val_loss = 0.0
+    # val_loader count is: ceil(validation set length / batch size)
+    for batch in tqdm(val_loader):
+      batch = tuple(try_copy_tensors_to_gpu_iterable(batch))
+      x, y = batch_parse_method(batch)
+      y_pred = model(x)
+      mel_out_mse, mel_out_post_mse, gate_bce = criterion(y_pred, y)
+      total_loss = mel_out_mse + mel_out_post_mse + gate_bce
+      total_loss_float = total_loss.item()
+      logger.debug(f"Mel MSE: {mel_out_mse.item()}")
+      logger.debug(f"Mel post MSE: {mel_out_post_mse.item()}")
+      logger.debug(f"Gate BCE: {gate_bce.item()}")
+      logger.debug(f"Total loss: {total_loss_float}")
+      res.append((total_loss_float, model, y, y_pred))
+      total_val_loss += total_loss_float
+    avg_val_loss = total_val_loss / len(val_loader)
+
+  return avg_val_loss, res
 
 
 def init_torch(hparams: ExperimentHParams) -> None:
@@ -487,7 +509,9 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
 
         save_callback(checkpoint)
 
+        model.eval()
         valloss = validate(model, criterion, val_loader, iteration, taco_logger, logger)
+        model.train()
 
         # if rank == 0:
         log_checkpoint_score(

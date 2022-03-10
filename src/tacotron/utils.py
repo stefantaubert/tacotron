@@ -241,30 +241,6 @@ def get_formatted_current_total(current: int, total: int) -> str:
   return f"{str(current).zfill(len(str(total)))}/{total}"
 
 
-def validate_model(model: nn.Module, criterion: nn.Module, val_loader: DataLoader, batch_parse_method) -> Tuple[float, Tuple[float, nn.Module, Tuple, Tuple]]:
-  model.eval()
-  res = []
-  with torch.no_grad():
-    total_val_loss = 0.0
-    # val_loader count is: ceil(validation set length / batch size)
-    for batch in tqdm(val_loader):
-      batch = tuple(try_copy_tensors_to_gpu_iterable(batch))
-      x, y = batch_parse_method(batch)
-      y_pred = model(x)
-      loss = criterion(y_pred, y)
-      # if distributed_run:
-      #   reduced_val_loss = reduce_tensor(loss.data, n_gpus).item()
-      # else:
-      #  reduced_val_loss = loss.item()
-      reduced_val_loss = loss.item()
-      res.append((reduced_val_loss, model, y, y_pred))
-      total_val_loss += reduced_val_loss
-    avg_val_loss = total_val_loss / len(val_loader)
-  model.train()
-
-  return avg_val_loss, res
-
-
 @dataclass
 class SaveIterationSettings():
   epochs: Optional[int]
