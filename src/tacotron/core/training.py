@@ -1,5 +1,5 @@
 import time
-from logging import Logger
+from logging import Logger, getLogger
 from typing import Callable, Dict, List, Optional, Tuple, cast
 
 import numpy as np
@@ -21,7 +21,7 @@ from tacotron.utils import (SaveIterationSettings, check_is_on_gpu, check_save_i
                             init_cuddn_benchmark, init_global_seeds,
                             iteration_to_epoch, log_hparams, skip_batch, try_copy_tensors_to_gpu_iterable, try_copy_to_gpu,
                             validate_model)
-from torch import nn
+from torch import FloatTensor, Tensor, nn
 from torch.nn.utils.clip_grad import clip_grad_norm_
 from torch.optim.adam import Adam
 from torch.optim.lr_scheduler import ExponentialLR
@@ -30,6 +30,9 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from tts_preparation import PreparedDataList
 
+AVG_COUNT = 30
+AVG_COUNT_LONG_TERM = 300
+
 
 class Tacotron2Loss(nn.Module):
   def __init__(self) -> None:
@@ -37,20 +40,22 @@ class Tacotron2Loss(nn.Module):
     self.mse_criterion = nn.MSELoss()
     self.bce_criterion = nn.BCEWithLogitsLoss()
 
-  def forward(self, y_pred: Tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor, torch.FloatTensor], y: Tuple[torch.FloatTensor, torch.FloatTensor]) -> torch.Tensor:
+  def forward(self, y_pred: Tuple[FloatTensor, FloatTensor, FloatTensor, FloatTensor], y: Tuple[FloatTensor, FloatTensor]) -> FloatTensor:
     mel_target, gate_target = y[0], y[1]
     mel_target.requires_grad = False
     gate_target.requires_grad = False
     gate_target = gate_target.view(-1, 1)
 
-    mel_out, mel_out_postnet, gate_out, _ = y_pred
+    mel_out, mel_out_postnet, gate_out, alignments = y_pred
     gate_out = gate_out.view(-1, 1)
 
     mel_out_mse = self.mse_criterion(mel_out, mel_target)
     mel_out_post_mse = self.mse_criterion(mel_out_postnet, mel_target)
-    gate_loss = self.bce_criterion(gate_out, gate_target)
+    gate_bce = self.bce_criterion(gate_out, gate_target)
 
-    return mel_out_mse + mel_out_post_mse + gate_loss
+    # total_loss = mel_out_mse + mel_out_post_mse + gate_bce
+
+    return mel_out_mse, mel_out_post_mse, gate_bce
 
 
 def validate(model: nn.Module, criterion: nn.Module, val_loader: DataLoader, iteration: int, taco_logger: Tacotron2Logger, logger: Logger) -> None:
@@ -336,6 +341,11 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
 
   continue_epoch = get_continue_epoch(iteration, batch_iterations)
 
+  mel_mse_losses = []
+  mel_post_mse_losses = []
+  gate_bce_losses = []
+  total_losses = []
+
   for epoch in range(continue_epoch, last_epoch_one_based):
     current_lr = get_lr(optimizer)
     logger.info(f"The learning rate for epoch {epoch + 1} is: {current_lr}")
@@ -367,10 +377,15 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
       x, y = parse_batch(batch)
       y_pred = model(x)
 
-      loss = criterion(y_pred, y)
-      reduced_loss = loss.item()
+      mel_out_mse, mel_out_post_mse, gate_bce = criterion(y_pred, y)
+      total_loss = mel_out_mse + mel_out_post_mse + gate_bce
 
-      loss.backward()
+      mel_mse_losses.append(mel_out_mse.item())
+      mel_post_mse_losses.append(mel_out_post_mse.item())
+      gate_bce_losses.append(gate_bce.item())
+      total_losses.append(total_loss.item())
+
+      total_loss.backward()
 
       grad_norm = clip_grad_norm_(
         parameters=model.parameters(),
@@ -383,35 +398,64 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
       iteration += 1
 
       end = time.perf_counter()
-      duration = end - start
+      batch_durations.append(end - start)
       start = end
 
-      batch_durations.append(duration)
-      avg_batch_dur = np.mean(batch_durations)
-      avg_epoch_dur = avg_batch_dur * batch_iterations
-      remaining_its = last_iteration - iteration
-      estimated_remaining_duration = avg_batch_dur * remaining_its
-
       next_it = get_next_save_it(iteration, save_it_settings)
-      next_checkpoint_save_time = 0
-      if next_it is not None:
-        next_checkpoint_save_time = (next_it - iteration) * avg_batch_dur
+      statistics = {
+        "Epoch": epoch + 1,
+        "Epochs": last_epoch_one_based,
+        "Epoch iteration": batch_iteration + 1,
+        "Epoch iterations": batch_iterations,
+        "Iteration": iteration,
+        "Iteration (%)": round(iteration / last_iteration * 100, 2),
+        "Iterations": last_iteration,
+        "Seen utterances": iteration * hparams.batch_size,
+        "Utterances": last_iteration * hparams.batch_size,
+        "Mel MSE": mel_mse_losses[-1],
+        "Mel MSE AVG": np.mean(mel_mse_losses[-AVG_COUNT:]),
+        "Mel MSE long AVG": np.mean(mel_mse_losses[-AVG_COUNT_LONG_TERM:]),
+        "Mel postnet MSE": mel_post_mse_losses[-1],
+        "Mel postnet MSE AVG": np.mean(mel_post_mse_losses[-AVG_COUNT:]),
+        "Mel postnet MSE long AVG": np.mean(mel_post_mse_losses[-AVG_COUNT_LONG_TERM:]),
+        "Gate BCE": gate_bce_losses[-1],
+        "Gate BCE AVG": np.mean(gate_bce_losses[-AVG_COUNT:]),
+        "Gate BCE long AVG": np.mean(gate_bce_losses[-AVG_COUNT_LONG_TERM:]),
+        "Total loss": total_losses[-1],
+        "Total loss AVG": np.mean(total_losses[-AVG_COUNT:]),
+        "Total loss long AVG": np.mean(total_losses[-AVG_COUNT_LONG_TERM:]),
+        "Grad norm": grad_norm,
+        "Iteration duration (s)": round(batch_durations[-1], 2),
+        "Iteration duration AVG (s)": round(np.mean(batch_durations[-AVG_COUNT:]), 2),
+        "Epoch duration AVG (min)": round(np.mean(batch_durations[-AVG_COUNT:]) * batch_iterations / 60, 2),
+        "Current training duration (h)": round((time.perf_counter() - train_start) / 60 / 60, 2),
+        "Estimated remaining duration (h)": round(np.mean(batch_durations[-AVG_COUNT:]) * (last_iteration - iteration) / 60 / 60, 2),
+        "Estimated remaining duration (days)": round(np.mean(batch_durations[-AVG_COUNT:]) * (last_iteration - iteration) / 60 / 60 / 24, 2),
+        "Estimated duration until next checkpoint (h)": "N/A" if next_it is None else round(np.mean(batch_durations[-AVG_COUNT:]) * (next_it - iteration) / 60 / 60, 2)
+      }
 
-      logger.info(" | ".join([
-        f"Ep: {get_formatted_current_total(epoch + 1, last_epoch_one_based)}",
-        f"It.: {get_formatted_current_total(batch_iteration + 1, batch_iterations)}",
-        f"Tot. it.: {get_formatted_current_total(iteration, last_iteration)} ({iteration / last_iteration * 100:.2f}%)",
-        f"Utts.: {iteration * hparams.batch_size}",
-        f"Loss: {reduced_loss:.6f}",
-        f"Grad norm: {grad_norm:.6f}",
-        # f"Dur.: {duration:.2f}s/it",
-        f"Avg. dur.: {avg_batch_dur:.2f}s/it & {avg_epoch_dur / 60:.0f}m/epoch",
-        f"Tot. dur.: {(time.perf_counter() - train_start) / 60 / 60:.2f}h/{estimated_remaining_duration / 60 / 60:.0f}h ({estimated_remaining_duration / 60 / 60 / 24:.1f}days)",
-        f"Next ckp.: {next_checkpoint_save_time / 60:.0f}m",
-      ]))
+      logger.info("---------------------------------------------------")
+      logger.info(f"Statistics iteration {iteration}")
+      logger.info("---------------------------------------------------")
+      for param, val in statistics.items():
+        logger.info(f"├─ {param}: {val}")
 
-      taco_logger.log_training(reduced_loss, grad_norm, hparams.learning_rate,
-                               duration, iteration)
+      # logger.info(" | ".join([
+      #   f"Ep: {get_formatted_current_total(epoch + 1, last_epoch_one_based)}",
+      #   f"It.: {get_formatted_current_total(batch_iteration + 1, batch_iterations)}",
+      #   f"Tot. it.: {get_formatted_current_total(iteration, last_iteration)} ({iteration / last_iteration * 100:.2f}%)",
+      #   f"Utts.: {iteration * hparams.batch_size}",
+      #   f"Loss: {total_loss_float:.6f}",
+      #   f"Avg Loss: {np.mean(total_losses[-20:]):.6f}",
+      #   f"Grad norm: {grad_norm:.6f}",
+      #   # f"Dur.: {duration:.2f}s/it",
+      #   f"Avg. dur.: {avg_batch_dur:.2f}s/it & {avg_epoch_dur / 60:.0f}m/epoch",
+      #   f"Tot. dur.: {(time.perf_counter() - train_start) / 60 / 60:.2f}h/{estimated_remaining_duration / 60 / 60:.0f}h ({estimated_remaining_duration / 60 / 60 / 24:.1f}days)",
+      #   f"Next ckp.: {next_checkpoint_save_time / 60:.0f}m",
+      # ]))
+
+      taco_logger.log_training(total_losses[-1], grad_norm, hparams.learning_rate,
+                               batch_durations[-1], iteration)
       was_last_batch_in_epoch = batch_iteration + 1 == len(train_loader)
 
       if was_last_batch_in_epoch and scheduler is not None:
@@ -446,7 +490,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
         log_checkpoint_score(
           iteration=iteration,
           gradloss=grad_norm,
-          trainloss=reduced_loss,
+          trainloss=total_losses[-1],
           valloss=valloss,
           epoch_one_based=epoch + 1,
           batch_it_one_based=batch_iteration + 1,

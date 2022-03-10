@@ -232,6 +232,11 @@ def log_hparams(hparams: _T, logger: Logger) -> None:
   logger.info("===============")
 
 
+def log_dict(d: Dict, logger: Logger) -> None:
+  for param, val in d.items():
+    logger.info(f" {param}: {val}")
+
+
 def get_formatted_current_total(current: int, total: int) -> str:
   return f"{str(current).zfill(len(str(total)))}/{total}"
 
