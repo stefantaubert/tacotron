@@ -408,8 +408,8 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
         "Epoch iteration": batch_iteration + 1,
         "Epoch iterations": batch_iterations,
         "Iteration": iteration,
-        "Iteration (%)": round(iteration / last_iteration * 100, 2),
         "Iterations": last_iteration,
+        "Iteration (%)": round(iteration / last_iteration * 100, 2),
         "Seen utterances": iteration * hparams.batch_size,
         "Utterances": last_iteration * hparams.batch_size,
         "Mel MSE": mel_mse_losses[-1],
@@ -431,11 +431,11 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
         "Current training duration (h)": round((time.perf_counter() - train_start) / 60 / 60, 2),
         "Estimated remaining duration (h)": round(np.mean(batch_durations[-AVG_COUNT:]) * (last_iteration - iteration) / 60 / 60, 2),
         "Estimated remaining duration (days)": round(np.mean(batch_durations[-AVG_COUNT:]) * (last_iteration - iteration) / 60 / 60 / 24, 2),
-        "Estimated duration until next checkpoint (h)": "N/A" if next_it is None else round(np.mean(batch_durations[-AVG_COUNT:]) * (next_it - iteration) / 60 / 60, 2)
+        "Estimated duration until next checkpoint (h)": "N/A" if next_it is None else round(np.mean(batch_durations[-AVG_COUNT:]) * (next_it - iteration) / 60 / 60, 2),
       }
 
       logger.info("---------------------------------------------------")
-      logger.info(f"Statistics iteration {iteration}")
+      logger.info(f"Iteration {iteration}")
       logger.info("---------------------------------------------------")
       for param, val in statistics.items():
         logger.info(f"├─ {param}: {val}")
