@@ -256,8 +256,12 @@ class SymbolsMelCollate():
     # pad gates
     gate_padded_tensor = FloatTensor(len(mel_tensors), max_mel_len)
     gate_padded_tensor.zero_()
+    stop_token = 1
     for i, tensor in enumerate(mel_tensors):
-      gate_padded_tensor[i, tensor.size(1):] = 1
+      # the last frame is set to the stop token
+      gate_padded_tensor[i, tensor.size(1) - 1] = stop_token
+      # pad the stop token
+      gate_padded_tensor[i, tensor.size(1):] = stop_token
 
     return (
       symbols_padded_tensor,
