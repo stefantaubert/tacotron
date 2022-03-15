@@ -266,7 +266,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
           to_id = symbol_mapping[common_symbol]
           assert from_id > 0 and to_id > 0
           with torch.no_grad():
-            model.symbol_embeddings[to_id] = pre_symbol_weights[from_id]
+            model.symbol_embeddings.weight[to_id] = pre_symbol_weights[from_id]
         mapped_symbols = mapped_symbols.union(common_symbols)
 
       nonmapped_symbols = set(symbol_mapping.keys()).difference(mapped_symbols)
