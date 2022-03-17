@@ -162,7 +162,12 @@ def infer_text(base_dir: Path, checkpoint: Path, text: Path, encoding: str, cust
   with tqdm(total=len(line_nrs_to_infer), unit=" lines", ncols=100, desc="Inference") as progress_bar:
     for paragraph_nr, utterances in paragraphs.items():
       if paragraph_directories:
-        paragraph_folder = output_directory / f"{paragraph_nr}".zfill(zfill_paragraph)
+        min_utt = min(utterances.keys())
+        max_utt = max(utterances.keys())
+        name = f"{paragraph_nr}".zfill(zfill_paragraph)
+        min_utt_str = f"{min_utt}".zfill(zfill_line_nr)
+        max_utt_str = f"{max_utt}".zfill(zfill_line_nr)
+        paragraph_folder = output_directory / f"{name}-{min_utt_str}-{max_utt_str}"
       else:
         paragraph_folder = output_directory
       for line_nr, utterance in utterances.items():
