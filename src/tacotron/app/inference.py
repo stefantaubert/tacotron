@@ -1,5 +1,7 @@
 import datetime
 from functools import partial
+from logging import getLogger
+import os
 from pathlib import Path
 from shutil import copyfile
 from typing import Any, Dict, List, Optional, Set
@@ -8,6 +10,7 @@ import imageio
 import numpy as np
 from general_utils import parse_json, save_json
 from image_utils import stack_images_horizontally, stack_images_vertically
+from ordered_set import OrderedSet
 from tacotron.app.defaults import (DEFAULT_MAX_DECODER_STEPS,
                                    DEFAULT_SAVE_MEL_INFO_COPY_PATH,
                                    DEFAULT_SEED)
@@ -17,6 +20,7 @@ from tacotron.app.io import (get_checkpoints_dir, get_inference_root_dir,
 from tacotron.core import (InferenceEntries,
                            InferenceEntryOutput)
 from tacotron.core import infer as infer_core
+from tacotron.core.checkpoint_handling import get_speaker_mapping
 from tacotron.core.inference import get_df
 from tacotron.globals import DEFAULT_CSV_SEPERATOR
 from tacotron.utils import (add_console_out_to_logger, add_file_out_to_logger,

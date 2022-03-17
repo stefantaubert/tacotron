@@ -1,7 +1,8 @@
+from text_utils import Symbols
 import logging
 import time
 from dataclasses import dataclass
-from typing import Dict, Generator, Iterable, Optional, cast
+from typing import Dict, Generator, Iterable, Optional, Set, cast
 
 import numpy as np
 from audio_utils.mel import mel_to_numpy
@@ -26,10 +27,22 @@ class InferenceResult():
   sampling_rate: int
   reached_max_decoder_steps: bool
   inference_duration_s: float
-  mel_outputs: np.ndarray
   mel_outputs_postnet: np.ndarray
+  mel_outputs: np.ndarray
   gate_outputs: np.ndarray
   alignments: np.ndarray
+
+
+@dataclass
+class InferenceResultV2():
+  sampling_rate: int
+  reached_max_decoder_steps: bool
+  inference_duration_s: float
+  mel_outputs_postnet: np.ndarray
+  mel_outputs: Optional[np.ndarray]
+  gate_outputs: Optional[np.ndarray]
+  alignments: Optional[np.ndarray]
+  unknown_symbols: Set[Symbol]
 
 
 def get_symbols_noninferable_marked(symbols: Iterable[Symbol], symbol_mapping: SymbolMapping) -> Generator[Symbol, None, None]:
@@ -79,7 +92,7 @@ class Synthesizer():
   def get_sampling_rate(self) -> int:
     return self.hparams.sampling_rate
 
-  def infer(self, utterance: InferableUtterance, speaker: Optional[Speaker], max_decoder_steps: int, seed: int) -> InferenceResult:
+  def infer(self, utterance: InferableUtterance, speaker: Optional[Speaker], max_decoder_steps: int, seed: int) -> InferenceResultV2:
     marker = NOT_INFERABLE_SYMBOL_MARKER
     if self.hparams.use_stress_embedding:
 
@@ -167,5 +180,104 @@ class Synthesizer():
       gate_outputs=mel_to_numpy(gate_outputs),
       alignments=mel_to_numpy(alignments),
     )
+
+    return infer_res
+
+  def infer_v2(self, symbols: Symbols, speaker: Speaker, max_decoder_steps: int, seed: int, include_stats: bool) -> InferenceResultV2:
+    marker = NOT_INFERABLE_SYMBOL_MARKER
+
+    if self.hparams.use_stress_embedding:
+
+      symbols, stresses = split_stresses(symbols, self.hparams.symbols_are_ipa)
+
+      mappable_entries = tuple(
+        symbol in self.symbol_mapping and stress in self.stress_mapping
+        for symbol, stress in zip(symbols, stresses)
+      )
+
+      mapped_symbols = (
+        self.symbol_mapping[symbol]
+        for symbol, is_mappable in zip(symbols, mappable_entries)
+        if is_mappable
+      )
+
+      mapped_stresses = (
+        self.stress_mapping[stress]
+        for stress, is_mappable in zip(stresses, mappable_entries)
+        if is_mappable
+      )
+
+      print_text = ' '.join(
+        f"{symbol}{stress}" if is_mappable
+        else marker * (console_out_len(symbol) + console_out_len(stress))
+        for symbol, stress, is_mappable in zip(symbols, stresses, mappable_entries)
+      )
+    else:
+      mapped_symbols = (
+        self.symbol_mapping[symbol]
+        for symbol in symbols
+        if symbol in self.symbol_mapping
+      )
+
+      print_text = ' '.join(
+        f"{symbol}" if symbol in self.symbol_mapping
+        else marker * console_out_len(symbol)
+        for symbol in zip(symbols)
+      )
+
+    self._logger.info(print_text)
+
+    non_mappable_symbols = set(symbol for symbol in symbols if symbol not in self.symbol_mapping)
+    if len(non_mappable_symbols) > 0:
+      self._logger.warn(f"Unknown symbols: {' '.join(sorted(non_mappable_symbols))}")
+
+    init_global_seeds(seed)
+
+    symbol_tensor = IntTensor([list(mapped_symbols)])
+    symbol_tensor = try_copy_to_gpu(symbol_tensor)
+
+    stress_tensor = None
+    if self.hparams.use_stress_embedding:
+      stress_tensor = LongTensor([list(mapped_stresses)])
+      stress_tensor = try_copy_to_gpu(stress_tensor)
+
+    speaker_tensor = None
+    if self.hparams.use_speaker_embedding:
+      assert speaker is not None
+      assert speaker in self.speaker_mapping
+      mapped_speaker = self.speaker_mapping[speaker]
+
+      speaker_tensor = IntTensor(symbol_tensor.size(0), symbol_tensor.size(1))
+      torch.nn.init.constant_(speaker_tensor, mapped_speaker)
+      speaker_tensor = try_copy_to_gpu(speaker_tensor)
+
+    start = time.perf_counter()
+
+    with torch.no_grad():
+      mel_outputs, mel_outputs_postnet, gate_outputs, alignments, reached_max_decoder_steps = self.model.inference(
+        symbols=symbol_tensor,
+        speakers=speaker_tensor,
+        stresses=stress_tensor,
+        max_decoder_steps=max_decoder_steps,
+      )
+
+    end = time.perf_counter()
+    inference_duration_s = end - start
+
+    infer_res = InferenceResultV2(
+      sampling_rate=self.hparams.sampling_rate,
+      reached_max_decoder_steps=reached_max_decoder_steps,
+      inference_duration_s=inference_duration_s,
+      mel_outputs_postnet=mel_to_numpy(mel_outputs_postnet),
+      mel_outputs=None,
+      gate_outputs=None,
+      alignments=None,
+      unknown_symbols=non_mappable_symbols,
+    )
+
+    if include_stats:
+      infer_res.mel_outputs = mel_to_numpy(mel_outputs)
+      infer_res.gate_outputs = mel_to_numpy(gate_outputs)
+      infer_res.alignments = mel_to_numpy(alignments)
 
     return infer_res

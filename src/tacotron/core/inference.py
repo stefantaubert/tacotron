@@ -152,3 +152,12 @@ def infer(checkpoint: CheckpointDict, custom_hparams: Optional[Dict[str, str]], 
     result.append(infer_entry_output)
 
   return result
+
+
+# def infer_text(checkpoint: CheckpointDict, text: str, ):
+#   logger = getLogger(__name__)
+  
+#   if custom_speaker is not None:
+#     speaker_mapping = get_speaker_mapping(checkpoint_dict)
+#     if custom_speaker not in speaker_mapping:
+#       logger.error

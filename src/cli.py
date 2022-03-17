@@ -12,6 +12,7 @@ from tacotron.app.defaults import (DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME,
                                    DEFAULT_REPETITIONS,
                                    DEFAULT_SAVE_MEL_INFO_COPY_PATH,
                                    DEFAULT_SEED)
+from tacotron.app.inference_v2 import infer_text
 
 BASE_DIR_VAR = "base_dir"
 
@@ -126,17 +127,33 @@ def infer_cli(**args) -> None:
   infer(**args)
 
 
+def init_inference_v2_parser(parser: ArgumentParser) -> None:
+  parser.add_argument('checkpoint', type=Path)
+  parser.add_argument('text', type=Path)
+  parser.add_argument('--encoding', type=str, default="UTF-8")
+  parser.add_argument('--custom-speaker', type=str, default=None)
+  parser.add_argument('--custom-lines', type=int, nargs="*", default=[])
+  parser.add_argument('--max-decoder-steps', type=int, default=3000)
+  parser.add_argument('--batch-size', type=int, default=64)
+  parser.add_argument('--custom-seed', type=int, default=None)
+  parser.add_argument('-p', '--paragraph-directories', action='store_true')
+  parser.add_argument('--include-stats', action='store_true')
+  parser.add_argument('-out', '--output-directory', type=Path, default=None)
+  parser.add_argument('-o', '--overwrite', action='store_true')
+  return infer_text
+
+
 def add_base_dir(parser: ArgumentParser) -> None:
-  assert BASE_DIR_VAR in os.environ.keys()
-  base_dir = Path(os.environ[BASE_DIR_VAR])
-  parser.set_defaults(base_dir=base_dir)
+  if BASE_DIR_VAR in os.environ.keys():
+    base_dir = Path(os.environ[BASE_DIR_VAR])
+    parser.set_defaults(base_dir=base_dir)
 
 
 def _add_parser_to(subparsers, name: str, init_method) -> None:
   parser = subparsers.add_parser(name, help=f"{name} help")
+  add_base_dir(parser)
   invoke_method = init_method(parser)
   parser.set_defaults(invoke_handler=invoke_method)
-  add_base_dir(parser)
   return parser
 
 
@@ -148,6 +165,7 @@ def _init_parser():
   _add_parser_to(subparsers, "continue-train", init_continue_train_parser)
   _add_parser_to(subparsers, "validate", init_validate_parser)
   _add_parser_to(subparsers, "infer", init_inference_parser)
+  _add_parser_to(subparsers, "infer-text", init_inference_v2_parser)
   # _add_parser_to(subparsers, "eval-checkpoints", init_taco_eval_checkpoints_parser)
   _add_parser_to(subparsers, "plot-embeddings", init_plot_emb_parser)
   #_add_parser_to(subparsers, "restore", init_restore_parser)
@@ -159,8 +177,9 @@ def _process_args(args: Namespace) -> None:
   print("Received args:")
   print(args)
   params = vars(args)
-  invoke_handler = params.pop("invoke_handler")
-  invoke_handler(**params)
+  if "invoke_handler" in params:
+    invoke_handler = params.pop("invoke_handler")
+    invoke_handler(**params)
 
 
 if __name__ == "__main__":
