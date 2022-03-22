@@ -222,7 +222,7 @@ class Synthesizer():
       print_text = ' '.join(
         f"{symbol}" if symbol in self.symbol_mapping
         else marker * console_out_len(symbol)
-        for symbol in zip(symbols)
+        for symbol in symbols
       )
 
     self._logger.info(print_text)
