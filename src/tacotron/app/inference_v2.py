@@ -69,7 +69,7 @@ def parse_paragraphs_from_text(text: str) -> Paragraphs:
   return result
 
 
-def infer_text(base_dir: Path, checkpoint: Path, text: Path, encoding: str, custom_speaker: Optional[Speaker], custom_lines: List[int], max_decoder_steps: int, batch_size: int, include_stats: bool, custom_seed: Optional[int], paragraph_directories: bool, output_directory: Optional[Path], overwrite: bool) -> bool:
+def infer_text(base_dir: Path, checkpoint: Path, text: Path, encoding: str, custom_speaker: Optional[Speaker], custom_lines: List[int], max_decoder_steps: int, batch_size: int, include_stats: bool, custom_seed: Optional[int], paragraph_directories: bool, output_directory: Optional[Path], prepend: str, append: str, overwrite: bool) -> bool:
   logger = getLogger(__name__)
 
   if not checkpoint.is_file():
@@ -158,6 +158,9 @@ def infer_text(base_dir: Path, checkpoint: Path, text: Path, encoding: str, cust
   max_line_nr = max(utt_nr for paragraph in paragraphs.values() for utt_nr in paragraph.keys())
   zfill_paragraph = len(str(max_paragraph_nr))
   zfill_line_nr = len(str(max_line_nr))
+  count_utterances = sum(1 for paragraph in paragraphs.values() for _ in paragraph.keys())
+  count_utterances_zfill = len(str(count_utterances))
+  utterance_nr = 1
   unknown_symbols = set()
   with tqdm(total=len(line_nrs_to_infer), unit=" lines", ncols=100, desc="Inference") as progress_bar:
     for paragraph_nr, utterances in paragraphs.items():
@@ -173,9 +176,12 @@ def infer_text(base_dir: Path, checkpoint: Path, text: Path, encoding: str, cust
       for line_nr, utterance in utterances.items():
         if line_nr not in line_nrs_to_infer:
           logger.debug(f"Skipped line {line_nr}.")
+          utterance_nr += 1
           continue
 
-        utt_path_stem = f"{line_nr}".zfill(zfill_line_nr)
+        line_nr_filled = f"{line_nr}".zfill(zfill_line_nr)
+        utterance_nr_filled = f"{utterance_nr}".zfill(count_utterances_zfill)
+        utt_path_stem = f"{prepend}{line_nr_filled}-{utterance_nr_filled}{append}"
         utterance_mel_path = paragraph_folder / f"{utt_path_stem}.npy"
 
         if utterance_mel_path.exists() and not overwrite:
@@ -261,6 +267,7 @@ def infer_text(base_dir: Path, checkpoint: Path, text: Path, encoding: str, cust
             out_path=comp_img_path,
           )
         progress_bar.update()
+        utterance_nr += 1
 
   if len(unknown_symbols) > 0:
     logger.warning(

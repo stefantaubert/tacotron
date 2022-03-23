@@ -138,6 +138,9 @@ def init_inference_v2_parser(parser: ArgumentParser) -> None:
   parser.add_argument('--custom-seed', type=int, default=None)
   parser.add_argument('-p', '--paragraph-directories', action='store_true')
   parser.add_argument('--include-stats', action='store_true')
+  parser.add_argument('--prepend', type=str, default="",
+                      help="prepend text to all output file names")
+  parser.add_argument('--append', type=str, default="", help="append text to all output file names")
   parser.add_argument('-out', '--output-directory', type=Path, default=None)
   parser.add_argument('-o', '--overwrite', action='store_true')
   return infer_text
