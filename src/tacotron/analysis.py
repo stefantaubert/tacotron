@@ -1,3 +1,4 @@
+from text_utils import Symbol
 from logging import Logger
 from typing import Dict, List, Tuple
 
@@ -15,7 +16,7 @@ from text_utils import SymbolIdDict, Symbols
 def norm2emb(emb: torch.Tensor) -> np.ndarray:
   tmp = []
   for i in range(emb.shape[0]):
-    word_vector = emb[i].numpy()
+    word_vector = emb[i]
     norm2 = normalize(word_vector[:, np.newaxis], axis=0).ravel()
     tmp.append(np.array([norm2]))
   res = np.concatenate(tmp, axis=0)
@@ -46,6 +47,19 @@ def sims_to_csv(sims: Dict[int, List[Tuple[int, float]]], symbols: SymbolIdDict)
       sims.append(symbols.get_symbol(other_symbol_id))
       sims.append(f"{similarity:.2f}")
     lines.append(sims)
+  df = pd.DataFrame(lines)
+  return df
+
+
+def sims_to_csv_v2(sims: Dict[int, List[Tuple[int, float]]], symbols: List[Symbol]) -> pd.DataFrame:
+  lines = []
+  assert len(sims) == len(symbols)
+  for symbol_id, similarities in sims.items():
+    tmp = [f"{symbols[symbol_id]}", "<=>"]
+    for other_symbol_id, similarity in similarities:
+      tmp.append(symbols[other_symbol_id])
+      tmp.append(f"{similarity:.2f}")
+    lines.append(tmp)
   df = pd.DataFrame(lines)
   return df
 
@@ -101,7 +115,7 @@ def embeddings_to_csv(embeddings: torch.Tensor, keys: List[str]) -> DataFrame:
   result = []
   assert len(keys) == len(embeddings)
   for key, entry in zip(keys, range(len(embeddings))):
-    line = [key] + list(embeddings.numpy()[entry])
+    line = [key] + list(embeddings[entry])
     result.append(line)
   columns = [""] + list(range(embeddings.shape[1]))
   result = DataFrame(

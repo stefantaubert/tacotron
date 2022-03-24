@@ -142,10 +142,10 @@ def map_symbols(input_model: CheckpointTacotron, target_model: CheckpointTacotro
 
   mapper = AddSymbolEmbeddings()
   mapper.fit(
-      input_weights=input_embedding,
-      input_symbols=input_symbols,
-      target_symbols=target_symbols,
-      target_weights=target_embedding,
+    input_weights=input_embedding,
+    input_symbols=input_symbols,
+    target_symbols=target_symbols,
+    target_weights=target_embedding,
   )
 
   for symbol in symbols:
