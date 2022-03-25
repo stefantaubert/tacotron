@@ -1,3 +1,8 @@
+from collections import OrderedDict
+import math
+from statistics import mean, median
+import numpy as np
+from scipy.spatial.distance import cosine
 from logging import getLogger
 from pathlib import Path
 from typing import Optional, cast
@@ -121,5 +126,64 @@ def plot_embeddings_v2(checkpoint: Path, output_directory: Path) -> bool:
 
   fig_3d = emb_plot_3d(emb_normed, symbols)
   plt.plot(fig_3d, filename=str(output_directory / "3d.html"), auto_open=False)
+
+  logger.info(f"Saved analysis to: {output_directory.absolute()}")
+
+
+def compare_embeddings(checkpoint1: Path, checkpoint2: Path, output_directory: Path) -> bool:
+  logger = getLogger(__name__)
+
+  if not checkpoint1.is_file():
+    logger.error("Checkpoint 1 was not found!")
+    return False
+
+  if not checkpoint2.is_file():
+    logger.error("Checkpoint 2 was not found!")
+    return False
+
+  try:
+    logger.debug(f"Loading checkpoint...")
+    checkpoint1_dict = load_checkpoint(checkpoint1)
+  except Exception as ex:
+    logger.error("Checkpoint 1 couldn't be loaded!")
+    return False
+
+  try:
+    logger.debug(f"Loading checkpoint...")
+    checkpoint2_dict = load_checkpoint(checkpoint2)
+  except Exception as ex:
+    logger.error("Checkpoint 2 couldn't be loaded!")
+    return False
+
+  output_directory.mkdir(parents=True, exist_ok=True)
+
+  symbol_mapping1 = get_symbol_mapping(checkpoint1_dict)
+  symbol_mapping2 = get_symbol_mapping(checkpoint2_dict)
+  symbol_mapping1["PADDING"] = 0
+  symbol_mapping2["PADDING"] = 0
+  symbol_emb1 = get_symbol_embedding_weights(checkpoint1_dict).cpu().numpy()
+  symbol_emb2 = get_symbol_embedding_weights(checkpoint2_dict).cpu().numpy()
+
+  sims = OrderedDict()
+  for symbol1, index1 in symbol_mapping1.items():
+    if symbol1 in symbol_mapping2:
+      index2 = symbol_mapping2[symbol1]
+      vec1 = symbol_emb1[index1]
+      vec2 = symbol_emb2[index2]
+      dist = 1 - cosine(vec1, vec2)
+      sims[symbol1] = dist
+
+  sims_avg = mean(sims.values())
+  sims_max = max(sims.values())
+  sims_min = min(sims.values())
+  sims_med = median(sims.values())
+
+  sims["MIN"] = sims_min
+  sims["MAX"] = sims_max
+  sims["AVG"] = sims_avg
+  sims["MED"] = sims_med
+
+  df = pd.DataFrame(sims.items(), columns=["Symbol", "Cosine similarity"])
+  df.to_csv(output_directory / "similarities.csv", header=True, index=False, sep="\t")
 
   logger.info(f"Saved analysis to: {output_directory.absolute()}")

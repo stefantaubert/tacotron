@@ -71,6 +71,11 @@ def get_symbol_mapping(checkpoint: CheckpointDict) -> SymbolMapping:
   return result
 
 
+def update_symbol_mapping(checkpoint: CheckpointDict, mapping: SymbolMapping) -> None:
+  assert KEY_SYMBOL_MAPPING in checkpoint
+  checkpoint[KEY_SYMBOL_MAPPING] = mapping
+
+
 def get_iteration(checkpoint: CheckpointDict) -> int:
   assert KEY_ITERATION in checkpoint
   result = checkpoint[KEY_ITERATION]
@@ -131,6 +136,12 @@ def get_symbol_embedding_weights(checkpoint: CheckpointDict) -> Tensor:
   assert SYMBOL_EMBEDDING_LAYER_NAME in model_state
   pretrained_weights = model_state[SYMBOL_EMBEDDING_LAYER_NAME]
   return pretrained_weights
+
+
+def update_symbol_embedding_weights(checkpoint: CheckpointDict, weights: Tensor) -> None:
+  model_state = get_model_state(checkpoint)
+  assert SYMBOL_EMBEDDING_LAYER_NAME in model_state
+  model_state[SYMBOL_EMBEDDING_LAYER_NAME] = weights
 
 
 def get_speaker_embedding_weights(checkpoint: CheckpointDict) -> Tensor:

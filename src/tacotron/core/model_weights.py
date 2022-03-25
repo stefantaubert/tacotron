@@ -7,6 +7,7 @@ from typing import Set
 
 import numpy as np
 import torch
+from tacotron.core.checkpoint_handling import CheckpointDict
 from tacotron.core.hparams import HParams
 from tacotron.core.model import (SYMBOL_EMBEDDING_LAYER_NAME)
 from tacotron.core.model_checkpoint import CheckpointTacotron
