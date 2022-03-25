@@ -50,7 +50,7 @@ def map_missing_symbols(base_dir: Path, from_train_name: str, to_train_name: str
   logger.info("Done.")
 
 
-def map_missing_symbols_v2(checkpoint1: Path, checkpoint2: Path, mode: Literal["copy", "predict"], custom_output: Optional[Path]) -> bool:
+def map_missing_symbols_v2(base_dir: Path, checkpoint1: Path, checkpoint2: Path, mode: Literal["copy", "predict"], custom_output: Optional[Path]) -> bool:
   assert mode in ["copy", "predict"]
 
   logger = getLogger(__name__)

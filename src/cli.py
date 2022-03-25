@@ -13,6 +13,7 @@ from tacotron.app.defaults import (DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME,
                                    DEFAULT_SAVE_MEL_INFO_COPY_PATH,
                                    DEFAULT_SEED)
 from tacotron.app.inference_v2 import infer_text
+from tacotron.app.weights import map_missing_symbols_v2
 
 BASE_DIR_VAR = "base_dir"
 
@@ -146,6 +147,14 @@ def init_inference_v2_parser(parser: ArgumentParser) -> None:
   return infer_text
 
 
+def init_add_missing_weights_parser(parser: ArgumentParser) -> None:
+  parser.add_argument('checkpoint1', type=Path)
+  parser.add_argument('checkpoint2', type=Path)
+  parser.add_argument('--mode', type=str, choices=["copy", "predict"], default="copy")
+  parser.add_argument('-out', '--custom-output', type=Path, default=None)
+  return map_missing_symbols_v2
+
+
 def add_base_dir(parser: ArgumentParser) -> None:
   if BASE_DIR_VAR in os.environ.keys():
     base_dir = Path(os.environ[BASE_DIR_VAR])
@@ -171,6 +180,7 @@ def _init_parser():
   _add_parser_to(subparsers, "infer-text", init_inference_v2_parser)
   # _add_parser_to(subparsers, "eval-checkpoints", init_taco_eval_checkpoints_parser)
   _add_parser_to(subparsers, "plot-embeddings", init_plot_emb_parser)
+  _add_parser_to(subparsers, "add-missing-symbols", init_add_missing_weights_parser)
   #_add_parser_to(subparsers, "restore", init_restore_parser)
 
   return result

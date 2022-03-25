@@ -225,8 +225,9 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
 
       pre_symbol_weights = get_symbol_embedding_weights(pretrained_model)
       pre_symbol_mapping = get_symbol_mapping(pretrained_model)
-      
-      logger.info(f"Symbols in pretrained model: {' '.join(get_symbol_printable(symbol) for symbol in sorted(pre_symbol_mapping.keys()))} (#{len(pre_symbol_mapping)})")
+
+      logger.info(
+        f"Symbols in pretrained model: {' '.join(get_symbol_printable(symbol) for symbol in sorted(pre_symbol_mapping.keys()))} (#{len(pre_symbol_mapping)})")
       # map padding
       with torch.no_grad():
         model.symbol_embeddings.weight[0] = pre_symbol_weights[0]
@@ -439,6 +440,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
         "Iteration (%)": round(iteration / last_iteration * 100, 2),
         "Seen utterances": iteration * hparams.batch_size,
         "Utterances": last_iteration * hparams.batch_size,
+        "Learning rate": current_lr,
         "Mel MSE": mel_mse_losses[-1],
         "Mel MSE AVG": np.mean(mel_mse_losses[-AVG_COUNT:]),
         "Mel MSE long AVG": np.mean(mel_mse_losses[-AVG_COUNT_LONG_TERM:]),
