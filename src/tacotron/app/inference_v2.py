@@ -26,7 +26,7 @@ from tacotron.app.io import (get_checkpoints_dir, get_inference_root_dir,
                              load_prep_settings)
 from tacotron.core import InferenceEntries, InferenceEntryOutput
 from tacotron.core import infer as infer_core
-from tacotron.core.checkpoint_handling import get_speaker_mapping
+from tacotron.core.checkpoint_handling import get_learning_rate, get_speaker_mapping
 from tacotron.core.inference import get_df
 from tacotron.core.synthesizer import Synthesizer
 from tacotron.globals import DEFAULT_CSV_SEPERATOR
@@ -134,6 +134,9 @@ def infer_text(base_dir: Path, checkpoint: Path, text: Path, encoding: str, cust
         return False
 
     line_nrs_to_infer = custom_lines
+
+  logger.info("Inferring...")
+  logger.info(f"Checkpoint learning rate was: {get_learning_rate(checkpoint_dict)}")
 
   if custom_seed is not None:
     seed = custom_seed
