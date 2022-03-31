@@ -1,4 +1,5 @@
 import faulthandler
+import logging
 import os
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
@@ -186,6 +187,25 @@ def _init_parser():
   return result
 
 
+def configure_logger() -> None:
+  loglevel = logging.DEBUG if __debug__ else logging.INFO
+  main_logger = logging.getLogger()
+  main_logger.setLevel(loglevel)
+  main_logger.manager.disable = logging.NOTSET
+  if len(main_logger.handlers) > 0:
+    console = main_logger.handlers[0]
+  else:
+    console = logging.StreamHandler()
+    main_logger.addHandler(console)
+
+  logging_formatter = logging.Formatter(
+    '[%(asctime)s.%(msecs)03d] (%(levelname)s) %(message)s',
+    '%Y/%m/%d %H:%M:%S',
+  )
+  console.setFormatter(logging_formatter)
+  console.setLevel(loglevel)
+
+
 def _process_args(args: Namespace) -> None:
   print("Received args:")
   print(args)
@@ -196,6 +216,7 @@ def _process_args(args: Namespace) -> None:
 
 
 if __name__ == "__main__":
+  configure_logger()
   faulthandler.enable()
   main_parser = _init_parser()
 
