@@ -15,7 +15,7 @@ from audio_utils.mel import (TacotronSTFT, align_mels_with_dtw, get_msd,
                              plot_melspec_np)
 from general_utils import GenericList
 from image_utils import calculate_structual_similarity_np
-from mcd import get_mcd_between_mel_spectograms
+from mel_cepstral_distance import get_metrics_mels
 from ordered_set import OrderedSet
 from pandas import DataFrame
 from scipy.io.wavfile import read
@@ -353,13 +353,11 @@ def validate(checkpoint: CheckpointDict, data: PreparedDataList, trainset: Prepa
 
         target_frames = mel_orig.shape[1]
 
-        dtw_mcd, dtw_penalty, dtw_frames = get_mcd_between_mel_spectograms(
-          mel_1=mel_orig,
-          mel_2=inference_result.mel_outputs_postnet,
-          n_mfcc=mcd_no_of_coeffs_per_frame,
-          take_log=False,
-          use_dtw=True,
-        )
+        dtw_mcd, dtw_penalty, dtw_frames = get_metrics_mels(mel_orig, inference_result.mel_outputs_postnet,
+                                                            n_mfcc=mcd_no_of_coeffs_per_frame,
+                                                            take_log=False,
+                                                            use_dtw=True,
+                                                            )
 
         padded_mel_orig, padded_mel_postnet = make_same_dim(
           mel_orig, inference_result.mel_outputs_postnet)
