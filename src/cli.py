@@ -4,9 +4,8 @@ import os
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
-
+from tacotron.app.analysis import plot_embeddings_v2
 # from tacotron.app.eval_checkpoints import eval_checkpoints
-from tacotron.app import plot_embeddings
 from tacotron.app.inference import infer_text
 from tacotron.app.training import init_continue_train_parser, init_train_parser
 from tacotron.app.validation import init_validate_parser
@@ -18,7 +17,7 @@ BASE_DIR_VAR = "base_dir"
 def init_plot_emb_parser(parser) -> None:
     parser.add_argument('--train_name', type=str, required=True)
     parser.add_argument('--custom_checkpoint', type=int)
-    return plot_embeddings
+    return plot_embeddings_v2
 
 
 # def init_eval_checkpoints_parser(parser):

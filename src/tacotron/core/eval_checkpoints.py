@@ -2,68 +2,68 @@ from logging import Logger
 from pathlib import Path
 from typing import Dict, Optional
 
-import torch
-from general_utils.main import overwrite_custom_hparams
-from tacotron.core.dataloader import (SymbolsMelCollate, parse_batch,
-                                      prepare_valloader)
-from tacotron.core.hparams import HParams
-from tacotron.core.model_checkpoint import CheckpointTacotron
-from tacotron.core.training import Tacotron2Loss, load_model, validate_model
-from tacotron.core.typing import Entries
-from tacotron.utils import (filter_checkpoints, get_all_checkpoint_iterations,
-                            get_checkpoint)
-from tqdm import tqdm
+# import torch
+# from general_utils.main import overwrite_custom_hparams
+# from tacotron.core.dataloader import (SymbolsMelCollate, parse_batch,
+#                                       prepare_valloader)
+# from tacotron.core.hparams import HParams
+# from tacotron.core.model_checkpoint import CheckpointTacotron
+# from tacotron.core.training import Tacotron2Loss, load_model, validate_model
+# from tacotron.utils import (filter_checkpoints, get_all_checkpoint_iterations,
+#                             get_checkpoint)
+# from tqdm import tqdm
 
+from tacotron.core.typing import Entries
 
 def eval_checkpoints(custom_hparams: Optional[Dict[str, str]], checkpoint_dir: Path, select: int, min_it: int, max_it: int, n_symbols: int, n_speakers: int, valset: Entries, logger: Logger) -> None:
-    its = get_all_checkpoint_iterations(checkpoint_dir)
-    logger.info(f"Available iterations {its}")
-    filtered_its = filter_checkpoints(its, select, min_it, max_it)
-    if len(filtered_its) > 0:
-        logger.info(f"Selected iterations: {filtered_its}")
-    else:
-        logger.info("None selected. Exiting.")
-        return
+    raise NotImplementedError()
 
-    hparams = HParams(
-        n_speakers=n_speakers,
-        n_symbols=n_symbols,
-    )
+    # its = get_all_checkpoint_iterations(checkpoint_dir)
+    # logger.info(f"Available iterations {its}")
+    # filtered_its = filter_checkpoints(its, select, min_it, max_it)
+    # if len(filtered_its) > 0:
+    #     logger.info(f"Selected iterations: {filtered_its}")
+    # else:
+    #     logger.info("None selected. Exiting.")
+    #     return
 
-    hparams = overwrite_custom_hparams(hparams, custom_hparams)
+    # hparams = HParams()
 
-    collate_fn = SymbolsMelCollate(
-        hparams.n_frames_per_step,
-        padding_symbol_id=0,  # TODO: refactor
-        # padding_symbol_id=symbols.get_id(PADDING_SYMBOL),
-        use_stress=hparams.use_stress_embedding,
-    )
-    val_loader = prepare_valloader(hparams, collate_fn, valset, logger)
+    # hparams = overwrite_custom_hparams(hparams, custom_hparams)
 
-    result = []
-    for checkpoint_iteration in tqdm(filtered_its):
-        criterion = Tacotron2Loss()
-        torch.manual_seed(hparams.seed)
-        torch.cuda.manual_seed(hparams.seed)
-        full_checkpoint_path = get_checkpoint(
-            checkpoint_dir, checkpoint_iteration)
-        state_dict = CheckpointTacotron.load(
-            full_checkpoint_path, logger).model_state_dict
-        model = load_model(hparams, state_dict)
-        val_loss, _ = validate_model(model, criterion, val_loader, parse_batch)
-        result.append((checkpoint_iteration, val_loss))
-        logger.info(f"Validation loss {checkpoint_iteration}: {val_loss:9f}")
+    # collate_fn = SymbolsMelCollate(
+    #     hparams.n_frames_per_step,
+    #     padding_symbol_id=0,  # TODO: refactor
+    #     # padding_symbol_id=symbols.get_id(PADDING_SYMBOL),
+    #     use_stress=hparams.use_stress_embedding,
+    # )
+    # val_loader = prepare_valloader(hparams, collate_fn, valset, logger)
 
-    logger.info("Result...")
-    logger.info("Sorted after checkpoints:")
+    # result = []
+    # for checkpoint_iteration in tqdm(filtered_its):
+    #     criterion = Tacotron2Loss()
+    #     torch.manual_seed(hparams.seed)
+    #     torch.cuda.manual_seed(hparams.seed)
+    #     full_checkpoint_path = get_checkpoint(
+    #         checkpoint_dir, checkpoint_iteration)
+    #     state_dict = CheckpointTacotron.load(
+    #         full_checkpoint_path, logger).model_state_dict
+    #     model = load_model(hparams, state_dict, n_symbols,
+    #                        n_stresses, n_speakers)
+    #     val_loss, _ = validate_model(model, criterion, val_loader, parse_batch)
+    #     result.append((checkpoint_iteration, val_loss))
+    #     logger.info(f"Validation loss {checkpoint_iteration}: {val_loss:9f}")
 
-    result.sort()
-    for cp, loss in result:
-        logger.info(f"Validation loss {cp}: {loss:9f}")
+    # logger.info("Result...")
+    # logger.info("Sorted after checkpoints:")
 
-    result = [(b, a) for a, b in result]
-    result.sort()
+    # result.sort()
+    # for cp, loss in result:
+    #     logger.info(f"Validation loss {cp}: {loss:9f}")
 
-    logger.info("Sorted after scores:")
-    for loss, cp in result:
-        logger.info(f"Validation loss {cp}: {loss:9f}")
+    # result = [(b, a) for a, b in result]
+    # result.sort()
+
+    # logger.info("Sorted after scores:")
+    # for loss, cp in result:
+    #     logger.info(f"Validation loss {cp}: {loss:9f}")
