@@ -8,10 +8,10 @@ from typing import Tuple
 
 import torch
 from audio_utils.mel import TacotronSTFT
-from tacotron.core.hparams import HParams
-from tacotron.core.model import ForwardXIn
-from tacotron.core.typing import (Entries, Entry, SpeakerMapping, Stress,
-                                  Stresses, StressMapping, SymbolMapping)
+from tacotron.hparams import HParams
+from tacotron.model import ForwardXIn
+from tacotron.typing import (Entries, Entry, SpeakerMapping, Stress,
+                             Stresses, StressMapping, SymbolMapping)
 from text_utils import (Speaker, SpeakerId, StressType, Symbol, Symbols,
                         split_stress_arpa, split_stress_ipa)
 from torch import (FloatTensor, IntTensor,  # pylint: disable=no-name-in-module

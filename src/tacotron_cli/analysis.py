@@ -1,3 +1,4 @@
+from argparse import ArgumentParser
 from collections import OrderedDict
 from logging import getLogger
 from pathlib import Path
@@ -7,18 +8,24 @@ import pandas as pd
 import plotly.offline as plt
 from scipy.spatial.distance import cosine
 from tacotron.analysis import (emb_plot_2d, emb_plot_3d, embeddings_to_csv,
-                               get_similarities, norm2emb)
-from tacotron.analysis import sims_to_csv_v2
-from tacotron.app.io import load_checkpoint
-from tacotron.core.checkpoint_handling import (get_hparams,
-                                               get_speaker_embedding_weights,
-                                               get_speaker_mapping,
-                                               get_symbol_embedding_weights,
-                                               get_symbol_mapping)
+                               get_similarities, norm2emb, sims_to_csv_v2)
+from tacotron.checkpoint_handling import (get_hparams,
+                                          get_speaker_embedding_weights,
+                                          get_speaker_mapping,
+                                          get_symbol_embedding_weights,
+                                          get_symbol_mapping)
+
+from tacotron_cli.io import load_checkpoint
 
 
 def get_analysis_root_dir(train_dir: Path) -> Path:
     return train_dir / "analysis"
+
+
+def init_plot_emb_parser(parser: ArgumentParser) -> None:
+    parser.add_argument('--checkpoint', type=str, required=True)
+    parser.add_argument('--output_directory', type=str, required=True)
+    return plot_embeddings_v2
 
 
 def plot_embeddings_v2(checkpoint: Path, output_directory: Path) -> bool:

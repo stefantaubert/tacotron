@@ -1,7 +1,8 @@
 from typing import Iterator
 
 from speech_dataset_parser_api import Entry as SDPEntry
-from tacotron.core.typing import Entries, Entry
+
+from tacotron.typing import Entries, Entry
 
 
 def get_entries_from_sdp_entries(entries: Iterator[SDPEntry]) -> Entries:

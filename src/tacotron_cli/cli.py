@@ -1,24 +1,13 @@
 import faulthandler
 import logging
-import os
 from argparse import ArgumentParser, Namespace
-from pathlib import Path
 
-from tacotron.app.analysis import plot_embeddings_v2
-# from tacotron.app.eval_checkpoints import eval_checkpoints
-from tacotron.app.inference import infer_text
-from tacotron.app.training import init_continue_train_parser, init_train_parser
-from tacotron.app.validation import init_validate_parser
-from tacotron.app.weights import map_missing_symbols_v2
-
-BASE_DIR_VAR = "base_dir"
-
-
-def init_plot_emb_parser(parser) -> None:
-    parser.add_argument('--train_name', type=str, required=True)
-    parser.add_argument('--custom_checkpoint', type=int)
-    return plot_embeddings_v2
-
+from tacotron_cli.analysis import init_plot_emb_parser
+# from tacotron_cli.eval_checkpoints import eval_checkpoints
+from tacotron_cli.inference import init_inference_v2_parser
+from tacotron_cli.training import init_continue_train_parser, init_train_parser
+from tacotron_cli.validation import init_validate_parser
+from tacotron_cli.weights import init_add_missing_weights_parser
 
 # def init_eval_checkpoints_parser(parser):
 #   parser.add_argument('--train_name', type=str, required=True)
@@ -40,44 +29,8 @@ def init_plot_emb_parser(parser) -> None:
 #   return restore_model
 
 
-def init_inference_v2_parser(parser: ArgumentParser) -> None:
-    parser.add_argument('checkpoint', type=Path)
-    parser.add_argument('text', type=Path)
-    parser.add_argument('--encoding', type=str, default="UTF-8")
-    parser.add_argument('--custom-speaker', type=str, default=None)
-    parser.add_argument('--custom-lines', type=int, nargs="*", default=[])
-    parser.add_argument('--max-decoder-steps', type=int, default=3000)
-    parser.add_argument('--batch-size', type=int, default=64)
-    parser.add_argument('--custom-seed', type=int, default=None)
-    parser.add_argument('-p', '--paragraph-directories', action='store_true')
-    parser.add_argument('--include-stats', action='store_true')
-    parser.add_argument('--prepend', type=str, default="",
-                        help="prepend text to all output file names")
-    parser.add_argument('--append', type=str, default="",
-                        help="append text to all output file names")
-    parser.add_argument('-out', '--output-directory', type=Path, default=None)
-    parser.add_argument('-o', '--overwrite', action='store_true')
-    return infer_text
-
-
-def init_add_missing_weights_parser(parser: ArgumentParser) -> None:
-    parser.add_argument('checkpoint1', type=Path)
-    parser.add_argument('checkpoint2', type=Path)
-    parser.add_argument('--mode', type=str,
-                        choices=["copy", "predict"], default="copy")
-    parser.add_argument('-out', '--custom-output', type=Path, default=None)
-    return map_missing_symbols_v2
-
-
-def add_base_dir(parser: ArgumentParser) -> None:
-    if BASE_DIR_VAR in os.environ.keys():
-        base_dir = Path(os.environ[BASE_DIR_VAR])
-        parser.set_defaults(base_dir=base_dir)
-
-
 def _add_parser_to(subparsers, name: str, init_method) -> None:
     parser = subparsers.add_parser(name, help=f"{name} help")
-    add_base_dir(parser)
     invoke_method = init_method(parser)
     parser.set_defaults(invoke_handler=invoke_method)
     return parser

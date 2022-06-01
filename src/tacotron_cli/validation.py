@@ -1,62 +1,54 @@
-import datetime
 from argparse import ArgumentParser
 from functools import partial
 from pathlib import Path
-from shutil import copyfile
 from typing import Any, Dict, List, Optional, Set
 
 import imageio
 import numpy as np
 import pandas as pd
-from general_utils import save_json, split_hparams_string
+from general_utils import split_hparams_string
 from image_utils import stack_images_vertically
 from scipy.io.wavfile import write
 from speech_dataset_parser_api import parse_directory
-from tacotron.app.defaults import (DEFAULT_MAX_DECODER_STEPS,
-                                   DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME,
-                                   DEFAULT_REPETITIONS,
-                                   DEFAULT_SAVE_MEL_INFO_COPY_PATH,
-                                   DEFAULT_SEED)
-from tacotron.app.io import (_get_validation_root_dir, get_mel_info_dict,
-                             get_mel_out_dict, load_checkpoint)
-from tacotron.core import ValidationEntries, ValidationEntryOutput
-from tacotron.core import validate as validate_core
-from tacotron.core.parser import get_entries_from_sdp_entries
-from tacotron.core.typing import Entry
-from tacotron.core.validation import get_df
 from tacotron.globals import DEFAULT_CSV_SEPERATOR
-from tacotron.utils import (get_checkpoint, get_last_checkpoint,
-                            prepare_logger)
-from text_utils.types import Speaker
+from tacotron.parser import get_entries_from_sdp_entries
+from tacotron.typing import Entry
+from tacotron.utils import get_checkpoint, get_last_checkpoint, prepare_logger
+from tacotron.validation import (ValidationEntries, ValidationEntryOutput,
+                                 get_df, validate)
 from tqdm import tqdm
 
+from tacotron_cli.defaults import (DEFAULT_MAX_DECODER_STEPS,
+                                   DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME,
+                                   DEFAULT_REPETITIONS, DEFAULT_SEED)
+from tacotron_cli.io import load_checkpoint
 
-def get_repr_entries(entry_names: Optional[Set[str]]) -> str:
-    if entry_names is None:
-        return "none"
-    if len(entry_names) == 0:
-        return "empty"
-    return ",".join(list(sorted(map(str, entry_names))))
-
-
-def get_repr_speaker(speaker: Optional[Speaker]) -> Speaker:
-    if speaker is None:
-        return "none"
-    return speaker
+# def get_repr_entries(entry_names: Optional[Set[str]]) -> str:
+#     if entry_names is None:
+#         return "none"
+#     if len(entry_names) == 0:
+#         return "empty"
+#     return ",".join(list(sorted(map(str, entry_names))))
 
 
-def get_run_name(ds: str, iterations: Set[int], full_run: bool, entry_names: Optional[Set[str]], speaker: Optional[str]) -> str:
-    if len(iterations) > 3:
-        its = ",".join(str(x) for x in sorted(iterations)[:3]) + ",..."
-    else:
-        its = ",".join(str(x) for x in sorted(iterations))
-
-    subdir_name = f"{datetime.datetime.now():%d.%m.%Y__%H-%M-%S}__ds={ds}__entries={get_repr_entries(entry_names)}__speaker={get_repr_speaker(speaker)}__its={its}__full={full_run}"
-    return subdir_name
+# def get_repr_speaker(speaker: Optional[Speaker]) -> Speaker:
+#     if speaker is None:
+#         return "none"
+#     return speaker
 
 
-def get_val_dir(train_dir: Path, run_name: str) -> Path:
-    return _get_validation_root_dir(train_dir) / run_name
+# def get_run_name(ds: str, iterations: Set[int], full_run: bool, entry_names: Optional[Set[str]], speaker: Optional[str]) -> str:
+#     if len(iterations) > 3:
+#         its = ",".join(str(x) for x in sorted(iterations)[:3]) + ",..."
+#     else:
+#         its = ",".join(str(x) for x in sorted(iterations))
+
+#     subdir_name = f"{datetime.datetime.now():%d.%m.%Y__%H-%M-%S}__ds={ds}__entries={get_repr_entries(entry_names)}__speaker={get_repr_speaker(speaker)}__its={its}__full={full_run}"
+#     return subdir_name
+
+
+# def get_val_dir(train_dir: Path, run_name: str) -> Path:
+#     return _get_validation_root_dir(train_dir) / run_name
 
 
 # def get_val_dir_new(train_dir: Path):
@@ -74,24 +66,24 @@ def save_stats(val_dir: Path, validation_entries: ValidationEntries) -> None:
     df.to_csv(path, sep=DEFAULT_CSV_SEPERATOR, header=True)
 
 
-def save_mel_postnet_npy_paths(val_dir: Path, mel_postnet_npy_paths: List[Dict[str, Any]]) -> Path:
-    info_json = get_mel_out_dict(
-        root_dir=val_dir,
-        mel_info_dict=mel_postnet_npy_paths,
-    )
+# def save_mel_postnet_npy_paths(val_dir: Path, mel_postnet_npy_paths: List[Dict[str, Any]]) -> Path:
+#     info_json = get_mel_out_dict(
+#         root_dir=val_dir,
+#         mel_info_dict=mel_postnet_npy_paths,
+#     )
 
-    path = val_dir / "mel_postnet_npy.json"
-    save_json(path, info_json)
-    # text = '\n'.join(mel_postnet_npy_paths)
-    # save_txt(path, text)
-    return path
+#     path = val_dir / "mel_postnet_npy.json"
+#     save_json(path, info_json)
+#     # text = '\n'.join(mel_postnet_npy_paths)
+#     # save_txt(path, text)
+#     return path
 
 
 def get_result_name(entry: Entry, iteration: int, repetition: int) -> None:
     return f"it={iteration}_id={entry.entry_id}_rep={repetition}"
 
 
-def save_results(entry: Entry, output: ValidationEntryOutput, val_dir: Path, iteration: int, mel_postnet_npy_paths: List[Dict[str, Any]]) -> None:
+def save_results(entry: Entry, output: ValidationEntryOutput, val_dir: Path, iteration: int) -> None:
     result_name = get_result_name(entry, iteration, output.repetition)
     dest_dir = get_val_entry_dir(val_dir, result_name)
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -142,13 +134,13 @@ def save_results(entry: Entry, output: ValidationEntryOutput, val_dir: Path, ite
             out_path=dest_dir / "comparison_aligned.png"
         )
 
-    mel_info = get_mel_info_dict(
-        identifier=result_name,
-        path=mel_postnet_npy_path,
-        sr=output.mel_postnet_sr,
-    )
+    # mel_info = get_mel_info_dict(
+    #     identifier=result_name,
+    #     path=mel_postnet_npy_path,
+    #     sr=output.mel_postnet_sr,
+    # )
 
-    mel_postnet_npy_paths.append(mel_info)
+    # mel_postnet_npy_paths.append(mel_info)
 
 
 def init_validate_parser(parser: ArgumentParser) -> None:
@@ -167,8 +159,8 @@ def init_validate_parser(parser: ArgumentParser) -> None:
     parser.add_argument('--full-run', action='store_true')
     parser.add_argument('--max-decoder-steps', type=int,
                         default=DEFAULT_MAX_DECODER_STEPS)
-    parser.add_argument('--copy-mel_info_to', type=Path,
-                        default=DEFAULT_SAVE_MEL_INFO_COPY_PATH)
+    # parser.add_argument('--copy-mel_info_to', type=Path,
+    #                     default=DEFAULT_SAVE_MEL_INFO_COPY_PATH)
     parser.add_argument('--custom-hparams', type=str)
     parser.add_argument('--select-best-from', type=str)
     parser.add_argument('--mcd-no-of-coeffs-per-frame', type=int,
@@ -185,7 +177,7 @@ def validate_cli(**args) -> None:
     validate_v2(**args)
 
 
-def validate_v2(base_dir: Path, checkpoint_dir: Path, output_dir: Path, dataset_dir: Path, tier: str, entry_names: List[str] = None, speaker: Optional[str] = None, custom_checkpoints: Optional[List[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, mcd_no_of_coeffs_per_frame: int = DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME, copy_mel_info_to: Optional[Path] = DEFAULT_SAVE_MEL_INFO_COPY_PATH, fast: bool = False, repetitions: int = DEFAULT_REPETITIONS, select_best_from: Optional[Path] = None, seed: Optional[int] = DEFAULT_SEED) -> None:
+def validate_v2(checkpoint_dir: Path, output_dir: Path, dataset_dir: Path, tier: str, entry_names: List[str] = None, speaker: Optional[str] = None, custom_checkpoints: Optional[List[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, mcd_no_of_coeffs_per_frame: int = DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME, fast: bool = False, repetitions: int = DEFAULT_REPETITIONS, select_best_from: Optional[Path] = None, seed: Optional[int] = DEFAULT_SEED) -> None:
     assert repetitions > 0
 
     data = list(get_entries_from_sdp_entries(
@@ -216,14 +208,13 @@ def validate_v2(base_dir: Path, checkpoint_dir: Path, output_dir: Path, dataset_
         select_best_from_df = pd.read_csv(select_best_from, sep="\t")
 
     for iteration in tqdm(sorted(iterations)):
-        mel_postnet_npy_paths: List[str] = []
         logger.info(f"Current checkpoint: {iteration}")
         checkpoint_path = get_checkpoint(checkpoint_dir, iteration)
         taco_checkpoint = load_checkpoint(checkpoint_path)
-        save_callback = partial(save_results, val_dir=output_dir, iteration=iteration,
-                                mel_postnet_npy_paths=mel_postnet_npy_paths)
+        save_callback = partial(
+            save_results, val_dir=output_dir, iteration=iteration)
 
-        validation_entries = validate_core(
+        validation_entries = validate(
             checkpoint=taco_checkpoint,
             data=data,
             custom_hparams=custom_hparams,
@@ -247,17 +238,17 @@ def validate_v2(base_dir: Path, checkpoint_dir: Path, output_dir: Path, dataset_
 
     save_stats(output_dir, result)
 
-    logger.info(
-        "Wrote all inferred mel paths including sampling rate into these file(s):")
-    npy_path = save_mel_postnet_npy_paths(
-        val_dir=output_dir,
-        mel_postnet_npy_paths=mel_postnet_npy_paths
-    )
-    logger.info(npy_path)
+    # logger.info(
+    #     "Wrote all inferred mel paths including sampling rate into these file(s):")
+    # npy_path = save_mel_postnet_npy_paths(
+    #     val_dir=output_dir,
+    #     mel_postnet_npy_paths=mel_postnet_npy_paths
+    # )
+    # logger.info(npy_path)
 
-    if copy_mel_info_to is not None:
-        copy_mel_info_to.parent.mkdir(parents=True, exist_ok=True)
-        copyfile(npy_path, copy_mel_info_to)
-        logger.info(copy_mel_info_to)
+    # if copy_mel_info_to is not None:
+    #     copy_mel_info_to.parent.mkdir(parents=True, exist_ok=True)
+    #     copyfile(npy_path, copy_mel_info_to)
+    #     logger.info(copy_mel_info_to)
 
     logger.info(f"Saved output to: {output_dir}")

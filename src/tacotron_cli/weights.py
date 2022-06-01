@@ -1,16 +1,27 @@
+from argparse import ArgumentParser
 from logging import getLogger
 from pathlib import Path
 from typing import Literal, Optional
 
 import torch
-from tacotron.app.io import load_checkpoint, save_checkpoint
-from tacotron.core.checkpoint_handling import (get_symbol_embedding_weights,
-                                               get_symbol_mapping,
-                                               update_symbol_embedding_weights,
-                                               update_symbol_mapping)
+from tacotron.checkpoint_handling import (get_symbol_embedding_weights,
+                                          get_symbol_mapping,
+                                          update_symbol_embedding_weights,
+                                          update_symbol_mapping)
+
+from tacotron_cli.io import load_checkpoint, save_checkpoint
 
 
-def map_missing_symbols_v2(base_dir: Path, checkpoint1: Path, checkpoint2: Path, mode: Literal["copy", "predict"], custom_output: Optional[Path]) -> bool:
+def init_add_missing_weights_parser(parser: ArgumentParser) -> None:
+    parser.add_argument('checkpoint1', type=Path)
+    parser.add_argument('checkpoint2', type=Path)
+    parser.add_argument('--mode', type=str,
+                        choices=["copy", "predict"], default="copy")
+    parser.add_argument('-out', '--custom-output', type=Path, default=None)
+    return map_missing_symbols_v2
+
+
+def map_missing_symbols_v2(checkpoint1: Path, checkpoint2: Path, mode: Literal["copy", "predict"], custom_output: Optional[Path]) -> bool:
     assert mode in ["copy", "predict"]
 
     logger = getLogger(__name__)

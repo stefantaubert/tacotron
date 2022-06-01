@@ -1,13 +1,13 @@
 # import os
 
-# from tacotron.app.io import get_checkpoints_dir, load_prep_settings
-# from tacotron.app.pre.merge_ds import (get_merged_dir, load_merged_accents_ids,
+# from tacotron_cli.io import get_checkpoints_dir, load_prep_settings
+# from tacotron_cli.pre.merge_ds import (get_merged_dir, load_merged_accents_ids,
 #                                        load_merged_speakers_json,
 #                                        load_merged_symbol_converter)
-# from tacotron.app.pre.prepare import get_prep_dir, load_valset
-# from tacotron.app.tacotron.io import get_train_dir
-# from tacotron.app.utils import prepare_logger
-# from tacotron.core.eval_checkpoints import eval_checkpoints
+# from tacotron_cli.pre.prepare import get_prep_dir, load_valset
+# from tacotron_cli.tacotron.io import get_train_dir
+# from tacotron_cli.utils import prepare_logger
+# from tacotron.eval_checkpoints import eval_checkpoints
 
 
 # def eval_checkpoints_main(base_dir: Path, train_name: str, select: int, min_it: int, max_it: int):

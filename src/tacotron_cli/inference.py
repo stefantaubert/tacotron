@@ -1,3 +1,4 @@
+from argparse import ArgumentParser
 import datetime
 import random
 from collections import OrderedDict
@@ -11,10 +12,10 @@ import numpy as np
 from audio_utils.mel import plot_melspec_np
 from image_utils import stack_images_vertically
 from ordered_set import OrderedSet
-from tacotron.app.io import load_checkpoint
-from tacotron.core.checkpoint_handling import (get_learning_rate,
-                                               get_speaker_mapping)
-from tacotron.core.synthesizer import Synthesizer
+from tacotron_cli.io import load_checkpoint
+from tacotron.checkpoint_handling import (get_learning_rate,
+                                          get_speaker_mapping)
+from tacotron.synthesizer import Synthesizer
 from tacotron.utils import plot_alignment_np_new
 from text_utils import Speaker, StringFormat2, Symbols
 from tqdm import tqdm
@@ -51,8 +52,27 @@ def parse_paragraphs_from_text(text: str) -> Paragraphs:
         result[paragraph_nr] = current_utterances
     return result
 
+def init_inference_v2_parser(parser: ArgumentParser) -> None:
+    parser.add_argument('checkpoint', type=Path)
+    parser.add_argument('text', type=Path)
+    parser.add_argument('--encoding', type=str, default="UTF-8")
+    parser.add_argument('--custom-speaker', type=str, default=None)
+    parser.add_argument('--custom-lines', type=int, nargs="*", default=[])
+    parser.add_argument('--max-decoder-steps', type=int, default=3000)
+    parser.add_argument('--batch-size', type=int, default=64)
+    parser.add_argument('--custom-seed', type=int, default=None)
+    parser.add_argument('-p', '--paragraph-directories', action='store_true')
+    parser.add_argument('--include-stats', action='store_true')
+    parser.add_argument('--prepend', type=str, default="",
+                        help="prepend text to all output file names")
+    parser.add_argument('--append', type=str, default="",
+                        help="append text to all output file names")
+    parser.add_argument('-out', '--output-directory', type=Path, default=None)
+    parser.add_argument('-o', '--overwrite', action='store_true')
+    return infer_text
 
-def infer_text(base_dir: Path, checkpoint: Path, text: Path, encoding: str, custom_speaker: Optional[Speaker], custom_lines: List[int], max_decoder_steps: int, batch_size: int, include_stats: bool, custom_seed: Optional[int], paragraph_directories: bool, output_directory: Optional[Path], prepend: str, append: str, overwrite: bool) -> bool:
+
+def infer_text(checkpoint: Path, text: Path, encoding: str, custom_speaker: Optional[Speaker], custom_lines: List[int], max_decoder_steps: int, batch_size: int, include_stats: bool, custom_seed: Optional[int], paragraph_directories: bool, output_directory: Optional[Path], prepend: str, append: str, overwrite: bool) -> bool:
     logger = getLogger(__name__)
 
     if not checkpoint.is_file():

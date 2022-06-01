@@ -17,9 +17,9 @@ from mel_cepstral_distance import get_metrics_mels
 from pandas import DataFrame
 from scipy.io.wavfile import read
 from sklearn.metrics import mean_squared_error
-from tacotron.core.checkpoint_handling import CheckpointDict, get_iteration
-from tacotron.core.synthesizer import Synthesizer
-from tacotron.core.typing import Entries, Entry
+from tacotron.checkpoint_handling import CheckpointDict, get_iteration
+from tacotron.synthesizer import Synthesizer
+from tacotron.typing import Entries, Entry
 from tacotron.utils import (cosine_dist_mels, make_same_dim,
                             plot_alignment_np_new)
 from tqdm import tqdm

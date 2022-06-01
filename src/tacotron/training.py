@@ -5,37 +5,6 @@ from typing import Callable, Dict, List, Optional, Tuple, cast
 import numpy as np
 import torch
 from general_utils import overwrite_custom_hparams
-from tacotron.core.checkpoint_handling import (CheckpointDict, create,
-                                               get_hparams, get_iteration,
-                                               get_model_state,
-                                               get_optimizer_state,
-                                               get_scheduler_state,
-                                               get_speaker_embedding_weights,
-                                               get_speaker_mapping,
-                                               get_stress_mapping,
-                                               get_symbol_embedding_weights,
-                                               get_symbol_mapping)
-from tacotron.core.dataloader import (SymbolsMelCollate,
-                                      create_speaker_mapping,
-                                      create_symbol_and_stress_mapping,
-                                      create_symbol_mapping,
-                                      get_speaker_mappings_count,
-                                      get_stress_mappings_count,
-                                      get_symbol_mappings_count, parse_batch,
-                                      prepare_trainloader, prepare_valloader)
-from tacotron.core.hparams import ExperimentHParams, HParams, OptimizerHParams
-from tacotron.core.logger import Tacotron2Logger
-from tacotron.core.model import (SPEAKER_EMBEDDING_LAYER_NAME,
-                                 SYMBOL_EMBEDDING_LAYER_NAME, Tacotron2)
-from tacotron.core.typing import Entries, SymbolToSymbolMapping
-from tacotron.core.utils import get_symbol_printable
-from tacotron.utils import (SaveIterationSettings, check_is_on_gpu,
-                            check_save_it, copy_state_dict,
-                            get_continue_batch_iteration, get_continue_epoch,
-                            get_last_iteration, get_next_save_it, init_cuddn,
-                            init_cuddn_benchmark, init_global_seeds,
-                            iteration_to_epoch, log_hparams, skip_batch,
-                            try_copy_tensors_to_gpu_iterable, try_copy_to_gpu)
 from torch import FloatTensor, nn
 from torch.backends import cudnn
 from torch.nn.utils.clip_grad import clip_grad_norm_
@@ -44,6 +13,36 @@ from torch.optim.lr_scheduler import ExponentialLR
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+
+from tacotron.checkpoint_handling import (CheckpointDict, create, get_hparams,
+                                          get_iteration, get_model_state,
+                                          get_optimizer_state,
+                                          get_scheduler_state,
+                                          get_speaker_embedding_weights,
+                                          get_speaker_mapping,
+                                          get_stress_mapping,
+                                          get_symbol_embedding_weights,
+                                          get_symbol_mapping)
+from tacotron.dataloader import (SymbolsMelCollate, create_speaker_mapping,
+                                 create_symbol_and_stress_mapping,
+                                 create_symbol_mapping,
+                                 get_speaker_mappings_count,
+                                 get_stress_mappings_count,
+                                 get_symbol_mappings_count, parse_batch,
+                                 prepare_trainloader, prepare_valloader)
+from tacotron.hparams import ExperimentHParams, HParams, OptimizerHParams
+from tacotron.logger import Tacotron2Logger
+from tacotron.model import (SPEAKER_EMBEDDING_LAYER_NAME,
+                            SYMBOL_EMBEDDING_LAYER_NAME, Tacotron2)
+from tacotron.typing import Entries, SymbolToSymbolMapping
+from tacotron.utils import (SaveIterationSettings, check_is_on_gpu,
+                            check_save_it, copy_state_dict,
+                            get_continue_batch_iteration, get_continue_epoch,
+                            get_last_iteration, get_next_save_it,
+                            get_symbol_printable, init_cuddn,
+                            init_cuddn_benchmark, init_global_seeds,
+                            iteration_to_epoch, log_hparams, skip_batch,
+                            try_copy_tensors_to_gpu_iterable, try_copy_to_gpu)
 
 AVG_COUNT = 30
 AVG_COUNT_LONG_TERM = 300

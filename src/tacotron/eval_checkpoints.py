@@ -4,16 +4,17 @@ from typing import Dict, Optional
 
 # import torch
 # from general_utils.main import overwrite_custom_hparams
-# from tacotron.core.dataloader import (SymbolsMelCollate, parse_batch,
+# from tacotron.dataloader import (SymbolsMelCollate, parse_batch,
 #                                       prepare_valloader)
-# from tacotron.core.hparams import HParams
-# from tacotron.core.model_checkpoint import CheckpointTacotron
-# from tacotron.core.training import Tacotron2Loss, load_model, validate_model
+# from tacotron.hparams import HParams
+# from tacotron.model_checkpoint import CheckpointTacotron
+# from tacotron.training import Tacotron2Loss, load_model, validate_model
 # from tacotron.utils import (filter_checkpoints, get_all_checkpoint_iterations,
 #                             get_checkpoint)
 # from tqdm import tqdm
 
-from tacotron.core.typing import Entries
+from tacotron.typing import Entries
+
 
 def eval_checkpoints(custom_hparams: Optional[Dict[str, str]], checkpoint_dir: Path, select: int, min_it: int, max_it: int, n_symbols: int, n_speakers: int, valset: Entries, logger: Logger) -> None:
     raise NotImplementedError()
