@@ -8,16 +8,17 @@ from typing import Tuple
 
 import torch
 from audio_utils.mel import TacotronSTFT
-from tacotron.hparams import HParams
-from tacotron.model import ForwardXIn
-from tacotron.typing import (Entries, Entry, SpeakerMapping, Stress,
-                             Stresses, StressMapping, SymbolMapping)
-from text_utils import (Speaker, SpeakerId, StressType, Symbol, Symbols,
-                        split_stress_arpa, split_stress_ipa)
+from text_utils import StressType, split_stress_arpa, split_stress_ipa
 from torch import (FloatTensor, IntTensor,  # pylint: disable=no-name-in-module
                    LongTensor, Tensor)
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
+
+from tacotron.hparams import HParams
+from tacotron.model import ForwardXIn
+from tacotron.typing import (Entries, Entry, Speaker, SpeakerId,
+                             SpeakerMapping, Stress, Stresses, StressMapping,
+                             Symbol, SymbolMapping, Symbols)
 
 PADDING_SHIFT = 1
 

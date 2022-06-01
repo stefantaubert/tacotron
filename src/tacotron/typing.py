@@ -4,11 +4,13 @@ from typing import Dict, List
 from typing import OrderedDict as OrderedDictType
 from typing import Tuple
 
-from text_utils import Speaker, Symbol
-
 EntryId = int
+Symbol = str
+Symbols = Tuple[Symbol, ...]
 Stress = str
 Stresses = Tuple[Stress, ...]
+Speaker = str
+SpeakerId = str
 SpeakerMapping = OrderedDictType[Speaker, int]
 SymbolMapping = OrderedDictType[Symbol, int]
 StressMapping = OrderedDictType[Stress, int]

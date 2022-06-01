@@ -14,8 +14,8 @@ from image_utils import stack_images_vertically
 from ordered_set import OrderedSet
 from tacotron.checkpoint_handling import get_learning_rate, get_speaker_mapping
 from tacotron.synthesizer import Synthesizer
+from tacotron.typing import Speaker, Symbols
 from tacotron.utils import plot_alignment_np_new
-from text_utils import Speaker, StringFormat2, Symbols
 from tqdm import tqdm
 
 from tacotron_cli.io import load_checkpoint

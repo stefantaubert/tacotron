@@ -1,5 +1,3 @@
-from tacotron.globals import SPACE_DISPLAYABLE
-from text_utils import Symbol
 import logging
 import os
 import random
@@ -20,6 +18,9 @@ from matplotlib.figure import Figure
 from scipy.spatial.distance import cosine
 from torch import Tensor, nn
 from torch.nn import Module
+
+from tacotron.globals import SPACE_DISPLAYABLE
+from tacotron.typing import Symbol
 
 _T = TypeVar('_T')
 PYTORCH_EXT = ".pt"

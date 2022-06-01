@@ -1,23 +1,26 @@
-from text_utils import Symbols
 import logging
 import time
 from dataclasses import dataclass
 from typing import Dict, Generator, Iterable, Optional, Set, Tuple, cast
 
 import numpy as np
-from audio_utils.mel import mel_to_numpy
-from general_utils import overwrite_custom_hparams
-from torch import IntTensor, LongTensor  # pylint: disable=no-name-in-module
 import torch
-from tacotron.checkpoint_handling import CheckpointDict, get_hparams, get_speaker_mapping, get_stress_mapping, get_symbol_mapping
-from tacotron.dataloader import get_speaker_mappings_count, get_stress_mappings_count, get_symbol_mappings_count, split_stresses
+from audio_utils.mel import mel_to_numpy
+from general_utils import console_out_len, overwrite_custom_hparams
+from torch import IntTensor, LongTensor  # pylint: disable=no-name-in-module
+
+from tacotron.checkpoint_handling import (CheckpointDict, get_hparams,
+                                          get_speaker_mapping,
+                                          get_stress_mapping,
+                                          get_symbol_mapping)
+from tacotron.dataloader import (get_speaker_mappings_count,
+                                 get_stress_mappings_count,
+                                 get_symbol_mappings_count, split_stresses)
+from tacotron.globals import NOT_INFERABLE_SYMBOL_MARKER
 from tacotron.model import Tacotron2
 from tacotron.training import load_model
-from tacotron.typing import SymbolMapping
-from tacotron.globals import NOT_INFERABLE_SYMBOL_MARKER
+from tacotron.typing import Speaker, Symbol, SymbolMapping, Symbols
 from tacotron.utils import init_global_seeds, try_copy_to_gpu
-from text_utils import Speaker, Symbol
-from general_utils import console_out_len
 
 
 @dataclass
