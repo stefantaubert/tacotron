@@ -1,7 +1,12 @@
-from typing import Dict, Tuple
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List
 from typing import OrderedDict as OrderedDictType
+from typing import Tuple
+
 from text_utils import Speaker, Symbol
 
+EntryId = int
 Stress = str
 Stresses = Tuple[Stress, ...]
 SpeakerMapping = OrderedDictType[Speaker, int]
@@ -9,3 +14,20 @@ SymbolMapping = OrderedDictType[Symbol, int]
 StressMapping = OrderedDictType[Stress, int]
 
 SymbolToSymbolMapping = Dict[Symbol, Symbol]
+
+
+@dataclass()
+class Entry():
+  stem: str
+  basename: str
+  speaker_name: Speaker
+  speaker_gender: str
+  symbols_language: str
+  symbols: Tuple[str]
+  wav_absolute_path: Path
+  #wav_duration: float
+  #wav_sampling_rate: int
+  #mel_absolute_path: Path
+  #mel_n_channels: int
+
+Entries = List[Entry]

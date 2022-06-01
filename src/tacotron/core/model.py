@@ -1,4 +1,4 @@
-from logging import Logger, getLogger
+from logging import getLogger
 from math import ceil
 from typing import Optional, Tuple
 

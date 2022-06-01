@@ -1,11 +1,6 @@
 import unittest
-from typing import List
 
-from torch import nn
-from torch.utils.data import DataLoader, Dataset
 
-from text_utils import SymbolIdDict
-from text_utils import SymbolsMap
 
 
 class UnitTests(unittest.TestCase):

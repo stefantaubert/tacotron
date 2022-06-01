@@ -1,7 +1,5 @@
 from collections import OrderedDict
-import math
 from statistics import mean, median
-import numpy as np
 from scipy.spatial.distance import cosine
 from logging import getLogger
 from pathlib import Path
@@ -9,7 +7,7 @@ from typing import Optional, cast
 
 import pandas as pd
 import plotly.offline as plt
-from tacotron.analysis import emb_plot_2d, emb_plot_3d, embeddings_to_csv, get_similarities, norm2emb, sims_to_csv, sims_to_csv_v2
+from tacotron.analysis import emb_plot_2d, emb_plot_3d, embeddings_to_csv, get_similarities, norm2emb, sims_to_csv_v2
 from tacotron.analysis import plot_embeddings as plot_embeddings_core
 from tacotron.app.io import get_checkpoints_dir, get_train_dir, load_checkpoint
 from tacotron.core.checkpoint_handling import get_hparams, get_speaker_embedding_weights, get_speaker_mapping, get_symbol_embedding_weights, get_symbol_mapping

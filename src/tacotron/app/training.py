@@ -1,43 +1,41 @@
-from general_utils import parse_json
 import logging
-import os
+from argparse import ArgumentParser
 from functools import partial
 from logging import Logger
 from pathlib import Path
+from tempfile import gettempdir
 from typing import Dict, Optional
 
+from general_utils import parse_json, split_hparams_string
+from speech_dataset_parser_api import parse_directory
 from tacotron.app.io import (get_checkpoints_dir,
-                             get_train_checkpoints_log_file, get_train_dir,
-                             get_train_log_file, get_train_logs_dir, load_checkpoint,
-                             load_prep_settings, save_checkpoint, save_prep_settings)
+                             get_train_dir, load_checkpoint,
+                             save_checkpoint)
 from tacotron.core import Tacotron2Logger
 from tacotron.core.checkpoint_handling import CheckpointDict, get_iteration
+from tacotron.core.parser import get_entries_from_sdp_entries
 from tacotron.core.training import start_training
 from tacotron.utils import (get_custom_or_last_checkpoint, get_last_checkpoint,
                             get_pytorch_filename, prepare_logger)
-from tts_preparation import (get_merged_dir, get_prep_dir,
-                             load_merged_speakers_json, load_trainset,
-                             load_valset, load_weights_map)
-from tts_preparation.app.io import load_merged_symbol_converter
 
 
 def try_load_checkpoint(base_dir: Path, train_name: Optional[str], checkpoint: Optional[int], logger: Logger) -> Optional[CheckpointDict]:
-  result = None
-  if train_name:
-    train_dir = get_train_dir(base_dir, train_name)
-    checkpoint_path, _ = get_custom_or_last_checkpoint(
-      get_checkpoints_dir(train_dir), checkpoint)
-    result = load_checkpoint(checkpoint_path)
-    logger.info(f"Using warm start model: {checkpoint_path}")
-  return result
+    result = None
+    if train_name:
+        train_dir = get_train_dir(base_dir, train_name)
+        checkpoint_path, _ = get_custom_or_last_checkpoint(
+            get_checkpoints_dir(train_dir), checkpoint)
+        result = load_checkpoint(checkpoint_path)
+        logger.info(f"Using warm start model: {checkpoint_path}")
+    return result
 
 
 def save_checkpoint_iteration(checkpoint: CheckpointDict, save_checkpoint_dir: Path) -> None:
-  iteration = get_iteration(checkpoint)
-  # TODO
-  #checkpoint_path = save_checkpoint_dir / f"{iteration}.pkl"
-  checkpoint_path = save_checkpoint_dir / get_pytorch_filename(iteration)
-  save_checkpoint(checkpoint, checkpoint_path)
+    iteration = get_iteration(checkpoint)
+    # TODO
+    #checkpoint_path = save_checkpoint_dir / f"{iteration}.pkl"
+    checkpoint_path = save_checkpoint_dir / get_pytorch_filename(iteration)
+    save_checkpoint(checkpoint, checkpoint_path)
 
 
 # def restore_model(base_dir: Path, train_name: str, checkpoint_dir: Path) -> None:
@@ -51,105 +49,143 @@ def save_checkpoint_iteration(checkpoint: CheckpointDict, save_checkpoint_dir: P
 #   logger.info("Restoring done.")
 
 
-def train(base_dir: Path, ttsp_dir: Path, train_name: str, merge_name: str, prep_name: str, custom_hparams: Optional[Dict[str, str]], pretrained_model: Path, warm_start: bool, map_symbol_weights: bool, custom_symbol_weights_map: Optional[Path], map_speaker_weights: bool, map_from_speaker: Optional[str]) -> None:
-  # Parameter: custom_symbol_weights_map -> a JSON file that contains keys equal to symbols from the model to be trained checkpoint and values equal to the symbols which are in the pretrained model.
-
-  merge_dir = get_merged_dir(ttsp_dir, merge_name)
-  prep_dir = get_prep_dir(merge_dir, prep_name)
-
-  train_dir = get_train_dir(base_dir, train_name)
-  logs_dir = get_train_logs_dir(train_dir)
-  logs_dir.mkdir(parents=True, exist_ok=True)
-
-  taco_logger = Tacotron2Logger(logs_dir)
-  logger = prepare_logger(get_train_log_file(logs_dir), reset=True)
-  checkpoint_logger = prepare_logger(
-    log_file_path=get_train_checkpoints_log_file(logs_dir),
-    logger=logging.getLogger("checkpoint-logger"),
-    reset=True
-  )
-
-  save_prep_settings(train_dir, ttsp_dir, merge_name, prep_name)
-
-  trainset = load_trainset(prep_dir)
-  valset = load_valset(prep_dir)
-
-  pretrained_model_checkpoint = None
-  weights_map = None
-  if pretrained_model is not None:
-    pretrained_model_checkpoint = load_checkpoint(pretrained_model)
-
-    if custom_symbol_weights_map is not None:
-      if not custom_symbol_weights_map.is_file():
-        logger.error("Weights map does not exist!")
-        return
-      weights_map = parse_json(custom_symbol_weights_map)
-
-  save_callback = partial(
-    save_checkpoint_iteration,
-    save_checkpoint_dir=get_checkpoints_dir(train_dir),
-  )
-
-  logger.info("Starting new model...")
-  start_training(
-    custom_hparams=custom_hparams,
-    taco_logger=taco_logger,
-    trainset=trainset,
-    valset=valset,
-    save_callback=save_callback,
-    custom_symbol_weights_map=weights_map,
-    pretrained_model=pretrained_model_checkpoint,
-    warm_start=warm_start,
-    map_symbol_weights=map_symbol_weights,
-    map_speaker_weights=map_speaker_weights,
-    map_from_speaker_name=map_from_speaker,
-    logger=logger,
-    checkpoint_logger=checkpoint_logger,
-    checkpoint=None,
-  )
+def init_train_parser(parser: ArgumentParser) -> None:
+    default_log_path = Path(gettempdir()) / "tacotron_logs"
+    parser.add_argument('train_folder', metavar="TRAIN-FOLDER-PATH", type=Path)
+    parser.add_argument('val_folder', metavar="VAL-FOLDER-PATH", type=Path)
+    parser.add_argument("tier", metavar="TIER", type=str)
+    parser.add_argument('checkpoints_dir',
+                        metavar="CHECKPOINTS-FOLDER-PATH", type=Path)
+    parser.add_argument('--custom-hparams', type=str, default=None)
+    # Pretrained model
+    parser.add_argument('--pretrained-model', type=Path, default=None)
+    # Warm start
+    parser.add_argument('--warm-start', action='store_true')
+    # Symbol weights
+    parser.add_argument('--map-symbol_weights', action='store_true')
+    parser.add_argument('--custom-symbol-weights-map', type=Path, default=None)
+    # Speaker weights
+    parser.add_argument('--map-speaker-weights', action='store_true')
+    parser.add_argument('--map-from-speaker', type=str, default=None)
+    parser.add_argument('--tl-dir', type=Path, default=default_log_path)
+    parser.add_argument('--log-path', type=Path,
+                        default=default_log_path/"log.txt")
+    parser.add_argument('--ckp-log-path', type=Path,
+                        default=default_log_path/"log-checkpoints.txt")
+    return train_cli
 
 
-def continue_train(base_dir: Path, train_name: str, custom_hparams: Optional[Dict[str, str]] = None) -> None:
-  train_dir = get_train_dir(base_dir, train_name)
-  assert train_dir.is_dir()
+def train_cli(**args) -> None:
+    args["custom-hparams"] = split_hparams_string(args["custom-hparams"])
+    train_new(**args)
 
-  logs_dir = get_train_logs_dir(train_dir)
-  taco_logger = Tacotron2Logger(logs_dir)
-  logger = prepare_logger(get_train_log_file(logs_dir))
-  checkpoint_logger = prepare_logger(
-    log_file_path=get_train_checkpoints_log_file(logs_dir),
-    logger=logging.getLogger("checkpoint-logger")
-  )
 
-  checkpoints_dir = get_checkpoints_dir(train_dir)
-  last_checkpoint_path, _ = get_last_checkpoint(checkpoints_dir)
-  last_checkpoint = load_checkpoint(last_checkpoint_path)
+def train_new(base_dir: Path, train_folder: Path, val_folder: Path, tier: str, checkpoints_dir: Path, custom_hparams: Optional[Dict[str, str]], pretrained_model: Path, warm_start: bool, map_symbol_weights: bool, custom_symbol_weights_map: Optional[Path], map_speaker_weights: bool, map_from_speaker: Optional[str], tl_dir: Path, log_path: Path, ckp_log_path: Path) -> None:
+    taco_logger = Tacotron2Logger(tl_dir)
+    logger = prepare_logger(log_path, reset=True)
+    checkpoint_logger = prepare_logger(
+        log_file_path=ckp_log_path,
+        logger=logging.getLogger("checkpoint-logger"),
+        reset=True
+    )
 
-  save_callback = partial(
-    save_checkpoint_iteration,
-    save_checkpoint_dir=checkpoints_dir,
-  )
+    pretrained_model_checkpoint = None
+    weights_map = None
+    if pretrained_model is not None:
+        pretrained_model_checkpoint = load_checkpoint(pretrained_model)
 
-  ttsp_dir, merge_name, prep_name = load_prep_settings(train_dir)
-  merge_dir = get_merged_dir(ttsp_dir, merge_name)
-  prep_dir = get_prep_dir(merge_dir, prep_name)
-  trainset = load_trainset(prep_dir)
-  valset = load_valset(prep_dir)
+        if custom_symbol_weights_map is not None:
+            if not custom_symbol_weights_map.is_file():
+                logger.error("Weights map does not exist!")
+                return
+            weights_map = parse_json(custom_symbol_weights_map)
 
-  logger.info("Continuing training from checkpoint...")
-  start_training(
-    custom_hparams=custom_hparams,
-    taco_logger=taco_logger,
-    trainset=trainset,
-    valset=valset,
-    save_callback=save_callback,
-    custom_symbol_weights_map=None,
-    pretrained_model=None,
-    map_from_speaker_name=None,
-    map_symbol_weights=False,
-    checkpoint=last_checkpoint,
-    logger=logger,
-    checkpoint_logger=checkpoint_logger,
-    warm_start=False,
-    map_speaker_weights=False,
-  )
+    save_callback = partial(
+        save_checkpoint_iteration,
+        save_checkpoint_dir=checkpoints_dir,
+    )
+
+    trainset = list(get_entries_from_sdp_entries(
+        parse_directory(train_folder, tier, 16)))
+    valset = list(get_entries_from_sdp_entries(
+        parse_directory(val_folder, tier, 16)))
+
+    logger.info("Starting new model...")
+    start_training(
+        custom_hparams=custom_hparams,
+        taco_logger=taco_logger,
+        trainset=trainset,
+        valset=valset,
+        save_callback=save_callback,
+        custom_symbol_weights_map=weights_map,
+        pretrained_model=pretrained_model_checkpoint,
+        warm_start=warm_start,
+        map_symbol_weights=map_symbol_weights,
+        map_speaker_weights=map_speaker_weights,
+        map_from_speaker_name=map_from_speaker,
+        logger=logger,
+        checkpoint_logger=checkpoint_logger,
+        checkpoint=None,
+    )
+
+
+def init_continue_train_parser(parser: ArgumentParser) -> None:
+    default_log_path = Path(gettempdir()) / "tacotron_logs"
+    parser.add_argument('train_folder', metavar="TRAIN-FOLDER-PATH", type=Path)
+    parser.add_argument('val_folder', metavar="VAL-FOLDER-PATH", type=Path)
+    parser.add_argument("tier", metavar="TIER", type=str)
+    parser.add_argument('checkpoints_dir',
+                        metavar="CHECKPOINTS-FOLDER-PATH", type=Path)
+    parser.add_argument('--custom-hparams', type=str, default=None)
+    parser.add_argument('--tl-dir', type=Path, default=default_log_path)
+    parser.add_argument('--log-path', type=Path,
+                        default=default_log_path/"log.txt")
+    parser.add_argument('--ckp-log-path', type=Path,
+                        default=default_log_path/"log-checkpoints.txt")
+    return continue_train_cli
+
+
+def continue_train_cli(**args) -> None:
+    args["custom-hparams"] = split_hparams_string(args["custom-hparams"])
+    continue_train_v2(**args)
+
+
+def continue_train_v2(base_dir: Path, train_folder: Path, val_folder: Path, tier: str, checkpoints_dir: Path, custom_hparams: Optional[Dict[str, str]], tl_dir: Path, log_path: Path, ckp_log_path: Path) -> None:
+    taco_logger = Tacotron2Logger(tl_dir)
+    logger = prepare_logger(log_path, reset=True)
+    checkpoint_logger = prepare_logger(
+        log_file_path=ckp_log_path,
+        logger=logging.getLogger("checkpoint-logger"),
+        reset=True
+    )
+
+    save_callback = partial(
+        save_checkpoint_iteration,
+        save_checkpoint_dir=checkpoints_dir,
+    )
+
+    trainset = list(get_entries_from_sdp_entries(
+        parse_directory(train_folder, tier, 16)))
+    valset = list(get_entries_from_sdp_entries(
+        parse_directory(val_folder, tier, 16)))
+
+    last_checkpoint_path, _ = get_last_checkpoint(checkpoints_dir)
+    last_checkpoint = load_checkpoint(last_checkpoint_path)
+
+    logger.info("Continuing training from checkpoint...")
+    start_training(
+        custom_hparams=custom_hparams,
+        taco_logger=taco_logger,
+        trainset=trainset,
+        valset=valset,
+        save_callback=save_callback,
+        custom_symbol_weights_map=None,
+        pretrained_model=None,
+        map_from_speaker_name=None,
+        map_symbol_weights=False,
+        checkpoint=last_checkpoint,
+        logger=logger,
+        checkpoint_logger=checkpoint_logger,
+        warm_start=False,
+        map_speaker_weights=False,
+    )

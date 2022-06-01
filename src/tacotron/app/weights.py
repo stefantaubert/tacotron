@@ -1,15 +1,14 @@
 from logging import getLogger
 from pathlib import Path
 from typing import Literal, Optional, cast
-import numpy as np
 
 from ordered_set import OrderedSet
 import torch
 from tacotron.app.io import (get_checkpoints_dir, get_train_dir, load_checkpoint,
                              load_prep_settings, save_checkpoint)
 from tacotron.core.checkpoint_handling import get_symbol_embedding_weights, get_symbol_mapping, update_symbol_embedding_weights, update_symbol_mapping
-from tacotron.core.model_weights import AddSymbolEmbeddings, map_symbols
-from tacotron.utils import get_checkpoint, get_last_checkpoint, try_copy_to_gpu
+from tacotron.core.model_weights import map_symbols
+from tacotron.utils import get_checkpoint, get_last_checkpoint
 from tts_preparation import get_merged_dir
 from tts_preparation.app.io import save_merged_symbol_converter
 

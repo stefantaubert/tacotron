@@ -1,223 +1,282 @@
 import datetime
-from functools import partial
+import random
+from collections import OrderedDict
 from logging import getLogger
-import os
 from pathlib import Path
-from shutil import copyfile
-from typing import Any, Dict, List, Optional, Set
+from typing import List, Optional
+from typing import OrderedDict as OrderedDictType
 
 import imageio
 import numpy as np
-from general_utils import parse_json, save_json
-from image_utils import stack_images_horizontally, stack_images_vertically
+from audio_utils.mel import plot_melspec_np
+from image_utils import stack_images_vertically
 from ordered_set import OrderedSet
-from tacotron.app.defaults import (DEFAULT_MAX_DECODER_STEPS,
-                                   DEFAULT_SAVE_MEL_INFO_COPY_PATH,
-                                   DEFAULT_SEED)
-from tacotron.app.io import (get_checkpoints_dir, get_inference_root_dir,
-                             get_mel_info_dict, get_mel_out_dict,
-                             get_train_dir, load_checkpoint, load_prep_settings)
-from tacotron.core import (InferenceEntries,
-                           InferenceEntryOutput)
-from tacotron.core import infer as infer_core
-from tacotron.core.checkpoint_handling import get_speaker_mapping
-from tacotron.core.inference import get_df
-from tacotron.globals import DEFAULT_CSV_SEPERATOR
-from tacotron.utils import (add_console_out_to_logger, add_file_out_to_logger,
-                            get_custom_or_last_checkpoint, get_default_logger,
-                            init_logger)
-from text_utils import Speaker
-from tts_preparation import (InferableUtterance, InferableUtterances,
-                             get_merged_dir, get_text_dir, load_utterances)
+from tacotron.app.io import load_checkpoint
+from tacotron.core.checkpoint_handling import (get_learning_rate,
+                                               get_speaker_mapping)
+from tacotron.core.synthesizer import Synthesizer
+from tacotron.utils import plot_alignment_np_new
+from text_utils import Speaker, StringFormat2, Symbols
+from tqdm import tqdm
+
+Utterances = OrderedDictType[int, Symbols]
+Paragraphs = OrderedDictType[int, Utterances]
 
 
-def get_run_name(input_name: str, iteration: int, speaker_name: str, full_run: bool) -> str:
-  subdir_name = f"{datetime.datetime.now():%Y-%m-%d,%H-%M-%S}__text={input_name}__speaker={speaker_name}__it={iteration}__full={full_run}"
-  return subdir_name
+def parse_paragraphs_from_text(text: str) -> Paragraphs:
+    symbol_sep = "|"
+    logger = getLogger(__name__)
+    lines = text.splitlines()
+    result = OrderedDict()
+    paragraph_nr = 1
+    current_utterances = OrderedDict()
+    for line_nr, line in enumerate(lines, start=1):
+        if line == "":
+            if len(current_utterances) > 0:
+                assert paragraph_nr not in result
+                result[paragraph_nr] = current_utterances
+                paragraph_nr += 1
+                current_utterances = OrderedDict()
+        else:
+            if not StringFormat2.SPACED.can_convert_string_to_symbols(line, symbol_sep):
+                logger.error(
+                    f"Line {line_nr}: Line couldn't be parsed! Skipped.")
+                continue
+            line_symbols = StringFormat2.SPACED.convert_string_to_symbols(
+                line, symbol_sep)
+            assert line_nr not in current_utterances
+            current_utterances[line_nr] = line_symbols
+
+    if len(current_utterances) > 0:
+        result[paragraph_nr] = current_utterances
+    return result
 
 
-def get_infer_dir(train_dir: Path, run_name: str) -> Path:
-  return get_inference_root_dir(train_dir) / run_name
+def infer_text(base_dir: Path, checkpoint: Path, text: Path, encoding: str, custom_speaker: Optional[Speaker], custom_lines: List[int], max_decoder_steps: int, batch_size: int, include_stats: bool, custom_seed: Optional[int], paragraph_directories: bool, output_directory: Optional[Path], prepend: str, append: str, overwrite: bool) -> bool:
+    logger = getLogger(__name__)
 
+    if not checkpoint.is_file():
+        logger.error("Checkpoint was not found!")
+        return False
 
-def load_infer_symbols_map(symbols_map: str) -> List[str]:
-  return parse_json(symbols_map)
+    if not text.is_file():
+        logger.error("Text was not found!")
+        return False
 
+    custom_lines = OrderedSet(custom_lines)
+    if not all(x >= 0 for x in custom_lines):
+        logger.error(
+            "Custom line values need to be greater than or equal to zero!")
+        return False
 
-MEL_PNG = "mel.png"
-MEL_POSTNET_PNG = "mel_postnet.png"
-ALIGNMENTS_PNG = "alignments.png"
+    if not max_decoder_steps > 0:
+        logger.error("Maximum decoder steps need to be greater than zero!")
+        return False
 
+    if not batch_size > 0:
+        logger.error("Batch size need to be greater than zero!")
+        return False
 
-def save_mel_v_plot(infer_dir: Path, utterances: InferableUtterances) -> None:
-  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) / MEL_PNG for x in utterances.items()]
-  path = infer_dir / "mel_v.png"
-  stack_images_vertically(paths, path)
+    if custom_seed is not None and not custom_seed >= 0:
+        logger.error("Custom seed needs to be greater than or equal to zero!")
+        return False
 
+    try:
+        logger.debug(f"Loading checkpoint...")
+        checkpoint_dict = load_checkpoint(checkpoint)
+    except Exception as ex:
+        logger.error("Checkpoint couldn't be loaded!")
+        return False
 
-def save_alignments_v_plot(infer_dir: Path, utterances: InferableUtterances) -> None:
-  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) /
-           ALIGNMENTS_PNG for x in utterances.items()]
-  path = infer_dir / "alignments_v.png"
-  stack_images_vertically(paths, path)
+    if custom_speaker is not None:
+        speaker_mapping = get_speaker_mapping(checkpoint_dict)
+        if custom_speaker not in speaker_mapping:
+            logger.error("Custom speaker was not found!")
+            return False
 
+    try:
+        logger.debug(f"Loading text.")
+        text_content = text.read_text(encoding)
+    except Exception as ex:
+        logger.error("Text couldn't be read!")
+        return False
 
-def save_mel_postnet_v_plot(infer_dir: Path, utterances: InferableUtterances) -> None:
-  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) /
-           MEL_POSTNET_PNG for x in utterances.items()]
-  path = infer_dir / "mel_postnet_v.png"
-  stack_images_vertically(paths, path)
+    if output_directory is None:
+        output_directory = text.parent / text.stem
 
+    if output_directory.is_file():
+        logger.error("Output directory is a file!")
+        return False
 
-def save_mel_postnet_h_plot(infer_dir: Path, utterances: InferableUtterances) -> None:
-  paths = [get_infer_sent_dir(infer_dir, get_result_name(x)) /
-           MEL_POSTNET_PNG for x in utterances.items()]
-  path = infer_dir / "mel_postnet_h.png"
-  stack_images_horizontally(paths, path)
+    paragraphs = parse_paragraphs_from_text(text_content)
 
+    line_nrs_to_infer = OrderedSet(
+        line_nr for par in paragraphs.values() for line_nr in par.keys())
+    if len(custom_lines) > 0:
+        for custom_line in custom_lines:
+            if custom_line not in line_nrs_to_infer:
+                logger.error(f"Line {custom_line} is not inferable!")
+                return False
 
-def get_infer_sent_dir(infer_dir: Path, result_name: str) -> Path:
-  return infer_dir / result_name
+        line_nrs_to_infer = custom_lines
 
+    logger.info("Inferring...")
+    logger.info(
+        f"Checkpoint learning rate was: {get_learning_rate(checkpoint_dict)}")
 
-def save_stats(infer_dir: Path, entries: InferenceEntries) -> None:
-  path = infer_dir / "total.csv"
-  df = get_df(entries)
-  df.to_csv(path, sep=DEFAULT_CSV_SEPERATOR, header=True)
+    if custom_seed is not None:
+        seed = custom_seed
+    else:
+        seed = random.randint(1, 9999)
+        logger.info(f"Using random seed: {seed}.")
 
+    if custom_speaker is not None:
+        speaker = custom_speaker
+    else:
+        speaker_mapping = get_speaker_mapping(checkpoint_dict)
+        speaker = next(iter(speaker_mapping.keys()))
+        logger.debug(f"Speaker: {speaker}")
 
-def get_result_name(entry: InferableUtterance) -> str:
-  return str(entry.utterance_id)
+    synth = Synthesizer(
+        checkpoint=checkpoint_dict,
+        custom_hparams=None,
+        logger=logger,
+    )
 
+    max_paragraph_nr = max(paragraphs.keys())
+    max_line_nr = max(utt_nr for paragraph in paragraphs.values()
+                      for utt_nr in paragraph.keys())
+    zfill_paragraph = len(str(max_paragraph_nr))
+    zfill_line_nr = len(str(max_line_nr))
+    count_utterances = sum(1 for paragraph in paragraphs.values()
+                           for _ in paragraph.keys())
+    count_utterances_zfill = len(str(count_utterances))
+    utterance_nr = 1
+    unknown_symbols = set()
+    with tqdm(total=len(line_nrs_to_infer), unit=" lines", ncols=100, desc="Inference") as progress_bar:
+        for paragraph_nr, utterances in paragraphs.items():
+            if paragraph_directories:
+                min_utt = min(utterances.keys())
+                max_utt = max(utterances.keys())
+                name = f"{paragraph_nr}".zfill(zfill_paragraph)
+                min_utt_str = f"{min_utt}".zfill(zfill_line_nr)
+                max_utt_str = f"{max_utt}".zfill(zfill_line_nr)
+                paragraph_folder = output_directory / \
+                    f"{name}-{min_utt_str}-{max_utt_str}"
+            else:
+                paragraph_folder = output_directory
+            for line_nr, utterance in utterances.items():
+                if line_nr not in line_nrs_to_infer:
+                    logger.debug(f"Skipped line {line_nr}.")
+                    utterance_nr += 1
+                    continue
 
-def save_results(entry: InferableUtterance, output: InferenceEntryOutput, infer_dir: Path, mel_postnet_npy_paths: List[Dict[str, Any]]) -> None:
-  result_name = get_result_name(entry)
-  dest_dir = get_infer_sent_dir(infer_dir, result_name)
-  dest_dir.mkdir(parents=True, exist_ok=True)
-  imageio.imsave(dest_dir / MEL_PNG, output.mel_img)
-  imageio.imsave(dest_dir / MEL_POSTNET_PNG, output.postnet_img)
-  imageio.imsave(dest_dir / ALIGNMENTS_PNG, output.alignments_img)
+                line_nr_filled = f"{line_nr}".zfill(zfill_line_nr)
+                utterance_nr_filled = f"{utterance_nr}".zfill(
+                    count_utterances_zfill)
+                utt_path_stem = f"{prepend}{line_nr_filled}-{utterance_nr_filled}{append}"
+                utterance_mel_path = paragraph_folder / f"{utt_path_stem}.npy"
 
-  mel_postnet_npy_path = dest_dir / "inferred.mel.npy"
-  np.save(mel_postnet_npy_path, output.postnet_mel)
+                if utterance_mel_path.exists() and not overwrite:
+                    logger.info(
+                        f"Line {line_nr}: Skipped inference because line is already synthesized!")
+                    continue
 
-  stack_images_vertically(
-    list_im=[
-      dest_dir / MEL_PNG,
-      dest_dir / MEL_POSTNET_PNG,
-      dest_dir / ALIGNMENTS_PNG,
-    ],
-    out_path=dest_dir / "comparison.png"
-  )
+                if include_stats:
+                    log_out = paragraph_folder / f"{utt_path_stem}.log"
+                    align_img_path = paragraph_folder / \
+                        f"{utt_path_stem}-1-alignments.png"
+                    mel_prepost_img_path = paragraph_folder / \
+                        f"{utt_path_stem}-2-prepost.png"
+                    mel_postnet_img_path = paragraph_folder / \
+                        f"{utt_path_stem}-3-postnet.png"
+                    comp_img_path = paragraph_folder / f"{utt_path_stem}.png"
 
-  mel_info = get_mel_info_dict(
-    identifier=result_name,
-    path=mel_postnet_npy_path,
-    sr=output.sampling_rate,
-  )
+                    if not overwrite:
+                        if log_out.exists():
+                            logger.info(
+                                f"Line {line_nr}: Log already exists! Skipped inference.")
+                            continue
 
-  mel_postnet_npy_paths.append(mel_info)
+                        if mel_postnet_img_path.exists():
+                            logger.info(
+                                f"Line {line_nr}: Mel image already exists! Skipped inference.")
+                            continue
 
+                        if mel_prepost_img_path.exists():
+                            logger.info(
+                                f"Line {line_nr}: Mel pre-postnet image already exists! Skipped inference.")
+                            continue
 
-def get_infer_log_new(infer_dir: Path) -> None:
-  return infer_dir / "log.txt"
+                        if align_img_path.exists():
+                            logger.info(
+                                f"Line {line_nr}: Alignments image already exists! Skipped inference.")
+                            continue
 
+                        if comp_img_path.exists():
+                            logger.info(
+                                f"Line {line_nr}: Comparison image already exists! Skipped inference.")
+                            continue
 
-def infer(base_dir: Path, train_name: str, text_name: str, speaker: Speaker, utterance_ids: Optional[Set[int]] = None, custom_checkpoint: Optional[int] = None, full_run: bool = True, custom_hparams: Optional[Dict[str, str]] = None, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, seed: Optional[int] = DEFAULT_SEED, copy_mel_info_to: Optional[Path] = DEFAULT_SAVE_MEL_INFO_COPY_PATH) -> None:
-  train_dir = get_train_dir(base_dir, train_name)
-  assert train_dir.is_dir()
+                logger.debug(f"Infering {line_nr}...")
 
-  logger = get_default_logger()
-  init_logger(logger)
-  add_console_out_to_logger(logger)
+                inf_sent_output = synth.infer_v2(
+                    symbols=utterance,
+                    speaker=speaker,
+                    include_stats=include_stats,
+                    max_decoder_steps=max_decoder_steps,
+                    seed=seed,
+                )
 
-  logger.info("Inferring...")
+                logger.debug(f"Saving {utterance_mel_path}...")
+                paragraph_folder.mkdir(parents=True, exist_ok=True)
+                np.save(utterance_mel_path, inf_sent_output.mel_outputs_postnet)
 
-  checkpoint_path, iteration = get_custom_or_last_checkpoint(
-    get_checkpoints_dir(train_dir), custom_checkpoint)
-  taco_checkpoint = load_checkpoint(checkpoint_path)
+                unknown_symbols |= inf_sent_output.unknown_symbols
 
-  ttsp_dir, merge_name, _ = load_prep_settings(train_dir)
-  # merge_dir = get_merged_dir(ttsp_dir, merge_name)
+                if include_stats:
+                    log_lines = []
+                    log_lines.append(f"Timepoint: {datetime.datetime.now()}")
+                    log_lines.append(
+                        f"Reached max decoder steps: {inf_sent_output.reached_max_decoder_steps}")
+                    log_lines.append(
+                        f"Inference duration: {inf_sent_output.inference_duration_s}")
+                    log_lines.append(
+                        f"Sampling rate: {inf_sent_output.sampling_rate}")
+                    log_lines.append(
+                        f"Unknown symbols: {' '.join(inf_sent_output.unknown_symbols)}")
 
-  merge_dir = get_merged_dir(ttsp_dir, merge_name)
-  text_dir = get_text_dir(merge_dir, text_name)
-  utterances = load_utterances(text_dir)
+                    logger.debug(f"Saving {log_out}...")
+                    log_out.write_text("\n".join(log_lines), encoding="UTF-8")
 
-  run_name = get_run_name(
-    input_name=text_name,
-    full_run=full_run,
-    iteration=iteration,
-    speaker_name=speaker,
-  )
+                    logger.debug(f"Saving {mel_postnet_img_path}...")
+                    _, postnet_img = plot_melspec_np(
+                        inf_sent_output.mel_outputs_postnet)
+                    imageio.imsave(mel_postnet_img_path, postnet_img)
 
-  infer_dir = get_infer_dir(
-    train_dir=train_dir,
-    run_name=run_name,
-  )
+                    logger.debug(f"Saving {mel_prepost_img_path}...")
+                    _, mel_img = plot_melspec_np(inf_sent_output.mel_outputs)
+                    imageio.imsave(mel_prepost_img_path, mel_img)
 
-  infer_dir.mkdir(parents=True, exist_ok=True)
-  add_file_out_to_logger(logger, get_infer_log_new(infer_dir))
+                    logger.debug(f"Saving {align_img_path}...")
+                    _, alignments_img = plot_alignment_np_new(
+                        inf_sent_output.alignments)
+                    imageio.imsave(align_img_path, alignments_img)
 
-  mel_postnet_npy_paths: List[Dict[str, Any]] = []
-  save_callback = partial(save_results, infer_dir=infer_dir,
-                          mel_postnet_npy_paths=mel_postnet_npy_paths)
+                    logger.debug(f"Saving {comp_img_path}...")
+                    stack_images_vertically(
+                        list_im=[
+                            align_img_path,
+                            mel_prepost_img_path,
+                            mel_postnet_img_path,
+                        ],
+                        out_path=comp_img_path,
+                    )
+                progress_bar.update()
+                utterance_nr += 1
 
-  inference_results = infer_core(
-    checkpoint=taco_checkpoint,
-    utterances=utterances,
-    custom_hparams=custom_hparams,
-    full_run=full_run,
-    save_callback=save_callback,
-    utterance_ids=utterance_ids,
-    speaker_name=speaker,
-    train_name=train_name,
-    max_decoder_steps=max_decoder_steps,
-    seed=seed,
-    logger=logger,
-  )
-
-  logger.info("Creating mel_postnet_v.png")
-  save_mel_postnet_v_plot(infer_dir, utterances)
-
-  logger.info("Creating mel_postnet_h.png")
-  save_mel_postnet_h_plot(infer_dir, utterances)
-
-  logger.info("Creating mel_v.png")
-  save_mel_v_plot(infer_dir, utterances)
-
-  logger.info("Creating alignments_v.png")
-  save_alignments_v_plot(infer_dir, utterances)
-
-  logger.info("Creating total.csv")
-  save_stats(infer_dir, inference_results)
-
-  npy_path = save_mel_postnet_npy_paths(
-    infer_dir=infer_dir,
-    name=run_name,
-    mel_postnet_npy_paths=mel_postnet_npy_paths
-  )
-
-  logger.info("Wrote all inferred mel paths including sampling rate into these file(s):")
-  logger.info(npy_path)
-
-  if copy_mel_info_to is not None:
-    copy_mel_info_to.parent.mkdir(exist_ok=True, parents=True)
-    copyfile(npy_path, copy_mel_info_to)
-    logger.info(copy_mel_info_to)
-
-  logger.info(f"Saved output to: {infer_dir}")
-
-
-def save_mel_postnet_npy_paths(infer_dir: Path, name: str, mel_postnet_npy_paths: List[Dict[str, Any]]) -> str:
-  info_json = get_mel_out_dict(
-    name=name,
-    root_dir=infer_dir,
-    mel_info_dict=mel_postnet_npy_paths,
-  )
-
-  path = infer_dir / "mel_out.json"
-  save_json(path, info_json)
-  #text = '\n'.join(mel_postnet_npy_paths)
-  #save_txt(path, text)
-  return path
+    if len(unknown_symbols) > 0:
+        logger.warning(
+            f"Unknown symbols: {' '.join(sorted(unknown_symbols))} (#{len(unknown_symbols)})")
+    logger.info(f"Done. Written output to: {output_directory.absolute()}")
+    return True

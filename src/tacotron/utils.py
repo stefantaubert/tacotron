@@ -17,8 +17,6 @@ from matplotlib.figure import Figure
 from scipy.spatial.distance import cosine
 from torch import Tensor, nn
 from torch.nn import Module
-from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 _T = TypeVar('_T')
 PYTORCH_EXT = ".pt"

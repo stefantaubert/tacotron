@@ -2,7 +2,7 @@ from text_utils import Symbols
 import logging
 import time
 from dataclasses import dataclass
-from typing import Dict, Generator, Iterable, Optional, Set, cast
+from typing import Dict, Generator, Iterable, Optional, Set, Tuple, cast
 
 import numpy as np
 from audio_utils.mel import mel_to_numpy
@@ -17,13 +17,11 @@ from tacotron.core.typing import SymbolMapping
 from tacotron.globals import NOT_INFERABLE_SYMBOL_MARKER
 from tacotron.utils import init_global_seeds, try_copy_to_gpu
 from text_utils import Speaker, Symbol
-from tts_preparation import InferableUtterance
 from general_utils import console_out_len
 
 
 @dataclass
 class InferenceResult():
-  utterance: InferableUtterance
   sampling_rate: int
   reached_max_decoder_steps: bool
   inference_duration_s: float
@@ -92,20 +90,20 @@ class Synthesizer():
   def get_sampling_rate(self) -> int:
     return self.hparams.sampling_rate
 
-  def infer(self, utterance: InferableUtterance, speaker: Optional[Speaker], max_decoder_steps: int, seed: int) -> InferenceResultV2:
+  def infer(self, symbols: Tuple[str], speaker: Optional[Speaker], max_decoder_steps: int, seed: int) -> InferenceResultV2:
     marker = NOT_INFERABLE_SYMBOL_MARKER
     if self.hparams.use_stress_embedding:
 
-      symbols, stresses = split_stresses(utterance.symbols, self.hparams.symbols_are_ipa)
+      symbols_wo_stress, stresses = split_stresses(symbols, self.hparams.symbols_are_ipa)
 
       mappable_entries = tuple(
         symbol in self.symbol_mapping and stress in self.stress_mapping
-        for symbol, stress in zip(symbols, stresses)
+        for symbol, stress in zip(symbols_wo_stress, stresses)
       )
 
       mapped_symbols = (
         self.symbol_mapping[symbol]
-        for symbol, is_mappable in zip(symbols, mappable_entries)
+        for symbol, is_mappable in zip(symbols_wo_stress, mappable_entries)
         if is_mappable
       )
 
@@ -118,21 +116,21 @@ class Synthesizer():
       print_text = ' '.join(
         f"{symbol}{stress}" if is_mappable
         else marker * (console_out_len(symbol) + console_out_len(stress))
-        for symbol, stress, is_mappable in zip(symbols, stresses, mappable_entries)
+        for symbol, stress, is_mappable in zip(symbols_wo_stress, stresses, mappable_entries)
       )
 
       self._logger.info(print_text)
     else:
       mapped_symbols = (
         self.symbol_mapping[symbol]
-        for symbol in utterance.symbols
+        for symbol in symbols
         if symbol in self.symbol_mapping
       )
 
       print_text = ' '.join(
         f"{symbol}" if symbol in self.symbol_mapping
         else marker * console_out_len(symbol)
-        for symbol in zip(utterance.symbols)
+        for symbol in symbols
       )
 
       self._logger.info(print_text)
@@ -171,7 +169,6 @@ class Synthesizer():
     inference_duration_s = end - start
 
     infer_res = InferenceResult(
-      utterance=utterance,
       sampling_rate=self.hparams.sampling_rate,
       reached_max_decoder_steps=reached_max_decoder_steps,
       inference_duration_s=inference_duration_s,

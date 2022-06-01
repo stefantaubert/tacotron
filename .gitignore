@@ -137,3 +137,4 @@ configs/
 data/
 playground*
 todo.md
+deploy-PyPI.sh
