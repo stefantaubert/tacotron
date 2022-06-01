@@ -23,8 +23,9 @@ def get_analysis_root_dir(train_dir: Path) -> Path:
 
 
 def init_plot_emb_parser(parser: ArgumentParser) -> None:
-    parser.add_argument('--checkpoint', type=str, required=True)
-    parser.add_argument('--output_directory', type=str, required=True)
+    parser.add_argument('checkpoint', metavar="CHECKPOINT-PATH", type=Path)
+    parser.add_argument('output_directory',
+                        metavar="OUTPUT-FOLDER-PATH", type=Path)
     return plot_embeddings_v2
 
 

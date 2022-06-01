@@ -13,8 +13,8 @@ from tacotron_cli.io import load_checkpoint, save_checkpoint
 
 
 def init_add_missing_weights_parser(parser: ArgumentParser) -> None:
-    parser.add_argument('checkpoint1', type=Path)
-    parser.add_argument('checkpoint2', type=Path)
+    parser.add_argument('checkpoint1', metavar="CHECKPOINT1-PATH", type=Path)
+    parser.add_argument('checkpoint2', metavar="CHECKPOINT2-PATH", type=Path)
     parser.add_argument('--mode', type=str,
                         choices=["copy", "predict"], default="copy")
     parser.add_argument('-out', '--custom-output', type=Path, default=None)

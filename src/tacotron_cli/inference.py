@@ -53,8 +53,8 @@ def parse_paragraphs_from_text(text: str, sep: str) -> Paragraphs:
 
 
 def init_inference_v2_parser(parser: ArgumentParser) -> None:
-    parser.add_argument('checkpoint', type=Path)
-    parser.add_argument('text', type=Path)
+    parser.add_argument('checkpoint', metavar="CHECKPOINT-PATH", type=Path)
+    parser.add_argument('text', metavar="TEXT-PATH", type=Path)
     parser.add_argument('--encoding', type=str, default="UTF-8")
     parser.add_argument('--custom-speaker', type=str, default=None)
     parser.add_argument('--custom-lines', type=int, nargs="*", default=[])
