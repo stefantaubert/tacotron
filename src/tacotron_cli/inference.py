@@ -1,6 +1,6 @@
-from argparse import ArgumentParser
 import datetime
 import random
+from argparse import ArgumentParser
 from collections import OrderedDict
 from logging import getLogger
 from pathlib import Path
@@ -12,21 +12,25 @@ import numpy as np
 from audio_utils.mel import plot_melspec_np
 from image_utils import stack_images_vertically
 from ordered_set import OrderedSet
-from tacotron_cli.io import load_checkpoint
-from tacotron.checkpoint_handling import (get_learning_rate,
-                                          get_speaker_mapping)
+from tacotron.checkpoint_handling import get_learning_rate, get_speaker_mapping
 from tacotron.synthesizer import Synthesizer
 from tacotron.utils import plot_alignment_np_new
 from text_utils import Speaker, StringFormat2, Symbols
 from tqdm import tqdm
 
+from tacotron_cli.io import load_checkpoint
+
 Utterances = OrderedDictType[int, Symbols]
 Paragraphs = OrderedDictType[int, Utterances]
 
 
-def parse_paragraphs_from_text(text: str) -> Paragraphs:
-    symbol_sep = "|"
-    logger = getLogger(__name__)
+def split_adv(s: str, sep: str) -> List[str]:
+    if len(sep) == 0:
+        return list(s)
+    return s.split(sep)
+
+
+def parse_paragraphs_from_text(text: str, sep: str) -> Paragraphs:
     lines = text.splitlines()
     result = OrderedDict()
     paragraph_nr = 1
@@ -39,18 +43,14 @@ def parse_paragraphs_from_text(text: str) -> Paragraphs:
                 paragraph_nr += 1
                 current_utterances = OrderedDict()
         else:
-            if not StringFormat2.SPACED.can_convert_string_to_symbols(line, symbol_sep):
-                logger.error(
-                    f"Line {line_nr}: Line couldn't be parsed! Skipped.")
-                continue
-            line_symbols = StringFormat2.SPACED.convert_string_to_symbols(
-                line, symbol_sep)
+            line_symbols = split_adv(line, sep)
             assert line_nr not in current_utterances
             current_utterances[line_nr] = line_symbols
 
     if len(current_utterances) > 0:
         result[paragraph_nr] = current_utterances
     return result
+
 
 def init_inference_v2_parser(parser: ArgumentParser) -> None:
     parser.add_argument('checkpoint', type=Path)
@@ -60,6 +60,7 @@ def init_inference_v2_parser(parser: ArgumentParser) -> None:
     parser.add_argument('--custom-lines', type=int, nargs="*", default=[])
     parser.add_argument('--max-decoder-steps', type=int, default=3000)
     parser.add_argument('--batch-size', type=int, default=64)
+    parser.add_argument('--sep', type=str, default="")
     parser.add_argument('--custom-seed', type=int, default=None)
     parser.add_argument('-p', '--paragraph-directories', action='store_true')
     parser.add_argument('--include-stats', action='store_true')
@@ -72,7 +73,7 @@ def init_inference_v2_parser(parser: ArgumentParser) -> None:
     return infer_text
 
 
-def infer_text(checkpoint: Path, text: Path, encoding: str, custom_speaker: Optional[Speaker], custom_lines: List[int], max_decoder_steps: int, batch_size: int, include_stats: bool, custom_seed: Optional[int], paragraph_directories: bool, output_directory: Optional[Path], prepend: str, append: str, overwrite: bool) -> bool:
+def infer_text(checkpoint: Path, text: Path, encoding: str, custom_speaker: Optional[Speaker], custom_lines: List[int], max_decoder_steps: int, batch_size: int, include_stats: bool, custom_seed: Optional[int], paragraph_directories: bool, output_directory: Optional[Path], prepend: str, append: str, sep: str, overwrite: bool) -> bool:
     logger = getLogger(__name__)
 
     if not checkpoint.is_file():
@@ -128,7 +129,7 @@ def infer_text(checkpoint: Path, text: Path, encoding: str, custom_speaker: Opti
         logger.error("Output directory is a file!")
         return False
 
-    paragraphs = parse_paragraphs_from_text(text_content)
+    paragraphs = parse_paragraphs_from_text(text_content, sep)
 
     line_nrs_to_infer = OrderedSet(
         line_nr for par in paragraphs.values() for line_nr in par.keys())
@@ -263,8 +264,11 @@ def infer_text(checkpoint: Path, text: Path, encoding: str, custom_speaker: Opti
                         f"Inference duration: {inf_sent_output.inference_duration_s}")
                     log_lines.append(
                         f"Sampling rate: {inf_sent_output.sampling_rate}")
-                    log_lines.append(
-                        f"Unknown symbols: {' '.join(inf_sent_output.unknown_symbols)}")
+                    if len(unknown_symbols) > 0:
+                        log_lines.append(
+                            f"Unknown symbols: {' '.join(inf_sent_output.unknown_symbols)}")
+                    else:
+                        log_lines.append("No unknown symbols.")
 
                     logger.debug(f"Saving {log_out}...")
                     log_out.write_text("\n".join(log_lines), encoding="UTF-8")

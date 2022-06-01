@@ -18,16 +18,17 @@ SymbolToSymbolMapping = Dict[Symbol, Symbol]
 
 @dataclass()
 class Entry():
-  stem: str
-  basename: str
-  speaker_name: Speaker
-  speaker_gender: str
-  symbols_language: str
-  symbols: Tuple[str]
-  wav_absolute_path: Path
-  #wav_duration: float
-  #wav_sampling_rate: int
-  #mel_absolute_path: Path
-  #mel_n_channels: int
+    stem: str
+    basename: str
+    speaker_name: Speaker
+    speaker_gender: int
+    symbols_language: str
+    symbols: Tuple[str]
+    wav_absolute_path: Path
+    #wav_duration: float
+    #wav_sampling_rate: int
+    #mel_absolute_path: Path
+    #mel_n_channels: int
+
 
 Entries = List[Entry]

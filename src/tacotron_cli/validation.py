@@ -80,7 +80,7 @@ def save_stats(val_dir: Path, validation_entries: ValidationEntries) -> None:
 
 
 def get_result_name(entry: Entry, iteration: int, repetition: int) -> None:
-    return f"it={iteration}_id={entry.entry_id}_rep={repetition}"
+    return f"it={iteration}_name={entry.basename}_rep={repetition}"
 
 
 def save_results(entry: Entry, output: ValidationEntryOutput, val_dir: Path, iteration: int) -> None:
@@ -173,11 +173,11 @@ def init_validate_parser(parser: ArgumentParser) -> None:
 
 
 def validate_cli(**args) -> None:
-    args["custom-hparams"] = split_hparams_string(args["custom-hparams"])
+    args["custom_hparams"] = split_hparams_string(args["custom_hparams"])
     validate_v2(**args)
 
 
-def validate_v2(checkpoint_dir: Path, output_dir: Path, dataset_dir: Path, tier: str, entry_names: List[str] = None, speaker: Optional[str] = None, custom_checkpoints: Optional[List[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, mcd_no_of_coeffs_per_frame: int = DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME, fast: bool = False, repetitions: int = DEFAULT_REPETITIONS, select_best_from: Optional[Path] = None, seed: Optional[int] = DEFAULT_SEED) -> None:
+def validate_v2(checkpoints_dir: Path, output_dir: Path, dataset_dir: Path, tier: str, entry_names: List[str] = None, speaker: Optional[str] = None, custom_checkpoints: Optional[List[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, mcd_no_of_coeffs_per_frame: int = DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME, fast: bool = False, repetitions: int = DEFAULT_REPETITIONS, select_best_from: Optional[Path] = None, seed: Optional[int] = DEFAULT_SEED) -> None:
     assert repetitions > 0
 
     data = list(get_entries_from_sdp_entries(
@@ -186,7 +186,7 @@ def validate_v2(checkpoint_dir: Path, output_dir: Path, dataset_dir: Path, tier:
     iterations: Set[int] = set()
 
     if len(custom_checkpoints) == 0:
-        _, last_it = get_last_checkpoint(checkpoint_dir)
+        _, last_it = get_last_checkpoint(checkpoints_dir)
         iterations.add(last_it)
     else:
         # if len(custom_checkpoints) == 0:
@@ -196,7 +196,7 @@ def validate_v2(checkpoint_dir: Path, output_dir: Path, dataset_dir: Path, tier:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     val_log_path = output_dir / "log.txt"
-    logger = prepare_logger(val_log_path)
+    logger = prepare_logger(val_log_path, reset=True)
     logger.info("Validating...")
     logger.info(f"Checkpoints: {','.join(str(x) for x in sorted(iterations))}")
 
@@ -209,7 +209,7 @@ def validate_v2(checkpoint_dir: Path, output_dir: Path, dataset_dir: Path, tier:
 
     for iteration in tqdm(sorted(iterations)):
         logger.info(f"Current checkpoint: {iteration}")
-        checkpoint_path = get_checkpoint(checkpoint_dir, iteration)
+        checkpoint_path = get_checkpoint(checkpoints_dir, iteration)
         taco_checkpoint = load_checkpoint(checkpoint_path)
         save_callback = partial(
             save_results, val_dir=output_dir, iteration=iteration)

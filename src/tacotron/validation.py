@@ -2,8 +2,7 @@ import datetime
 import random
 from dataclasses import dataclass
 from logging import Logger
-from typing import Callable, Dict, List, Optional
-from typing import Set
+from typing import Callable, Dict, List, Optional, Set
 
 import jiwer
 import jiwer.transforms as tr
@@ -17,12 +16,13 @@ from mel_cepstral_distance import get_metrics_mels
 from pandas import DataFrame
 from scipy.io.wavfile import read
 from sklearn.metrics import mean_squared_error
+from tqdm import tqdm
+
 from tacotron.checkpoint_handling import CheckpointDict, get_iteration
 from tacotron.synthesizer import Synthesizer
 from tacotron.typing import Entries, Entry
 from tacotron.utils import (cosine_dist_mels, make_same_dim,
                             plot_alignment_np_new)
-from tqdm import tqdm
 
 
 @dataclass
@@ -74,17 +74,19 @@ def get_df(entries: ValidationEntries) -> DataFrame:
     for entry in entries.items():
         tmp = {}
         # tmp["Id"] = entry.entry.entry_id
-        tmp["Basename"] = entry.entry.audio
+        tmp["Basename"] = entry.entry.basename
         tmp["Timepoint"] = f"{entry.timepoint:%Y/%m/%d %H:%M:%S}"
         tmp["Iteration"] = entry.iteration
         tmp["Seed"] = entry.seed
         tmp["Repetition"] = entry.repetition
         tmp["Repetitions"] = entry.repetitions
-        tmp["Language"] = repr(entry.entry.symbols_language)
+        tmp["Language"] = entry.entry.symbols_language
         tmp["Symbols"] = ''.join(entry.entry.symbols)
-        tmp["Symbols format"] = repr(entry.entry.symbols_format)
+        tmp["Stem"] = entry.entry.stem
+        # tmp["Symbols format"] = repr(entry.entry.symbols_format)
         tmp["Speaker"] = entry.entry.speaker_name
-        tmp["Speaker Id"] = entry.entry.speaker_id
+        tmp["Speaker Gender"] = entry.entry.speaker_gender
+        # tmp["Speaker Id"] = entry.entry.speaker_id
         tmp["Inference duration (s)"] = entry.inference_duration_s
         tmp["Reached max. steps"] = entry.reached_max_decoder_steps
         tmp["Sampling rate (Hz)"] = entry.sampling_rate
@@ -125,9 +127,9 @@ def get_df(entries: ValidationEntries) -> DataFrame:
         tmp["Unique symbols"] = ' '.join(sorted(set(entry.entry.symbols)))
         tmp["# Unique symbols"] = len(set(entry.entry.symbols))
         #tmp["Train name"] = entry.train_name
-        tmp["Ds-Id"] = entry.entry.ds_entry_id
+        # tmp["Ds-Id"] = entry.entry.ds_entry_id
         tmp["Wav path"] = str(entry.entry.wav_absolute_path)
-        tmp["Wav path original"] = str(entry.entry.wav_original_absolute_path)
+        # tmp["Wav path original"] = str(entry.entry.wav_original_absolute_path)
         data.append(tmp)
 
     df = DataFrame(
@@ -316,7 +318,7 @@ def validate(checkpoint: CheckpointDict, data: Entries, custom_hparams: Optional
         for entry, entry_seed in zip(tqdm(validation_data), seeds):
             rep_seed = entry_seed + repetition
             logger.info(
-                f"Current --> entry name: {entry.aud}; seed: {rep_seed}; iteration: {iteration}; rep: {rep_human_readable}/{repetitions}")
+                f"Current --> entry name: {entry.basename}; seed: {rep_seed}; iteration: {iteration}; rep: {rep_human_readable}/{repetitions}")
 
             timepoint = datetime.datetime.now()
             inference_result = synth.infer(

@@ -73,7 +73,7 @@ def init_train_parser(parser: ArgumentParser) -> None:
 
 
 def train_cli(**args) -> None:
-    args["custom-hparams"] = split_hparams_string(args["custom-hparams"])
+    args["custom_hparams"] = split_hparams_string(args["custom_hparams"])
     train_new(**args)
 
 
@@ -143,17 +143,17 @@ def init_continue_train_parser(parser: ArgumentParser) -> None:
 
 
 def continue_train_cli(**args) -> None:
-    args["custom-hparams"] = split_hparams_string(args["custom-hparams"])
+    args["custom_hparams"] = split_hparams_string(args["custom_hparams"])
     continue_train_v2(**args)
 
 
 def continue_train_v2(train_folder: Path, val_folder: Path, tier: str, checkpoints_dir: Path, custom_hparams: Optional[Dict[str, str]], tl_dir: Path, log_path: Path, ckp_log_path: Path) -> None:
     taco_logger = Tacotron2Logger(tl_dir)
-    logger = prepare_logger(log_path, reset=True)
+    logger = prepare_logger(log_path, reset=False)
     checkpoint_logger = prepare_logger(
         log_file_path=ckp_log_path,
         logger=logging.getLogger("checkpoint-logger"),
-        reset=True
+        reset=False
     )
 
     save_callback = partial(
