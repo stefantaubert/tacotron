@@ -5,10 +5,10 @@ from typing import Dict, Generator, Iterable, Optional, Set, Tuple, cast
 
 import numpy as np
 import torch
-from audio_utils.mel import mel_to_numpy
 from general_utils import console_out_len, overwrite_custom_hparams
 from torch import IntTensor, LongTensor  # pylint: disable=no-name-in-module
 
+from tacotron.audio_utils import mel_to_numpy
 from tacotron.checkpoint_handling import (CheckpointDict, get_hparams,
                                           get_speaker_mapping,
                                           get_stress_mapping,

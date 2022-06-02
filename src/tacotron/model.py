@@ -3,13 +3,15 @@ from math import ceil
 from typing import Optional, Tuple
 
 import torch
+from torch import (FloatTensor, IntTensor,  # pylint: disable=no-name-in-module
+                   LongTensor, Tensor, nn)
+from torch.autograd import Variable
+from torch.nn import functional as F
+
 from tacotron.hparams import HParams
 from tacotron.layers import ConvNorm, LinearNorm
 from tacotron.utils import (get_mask_from_lengths, get_uniform_weights,
                             get_xavier_weights, weights_to_embedding)
-from torch import FloatTensor, IntTensor, LongTensor, Tensor, nn  # pylint: disable=no-name-in-module
-from torch.autograd import Variable
-from torch.nn import functional as F
 
 SYMBOL_EMBEDDING_LAYER_NAME = "symbol_embeddings.weight"
 SPEAKER_EMBEDDING_LAYER_NAME = "speakers_embeddings.weight"

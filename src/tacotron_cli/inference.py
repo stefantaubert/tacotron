@@ -9,9 +9,9 @@ from typing import OrderedDict as OrderedDictType
 
 import imageio
 import numpy as np
-from audio_utils.mel import plot_melspec_np
 from image_utils import stack_images_vertically
 from ordered_set import OrderedSet
+from tacotron.audio_utils import plot_melspec_np
 from tacotron.checkpoint_handling import get_learning_rate, get_speaker_mapping
 from tacotron.synthesizer import Synthesizer
 from tacotron.typing import Speaker, Symbols

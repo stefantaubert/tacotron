@@ -9,9 +9,10 @@ autopep8 = "*"
 pylint = "*"
 pycodestyle = "*"
 isort = "*"
-pipenv-setup = "*"
 rope = "*"
+pytest = "*"
 autoflake = "*"
+twine = "*"
 
 [packages]
 text-utils = {editable = true, path = "./../text-utils"}
@@ -26,7 +27,7 @@ sentence2pronunciation = {editable = true, path = "./../sentence2pronunciation"}
 speech-dataset-parser = {editable = true, path = "./../speech-dataset-parser"}
 accent-analyser = {editable = true, path = "./../accent-analyser"}
 general-utils = {editable = true, path = "./../general-utils"}
-mel-cepstral-distance = "*"
+mel-cepstral-distance = ">=0.0.1"
 pandas = "*"
 librosa = "*"
 plotly = "*"

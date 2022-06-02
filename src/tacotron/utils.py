@@ -1,3 +1,6 @@
+from scipy.spatial.distance import euclidean
+from fastdtw.fastdtw import fastdtw
+from typing import List, Tuple
 import logging
 import os
 import random

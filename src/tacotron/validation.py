@@ -8,8 +8,6 @@ import jiwer
 import jiwer.transforms as tr
 import numpy as np
 import pandas as pd
-from audio_utils.mel import (TacotronSTFT, align_mels_with_dtw, get_msd,
-                             plot_melspec_np)
 from general_utils import GenericList
 from image_utils import calculate_structual_similarity_np
 from mel_cepstral_distance import get_metrics_mels
@@ -18,6 +16,7 @@ from scipy.io.wavfile import read
 from sklearn.metrics import mean_squared_error
 from tqdm import tqdm
 
+from tacotron.audio_utils import align_mels_with_dtw, get_msd, plot_melspec_np
 from tacotron.checkpoint_handling import CheckpointDict, get_iteration
 from tacotron.synthesizer import Synthesizer
 from tacotron.typing import Entries, Entry
