@@ -107,10 +107,10 @@ def get_df(entries: ValidationEntries) -> DataFrame:
             tmp["Cosine Similarity (Aligned)"] = entry.aligned_cosine_similarity
             tmp["Structual Similarity (Aligned)"] = entry.aligned_structural_similarity
             tmp["MSD"] = entry.msd
-            tmp["WER"] = entry.wer
-            tmp["MER"] = entry.mer
-            tmp["WIL"] = entry.wil
-            tmp["WIP"] = entry.wip
+            # tmp["WER"] = entry.wer
+            # tmp["MER"] = entry.mer
+            # tmp["WIL"] = entry.wil
+            # tmp["WIP"] = entry.wip
             # tmp["1-gram rarity (train set)"] = entry.train_one_gram_rarity
             # tmp["2-gram rarity (train set)"] = entry.train_two_gram_rarity
             # tmp["3-gram rarity (train set)"] = entry.train_three_gram_rarity

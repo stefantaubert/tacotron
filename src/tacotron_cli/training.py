@@ -68,12 +68,7 @@ def init_train_parser(parser: ArgumentParser) -> None:
                       default=default_log_path / "log.txt")
   parser.add_argument('--ckp-log-path', type=Path,
                       default=default_log_path / "log-checkpoints.txt")
-  return train_cli
-
-
-def train_cli(**args) -> None:
-  args["custom_hparams"] = split_hparams_string(args["custom_hparams"])
-  train_new(**args)
+  return train_new
 
 
 def train_new(ns: Namespace) -> None:
@@ -106,9 +101,11 @@ def train_new(ns: Namespace) -> None:
   valset = list(get_entries_from_sdp_entries(
       parse_directory(ns.val_folder, ns.tier, 16)))
 
+  custom_hparams = split_hparams_string(ns.custom_hparams)
+
   logger.info("Starting new model...")
   start_training(
-    custom_hparams=ns.custom_hparams,
+    custom_hparams=custom_hparams,
     taco_logger=taco_logger,
     trainset=trainset,
     valset=valset,
@@ -138,12 +135,7 @@ def init_continue_train_parser(parser: ArgumentParser) -> None:
                       default=default_log_path / "log.txt")
   parser.add_argument('--ckp-log-path', type=Path,
                       default=default_log_path / "log-checkpoints.txt")
-  return continue_train_cli
-
-
-def continue_train_cli(**args) -> None:
-  args["custom_hparams"] = split_hparams_string(args["custom_hparams"])
-  continue_train_v2(**args)
+  return continue_train_v2
 
 
 def continue_train_v2(ns: Namespace) -> None:
@@ -167,10 +159,11 @@ def continue_train_v2(ns: Namespace) -> None:
 
   last_checkpoint_path, _ = get_last_checkpoint(ns.checkpoints_dir)
   last_checkpoint = load_checkpoint(last_checkpoint_path)
+  custom_hparams = split_hparams_string(ns.custom_hparams)
 
   logger.info("Continuing training from checkpoint...")
   start_training(
-    custom_hparams=ns.custom_hparams,
+    custom_hparams=custom_hparams,
     taco_logger=taco_logger,
     trainset=trainset,
     valset=valset,

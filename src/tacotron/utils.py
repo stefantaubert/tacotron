@@ -169,6 +169,14 @@ def get_last_checkpoint(checkpoint_dir: Path) -> Tuple[Path, int]:
   return checkpoint_path, last_iteration
 
 
+def get_filenames(parent_dir: Path) -> List[Path]:
+  assert parent_dir.is_dir()
+  _, _, filenames = next(os.walk(parent_dir))
+  filenames.sort()
+  filenames = [Path(filename) for filename in filenames]
+  return filenames
+
+
 def get_all_checkpoint_iterations(checkpoint_dir: Path) -> List[int]:
   filenames = get_filenames(checkpoint_dir)
   checkpoints_str = [get_pytorch_basename(str(x))

@@ -17,7 +17,7 @@ from tacotron.checkpoint_handling import get_learning_rate, get_speaker_mapping
 from tacotron.image_utils import stack_images_vertically
 from tacotron.synthesizer import Synthesizer
 from tacotron.typing import Symbols
-from tacotron.utils import plot_alignment_np_new
+from tacotron.utils import plot_alignment_np_new, split_hparams_string
 from tacotron_cli.io import load_checkpoint
 
 Utterances = OrderedDictType[int, Symbols]
@@ -68,6 +68,7 @@ def init_inference_v2_parser(parser: ArgumentParser) -> None:
                       help="prepend text to all output file names")
   parser.add_argument('--append', type=str, default="",
                       help="append text to all output file names")
+  parser.add_argument('--custom-hparams', type=str)
   parser.add_argument('-out', '--output-directory', type=Path, default=None)
   parser.add_argument('-o', '--overwrite', action='store_true')
   return infer_text
@@ -121,7 +122,8 @@ def infer_text(ns: Namespace) -> bool:
   except Exception as ex:
     logger.error("Text couldn't be read!")
     return False
-
+  
+  output_directory = ns.output_directory
   if output_directory is None:
     output_directory = ns.text.parent / ns.text.stem
 
@@ -158,9 +160,11 @@ def infer_text(ns: Namespace) -> bool:
     speaker = next(iter(speaker_mapping.keys()))
     logger.debug(f"Speaker: {speaker}")
 
+  custom_hparams = split_hparams_string(ns.custom_hparams)
+
   synth = Synthesizer(
       checkpoint=checkpoint_dict,
-      custom_hparams=None,
+      custom_hparams=custom_hparams,
       logger=logger,
   )
 

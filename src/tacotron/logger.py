@@ -1,4 +1,5 @@
 import random
+from pathlib import Path
 
 import matplotlib.pylab as plt
 import torch
@@ -58,8 +59,10 @@ def plot_gate_outputs_to_numpy(gate_targets, gate_outputs) -> None:
 
 
 class Tacotron2Logger():
-  def __init__(self, logdir):
-    super(Tacotron2Logger, self).__init__(logdir)
+  def __init__(self, logdir: Path):
+    # super().__init__(logdir)
+    logdir.mkdir(parents=True, exist_ok=True)
+    pass
 
   def log_training(self, reduced_loss, grad_norm, learning_rate, duration,
                    iteration):

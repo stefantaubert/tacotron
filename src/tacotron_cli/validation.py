@@ -166,12 +166,7 @@ def init_validate_parser(parser: ArgumentParser) -> None:
   parser.add_argument('--repetitions', type=int, default=DEFAULT_REPETITIONS)
   parser.add_argument('--seed', type=int, default=DEFAULT_SEED)
 
-  return validate_cli
-
-
-def validate_cli(**args) -> None:
-  args["custom_hparams"] = split_hparams_string(args["custom_hparams"])
-  validate_v2(**args)
+  return validate_v2
 
 
 def validate_v2(ns: Namespace) -> None:
@@ -204,6 +199,8 @@ def validate_v2(ns: Namespace) -> None:
   if ns.select_best_from is not None:
     select_best_from_df = pd.read_csv(ns.select_best_from, sep="\t")
 
+  custom_hparams = split_hparams_string(ns.custom_hparams)
+
   for iteration in tqdm(sorted(iterations)):
     logger.info(f"Current checkpoint: {iteration}")
     checkpoint_path = get_checkpoint(ns.checkpoints_dir, iteration)
@@ -214,7 +211,7 @@ def validate_v2(ns: Namespace) -> None:
     validation_entries = validate(
         checkpoint=taco_checkpoint,
         data=data,
-        custom_hparams=ns.custom_hparams,
+        custom_hparams=custom_hparams,
         entry_names=set(ns.entry_names),
         full_run=ns.full_run,
         speaker_name=ns.speaker,
