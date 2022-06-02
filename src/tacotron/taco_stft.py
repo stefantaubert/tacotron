@@ -2,10 +2,10 @@ from dataclasses import dataclass
 from logging import Logger
 
 import torch
-from tacotron.audio_utils import FLOAT32_64_MAX_WAV, FLOAT32_64_MIN_WAV
-from tacotron.audio_utils import wav_to_float32_tensor
-from tacotron.stft import STFT
 from librosa.filters import mel as librosa_mel_fn
+
+from tacotron.audio_utils import FLOAT32_64_MAX_WAV, FLOAT32_64_MIN_WAV, wav_to_float32_tensor
+from tacotron.stft import STFT
 
 
 def dynamic_range_compression(x, C=1, clip_val=1e-5):

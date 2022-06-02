@@ -1,11 +1,11 @@
-from scipy.io.wavfile import read
-from typing import (List, Optional, Tuple, TypeVar)
+from typing import List, Optional, Tuple, TypeVar
 
 import matplotlib.ticker as ticker
 import numpy as np
 import torch
 from fastdtw.fastdtw import fastdtw
 from matplotlib import pyplot as plt
+from scipy.io.wavfile import read
 from scipy.spatial.distance import euclidean
 
 from tacotron.utils import figure_to_numpy_rgb

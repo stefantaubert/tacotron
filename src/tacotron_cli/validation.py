@@ -1,4 +1,4 @@
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from functools import partial
 from pathlib import Path
 from typing import Dict, List, Optional, Set
@@ -8,18 +8,15 @@ import numpy as np
 import pandas as pd
 from scipy.io.wavfile import write
 from speech_dataset_parser_api import parse_directory
+from tqdm import tqdm
+
 from tacotron.globals import DEFAULT_CSV_SEPERATOR
 from tacotron.image_utils import stack_images_vertically
 from tacotron.parser import get_entries_from_sdp_entries
 from tacotron.typing import Entry
-from tacotron.utils import (get_checkpoint, get_last_checkpoint,
-                            prepare_logger, split_hparams_string)
-from tacotron.validation import (ValidationEntries, ValidationEntryOutput,
-                                 get_df, validate)
-from tqdm import tqdm
-
-from tacotron_cli.defaults import (DEFAULT_MAX_DECODER_STEPS,
-                                   DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME,
+from tacotron.utils import get_checkpoint, get_last_checkpoint, prepare_logger, split_hparams_string
+from tacotron.validation import ValidationEntries, ValidationEntryOutput, get_df, validate
+from tacotron_cli.defaults import (DEFAULT_MAX_DECODER_STEPS, DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME,
                                    DEFAULT_REPETITIONS, DEFAULT_SEED)
 from tacotron_cli.io import load_checkpoint
 
@@ -177,25 +174,25 @@ def validate_cli(**args) -> None:
   validate_v2(**args)
 
 
-def validate_v2(checkpoints_dir: Path, output_dir: Path, dataset_dir: Path, tier: str, entry_names: List[str] = None, speaker: Optional[str] = None, custom_checkpoints: Optional[List[int]] = None, custom_hparams: Optional[Dict[str, str]] = None, full_run: bool = False, max_decoder_steps: int = DEFAULT_MAX_DECODER_STEPS, mcd_no_of_coeffs_per_frame: int = DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME, fast: bool = False, repetitions: int = DEFAULT_REPETITIONS, select_best_from: Optional[Path] = None, seed: Optional[int] = DEFAULT_SEED) -> None:
-  assert repetitions > 0
+def validate_v2(ns: Namespace) -> None:
+  assert ns.repetitions > 0
 
   data = list(get_entries_from_sdp_entries(
-      parse_directory(dataset_dir, tier, 16)))
+      parse_directory(ns.dataset_dir, ns.tier, 16)))
 
   iterations: Set[int] = set()
 
-  if len(custom_checkpoints) == 0:
-    _, last_it = get_last_checkpoint(checkpoints_dir)
+  if len(ns.custom_checkpoints) == 0:
+    _, last_it = get_last_checkpoint(ns.checkpoints_dir)
     iterations.add(last_it)
   else:
     # if len(custom_checkpoints) == 0:
     #     iterations = set(get_all_checkpoint_iterations(checkpoint_dir))
     # else:
-    iterations = set(custom_checkpoints)
-  output_dir.mkdir(parents=True, exist_ok=True)
+    iterations = set(ns.custom_checkpoints)
+  ns.output_dir.mkdir(parents=True, exist_ok=True)
 
-  val_log_path = output_dir / "log.txt"
+  val_log_path = ns.output_dir / "log.txt"
   logger = prepare_logger(val_log_path, reset=True)
   logger.info("Validating...")
   logger.info(f"Checkpoints: {','.join(str(x) for x in sorted(iterations))}")
@@ -204,30 +201,30 @@ def validate_v2(checkpoints_dir: Path, output_dir: Path, dataset_dir: Path, tier
   save_callback = None
 
   select_best_from_df = None
-  if select_best_from is not None:
-    select_best_from_df = pd.read_csv(select_best_from, sep="\t")
+  if ns.select_best_from is not None:
+    select_best_from_df = pd.read_csv(ns.select_best_from, sep="\t")
 
   for iteration in tqdm(sorted(iterations)):
     logger.info(f"Current checkpoint: {iteration}")
-    checkpoint_path = get_checkpoint(checkpoints_dir, iteration)
+    checkpoint_path = get_checkpoint(ns.checkpoints_dir, iteration)
     taco_checkpoint = load_checkpoint(checkpoint_path)
     save_callback = partial(
-        save_results, val_dir=output_dir, iteration=iteration)
+        save_results, val_dir=ns.output_dir, iteration=iteration)
 
     validation_entries = validate(
         checkpoint=taco_checkpoint,
         data=data,
-        custom_hparams=custom_hparams,
-        entry_names=set(entry_names),
-        full_run=full_run,
-        speaker_name=speaker,
+        custom_hparams=ns.custom_hparams,
+        entry_names=set(ns.entry_names),
+        full_run=ns.full_run,
+        speaker_name=ns.speaker,
         logger=logger,
-        max_decoder_steps=max_decoder_steps,
-        fast=fast,
+        max_decoder_steps=ns.max_decoder_steps,
+        fast=ns.fast,
         save_callback=save_callback,
-        mcd_no_of_coeffs_per_frame=mcd_no_of_coeffs_per_frame,
-        repetitions=repetitions,
-        seed=seed,
+        mcd_no_of_coeffs_per_frame=ns.mcd_no_of_coeffs_per_frame,
+        repetitions=ns.repetitions,
+        seed=ns.seed,
         select_best_from=select_best_from_df,
     )
 
@@ -236,7 +233,7 @@ def validate_v2(checkpoints_dir: Path, output_dir: Path, dataset_dir: Path, tier
   if len(result) == 0:
     return
 
-  save_stats(output_dir, result)
+  save_stats(ns.output_dir, result)
 
   # logger.info(
   #     "Wrote all inferred mel paths including sampling rate into these file(s):")
@@ -251,4 +248,4 @@ def validate_v2(checkpoints_dir: Path, output_dir: Path, dataset_dir: Path, tier
   #     copyfile(npy_path, copy_mel_info_to)
   #     logger.info(copy_mel_info_to)
 
-  logger.info(f"Saved output to: {output_dir}")
+  logger.info(f"Saved output to: {ns.output_dir.absolute()}")

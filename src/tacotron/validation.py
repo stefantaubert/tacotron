@@ -20,8 +20,7 @@ from tacotron.image_utils import calculate_structual_similarity_np
 from tacotron.synthesizer import Synthesizer
 from tacotron.taco_stft import TacotronSTFT
 from tacotron.typing import Entries, Entry
-from tacotron.utils import (cosine_dist_mels, make_same_dim,
-                            plot_alignment_np_new)
+from tacotron.utils import cosine_dist_mels, make_same_dim, plot_alignment_np_new
 
 
 @dataclass
