@@ -7,12 +7,11 @@ import numpy as np
 import pandas as pd
 from ordered_set import OrderedSet
 from scipy.io.wavfile import write
-from speech_dataset_parser_api import parse_directory
 from tqdm import tqdm
 
 from tacotron.globals import DEFAULT_CSV_SEPERATOR
 from tacotron.image_utils import stack_images_vertically
-from tacotron.parser import get_entries_from_sdp_entries
+from tacotron.parser import load_dataset
 from tacotron.typing import Entry
 from tacotron.utils import get_checkpoint, get_last_checkpoint, prepare_logger, split_hparams_string
 from tacotron.validation import ValidationEntries, ValidationEntryOutput, get_df, validate
@@ -179,8 +178,7 @@ def init_validate_parser(parser: ArgumentParser) -> None:
 def validate_v2(ns: Namespace) -> None:
   assert ns.repetitions > 0
 
-  data = list(get_entries_from_sdp_entries(
-      parse_directory(ns.dataset_dir, ns.tier, 16)))
+  data = load_dataset(ns.dataset_dir, ns.tier)
 
   iterations: OrderedSet[int]
   if len(ns.custom_checkpoints) == 0:

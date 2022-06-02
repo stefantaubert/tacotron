@@ -53,11 +53,11 @@ def _init_parser():
 
   _add_parser_to(subparsers, "train", init_train_parser)
   _add_parser_to(subparsers, "continue-train", init_continue_train_parser)
-  _add_parser_to(subparsers, "validate", init_validate_parser)
-  _add_parser_to(subparsers, "infer-text", init_inference_v2_parser)
+  _add_parser_to(subparsers, "validate checkpoint(s)", init_validate_parser)
+  _add_parser_to(subparsers, "infer-text from checkpoint", init_inference_v2_parser)
   # _add_parser_to(subparsers, "eval-checkpoints", init_taco_eval_checkpoints_parser)
-  _add_parser_to(subparsers, "plot-embeddings", init_plot_emb_parser)
-  _add_parser_to(subparsers, "add-missing-symbols",
+  _add_parser_to(subparsers, "plot-embeddings contained in a checkpoint", init_plot_emb_parser)
+  _add_parser_to(subparsers, "add-missing-symbols from one checkpoint to another",
                  init_add_missing_weights_parser)
   #_add_parser_to(subparsers, "restore", init_restore_parser)
 

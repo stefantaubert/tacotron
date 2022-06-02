@@ -4,11 +4,10 @@ from functools import partial
 from pathlib import Path
 from tempfile import gettempdir
 
-from speech_dataset_parser_api import parse_directory
 
 from tacotron.checkpoint_handling import CheckpointDict, get_iteration
 from tacotron.logger import Tacotron2Logger
-from tacotron.parser import get_entries_from_sdp_entries
+from tacotron.parser import load_dataset
 from tacotron.training import start_training
 from tacotron.utils import (get_last_checkpoint, get_pytorch_filename, parse_json, prepare_logger,
                             split_hparams_string)
@@ -100,10 +99,8 @@ def train_new(ns: Namespace) -> None:
     save_checkpoint_dir=ns.checkpoints_dir,
   )
 
-  trainset = list(get_entries_from_sdp_entries(
-      parse_directory(ns.train_folder, ns.tier, 16)))
-  valset = list(get_entries_from_sdp_entries(
-      parse_directory(ns.val_folder, ns.tier, 16)))
+  trainset = load_dataset(ns.train_folder, ns.tier)
+  valset = load_dataset(ns.val_folder, ns.tier)
 
   custom_hparams = split_hparams_string(ns.custom_hparams)
 
@@ -159,10 +156,8 @@ def continue_train_v2(ns: Namespace) -> None:
       save_checkpoint_dir=ns.checkpoints_dir,
   )
 
-  trainset = list(get_entries_from_sdp_entries(
-    parse_directory(ns.train_folder, ns.tier, 16)))
-  valset = list(get_entries_from_sdp_entries(
-    parse_directory(ns.val_folder, ns.tier, 16)))
+  trainset = load_dataset(ns.train_folder, ns.tier)
+  valset = load_dataset(ns.val_folder, ns.tier)
 
   last_checkpoint_path, _ = get_last_checkpoint(ns.checkpoints_dir)
   last_checkpoint = load_checkpoint(last_checkpoint_path)
