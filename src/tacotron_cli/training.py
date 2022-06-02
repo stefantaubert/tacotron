@@ -5,7 +5,7 @@ from pathlib import Path
 from tempfile import gettempdir
 from typing import Dict, Optional
 
-from general_utils import parse_json, split_hparams_string
+from tacotron.utils import parse_json, split_hparams_string
 from speech_dataset_parser_api import parse_directory
 from tacotron.checkpoint_handling import CheckpointDict, get_iteration
 from tacotron.logger import Tacotron2Logger

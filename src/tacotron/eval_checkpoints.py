@@ -2,6 +2,8 @@ from logging import Logger
 from pathlib import Path
 from typing import Dict, Optional
 
+from tacotron.typing import Entries
+
 # import torch
 # from general_utils.main import overwrite_custom_hparams
 # from tacotron.dataloader import (SymbolsMelCollate, parse_batch,
@@ -12,8 +14,6 @@ from typing import Dict, Optional
 # from tacotron.utils import (filter_checkpoints, get_all_checkpoint_iterations,
 #                             get_checkpoint)
 # from tqdm import tqdm
-
-from tacotron.typing import Entries
 
 
 def eval_checkpoints(custom_hparams: Optional[Dict[str, str]], checkpoint_dir: Path, select: int, min_it: int, max_it: int, n_symbols: int, n_speakers: int, valset: Entries, logger: Logger) -> None:

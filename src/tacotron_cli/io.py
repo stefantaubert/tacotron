@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from general_utils import load_obj, save_obj
+from tacotron.utils import load_obj, save_obj
 from tacotron.checkpoint_handling import CheckpointDict
 
 

@@ -7,7 +7,6 @@ from typing import OrderedDict as OrderedDictType
 from typing import Tuple
 
 import torch
-from text_utils import StressType, split_stress_arpa, split_stress_ipa
 from torch import (FloatTensor, IntTensor,  # pylint: disable=no-name-in-module
                    LongTensor, Tensor)
 from torch.utils.data import DataLoader, Dataset
@@ -15,6 +14,8 @@ from tqdm import tqdm
 
 from tacotron.hparams import HParams
 from tacotron.model import ForwardXIn
+from tacotron.stress_detection import (StressType, split_stress_arpa,
+                                       split_stress_ipa)
 from tacotron.taco_stft import TacotronSTFT
 from tacotron.typing import (Entries, Entry, Speaker, SpeakerId,
                              SpeakerMapping, Stress, Stresses, StressMapping,

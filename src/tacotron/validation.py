@@ -8,8 +8,6 @@ import jiwer
 import jiwer.transforms as tr
 import numpy as np
 import pandas as pd
-from general_utils import GenericList
-from image_utils import calculate_structual_similarity_np
 from mel_cepstral_distance import get_metrics_mels
 from pandas import DataFrame
 from scipy.io.wavfile import read
@@ -18,6 +16,7 @@ from tqdm import tqdm
 
 from tacotron.audio_utils import align_mels_with_dtw, get_msd, plot_melspec_np
 from tacotron.checkpoint_handling import CheckpointDict, get_iteration
+from tacotron.image_utils import calculate_structual_similarity_np
 from tacotron.synthesizer import Synthesizer
 from tacotron.typing import Entries, Entry
 from tacotron.utils import (cosine_dist_mels, make_same_dim,
@@ -61,7 +60,7 @@ class ValidationEntry():
     was_fast: bool = None
 
 
-class ValidationEntries(GenericList[ValidationEntry]):
+class ValidationEntries(List[ValidationEntry]):
     pass
 
 
@@ -70,7 +69,7 @@ def get_df(entries: ValidationEntries) -> DataFrame:
         return DataFrame()
 
     data = []
-    for entry in entries.items():
+    for entry in entries:
         tmp = {}
         # tmp["Id"] = entry.entry.entry_id
         tmp["Basename"] = entry.entry.basename
@@ -160,10 +159,6 @@ class ValidationEntryOutput():
     alignments_aligned_img: np.ndarray = None
     was_fast: bool = None
     # gate_out_img: np.ndarray
-
-
-class ValidationEntryOutputs(GenericList[ValidationEntryOutput]):
-    pass
 
 
 # def get_ngram_rarity(data: Entries, corpus: Entries, ngram: int) -> OrderedDictType[int, float]:

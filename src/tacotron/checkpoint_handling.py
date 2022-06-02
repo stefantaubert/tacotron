@@ -1,4 +1,4 @@
-from general_utils import get_dataclass_from_dict
+from tacotron.utils import get_dataclass_from_dict
 from collections import OrderedDict
 from dataclasses import asdict
 from logging import getLogger

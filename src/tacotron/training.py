@@ -4,7 +4,7 @@ from typing import Callable, Dict, List, Optional, Tuple, cast
 
 import numpy as np
 import torch
-from general_utils import overwrite_custom_hparams
+from tacotron.utils import overwrite_custom_hparams
 from torch import FloatTensor, nn
 from torch.backends import cudnn
 from torch.nn.utils.clip_grad import clip_grad_norm_

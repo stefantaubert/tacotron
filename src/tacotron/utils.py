@@ -1,21 +1,23 @@
-from scipy.spatial.distance import euclidean
-from fastdtw.fastdtw import fastdtw
-from typing import List, Tuple
+import dataclasses
+import json
 import logging
+import math
 import os
+import pickle
 import random
+import unicodedata
+from collections import OrderedDict
 from dataclasses import asdict, dataclass
 from logging import Logger, getLogger
 from math import floor, sqrt
 from pathlib import Path
-from typing import (Dict, Generator, Iterable, List, Optional, Tuple, TypeVar,
-                    Union)
+from typing import Any, Callable, Dict, Generator, Iterable, List, Optional
+from typing import OrderedDict as OrderedDictType
+from typing import Set, Tuple, Type, TypeVar, Union
 
 import matplotlib.ticker as ticker
 import numpy as np
 import torch
-from general_utils import (disable_imageio_logger, disable_matplot_logger,
-                           disable_numba_logger, get_filenames)
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 from scipy.spatial.distance import cosine
@@ -488,3 +490,155 @@ def make_same_dim(a: np.ndarray, b: np.ndarray) -> Tuple[np.ndarray, np.ndarray]
             b = np.concatenate((b, adding_array), axis=1)
     assert a.shape == b.shape
     return a, b
+
+
+def get_dataclass_from_dict(params: Dict[str, str], dc: Type[_T]) -> Tuple[_T, Set[str]]:
+    field_names = {x.name for x in dataclasses.fields(dc)}
+    res = {k: v for k, v in params.items() if k in field_names}
+    ignored = {k for k in params.keys() if k not in field_names}
+    return dc(**res), ignored
+
+
+def console_out_len(text: str):
+    res = len([c for c in text if unicodedata.combining(c) == 0])
+    return res
+
+
+def overwrite_custom_hparams(hparams_dc: _T, custom_hparams: Optional[Dict[str, str]]) -> _T:
+    if custom_hparams is None:
+        return hparams_dc
+
+    # custom_hparams = get_only_known_params(custom_hparams, hparams_dc)
+    if check_has_unknown_params(custom_hparams, hparams_dc):
+        raise Exception()
+
+    set_types_according_to_dataclass(custom_hparams, hparams_dc)
+
+    result = dataclasses.replace(hparams_dc, **custom_hparams)
+    return result
+
+
+def check_has_unknown_params(params: Dict[str, str], hparams: _T) -> bool:
+    available_params = dataclasses.asdict(hparams)
+    for custom_hparam in params.keys():
+        if custom_hparam not in available_params.keys():
+            return True
+    return False
+
+
+def set_types_according_to_dataclass(params: Dict[str, str], hparams: _T) -> None:
+    available_params = dataclasses.asdict(hparams)
+    for custom_hparam, new_value in params.items():
+        assert custom_hparam in available_params.keys()
+        hparam_value = available_params[custom_hparam]
+        params[custom_hparam] = get_value_in_type(hparam_value, new_value)
+
+
+def get_only_known_params(params: Dict[str, str], hparams: _T) -> Dict[str, str]:
+    available_params = dataclasses.asdict(hparams)
+    res = {k: v for k, v in params.items() if k in available_params.keys()}
+    return res
+
+
+def get_value_in_type(old_value: _T, new_value: str) -> _T:
+    old_type = type(old_value)
+    if new_value == "":
+        new_value_with_original_type = None
+    else:
+        new_value_with_original_type = old_type(new_value)
+    return new_value_with_original_type
+
+
+def disable_matplot_logger():
+    disable_matplot_font_logger()
+    disable_matplot_colorbar_logger()
+
+
+def disable_numba_logger():
+    disable_numba_core_logger()
+
+
+def disable_numba_core_logger():
+    """
+    Disables:
+      DEBUG:numba.core.ssa:on stmt: $92load_attr.32 = getattr(value=y, attr=shape)
+      DEBUG:numba.core.ssa:on stmt: $const94.33 = const(int, 1)
+      DEBUG:numba.core.ssa:on stmt: $96binary_subscr.34 = static_getitem(value=$92load_attr.32, index=1, index_var=$const94.33, fn=<built-in function getitem>)
+      DEBUG:numba.core.ssa:on stmt: n_channels = $96binary_subscr.34
+      DEBUG:numba.core.ssa:on stmt: $100load_global.35 = global(range: <class 'range'>)
+      DEBUG:numba.core.ssa:on stmt: $104call_function.37 = call $100load_global.35(n_out, func=$100load_global.35, args=[Var(n_out, interpn.py:24)], kws=(), vararg=None)
+      DEBUG:numba.core.ssa:on stmt: $106get_iter.38 = getiter(value=$104call_function.37)
+      DEBUG:numba.core.ssa:on stmt: $phi108.0 = $106get_iter.38
+      DEBUG:numba.core.ssa:on stmt: jump 108
+      DEBUG:numba.core.byteflow:block_infos State(pc_initial=446 nstack_initial=1):
+      AdaptBlockInfo(insts=((446, {'res': '$time_register446.1'}), (448, {'res': '$time_increment448.2'}), (450, {'lhs': '$time_register446.1', 'rhs': '$time_increment448.2', 'res': '$450inplace_add.3'}), (452, {'value': '$450inplace_add.3'}),
+      (454, {})), outgoing_phis={}, blockstack=(), active_try_block=None, outgoing_edgepushed={108: ('$phi446.0',)})
+      DEBUG:numba.core.byteflow:block_infos State(pc_initial=456 nstack_initial=0):
+      AdaptBlockInfo(insts=((456, {'res': '$const456.0'}), (458, {'retval': '$const456.0', 'castval': '$458return_value.1'})), outgoing_phis={}, blockstack=(), active_try_block=None, outgoing_edgepushed={})
+      DEBUG:numba.core.interpreter:label 0:
+          x = arg(0, name=x)                       ['x']
+          y = arg(1, name=y)                       ['y']
+          sample_ratio = arg(2, name=sample_ratio) ['sample_ratio']
+      ...
+    """
+    logging.getLogger('numba.core').disabled = True
+
+
+def disable_matplot_font_logger():
+    '''
+    Disables:
+      DEBUG:matplotlib.font_manager:findfont: score(<Font 'Noto Sans Oriya UI' (NotoSansOriyaUI-Bold.ttf) normal normal 700 normal>) = 10.335
+      DEBUG:matplotlib.font_manager:findfont: score(<Font 'Noto Serif Khmer' (NotoSerifKhmer-Regular.ttf) normal normal 400 normal>) = 10.05
+      DEBUG:matplotlib.font_manager:findfont: score(<Font 'Samyak Gujarati' (Samyak-Gujarati.ttf) normal normal 500 normal>) = 10.14
+      ...
+    '''
+    logging.getLogger('matplotlib.font_manager').disabled = True
+
+
+def disable_matplot_colorbar_logger():
+    '''
+    Disables:
+      DEBUG:matplotlib.colorbar:locator: <matplotlib.colorbar._ColorbarAutoLocator object at 0x7f78f08e6370>
+      DEBUG:matplotlib.colorbar:Using auto colorbar locator <matplotlib.colorbar._ColorbarAutoLocator object at 0x7f78f08e6370> on colorbar
+      DEBUG:matplotlib.colorbar:Setting pcolormesh
+    '''
+    logging.getLogger('matplotlib.colorbar').disabled = True
+
+
+def disable_imageio_logger():
+    """
+    Disables:
+      WARNING:imageio:Lossy conversion from float64 to uint8. Range [-0.952922124289318, 1.0000000000043152]. Convert image to uint8 prior to saving to suppress this warning.
+      ...
+    """
+    logging.getLogger('imageio').disabled = True
+
+
+def save_obj(obj: Any, path: Path) -> None:
+    assert isinstance(path, Path)
+    assert path.parent.exists() and path.parent.is_dir()
+    with open(path, mode="wb") as file:
+        pickle.dump(obj, file)
+
+
+def load_obj(path: Path) -> Any:
+    assert isinstance(path, Path)
+    assert path.is_file()
+    with open(path, mode="rb") as file:
+        return pickle.load(file)
+
+
+def parse_json(path: Path, encoding: str = 'utf-8') -> Dict:
+    assert path.is_file()
+    with path.open(mode='r', encoding=encoding) as f:
+        tmp = json.load(f)
+    return tmp
+
+
+def split_hparams_string(hparams: Optional[str]) -> Optional[Dict[str, str]]:
+    if hparams is None:
+        return None
+
+    assignments = hparams.split(",")
+    result = dict([x.split("=") for x in assignments])
+    return result

@@ -6,11 +6,11 @@ from typing import Dict, List, Optional, Set
 import imageio
 import numpy as np
 import pandas as pd
-from general_utils import split_hparams_string
-from image_utils import stack_images_vertically
+from tacotron.utils import split_hparams_string
 from scipy.io.wavfile import write
 from speech_dataset_parser_api import parse_directory
 from tacotron.globals import DEFAULT_CSV_SEPERATOR
+from tacotron.image_utils import stack_images_vertically
 from tacotron.parser import get_entries_from_sdp_entries
 from tacotron.typing import Entry
 from tacotron.utils import get_checkpoint, get_last_checkpoint, prepare_logger

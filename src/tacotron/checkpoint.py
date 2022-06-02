@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Type, TypeVar
 
 import torch
-from general_utils import get_dataclass_from_dict
+from tacotron.utils import get_dataclass_from_dict
 
 _HParamsType = TypeVar("_HParamsType")
 

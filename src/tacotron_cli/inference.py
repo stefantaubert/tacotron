@@ -9,10 +9,10 @@ from typing import OrderedDict as OrderedDictType
 
 import imageio
 import numpy as np
-from image_utils import stack_images_vertically
 from ordered_set import OrderedSet
 from tacotron.audio_utils import plot_melspec_np
 from tacotron.checkpoint_handling import get_learning_rate, get_speaker_mapping
+from tacotron.image_utils import stack_images_vertically
 from tacotron.synthesizer import Synthesizer
 from tacotron.typing import Speaker, Symbols
 from tacotron.utils import plot_alignment_np_new

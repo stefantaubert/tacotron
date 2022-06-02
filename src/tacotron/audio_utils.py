@@ -1,28 +1,13 @@
-from scipy.io.wavfile import read, write
-import logging
-import os
-import random
-from dataclasses import asdict, dataclass
-from logging import Logger, getLogger
-from math import floor, sqrt
-from pathlib import Path
-from typing import (Dict, Generator, Iterable, List, Optional, Tuple, TypeVar,
-                    Union)
+from scipy.io.wavfile import read
+from typing import (List, Optional, Tuple, TypeVar)
 
 import matplotlib.ticker as ticker
 import numpy as np
 import torch
 from fastdtw.fastdtw import fastdtw
-from general_utils import (disable_imageio_logger, disable_matplot_logger,
-                           disable_numba_logger, get_filenames)
 from matplotlib import pyplot as plt
-from matplotlib.figure import Figure
-from scipy.spatial.distance import cosine, euclidean
-from torch import Tensor, nn
-from torch.nn import Module
+from scipy.spatial.distance import euclidean
 
-from tacotron.globals import SPACE_DISPLAYABLE
-from tacotron.typing import Symbol
 from tacotron.utils import figure_to_numpy_rgb
 
 _T = TypeVar('_T')
