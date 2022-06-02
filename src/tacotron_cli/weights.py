@@ -1,7 +1,5 @@
 from argparse import ArgumentParser, Namespace
 from logging import getLogger
-from pathlib import Path
-from typing import Literal, Optional
 
 import torch
 

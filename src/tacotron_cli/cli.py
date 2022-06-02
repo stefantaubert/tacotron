@@ -1,9 +1,7 @@
 import argparse
-import faulthandler
-import logging
 import platform
 import sys
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser
 from importlib.metadata import version
 from logging import getLogger
 from pathlib import Path

@@ -62,7 +62,6 @@ class Tacotron2Logger():
   def __init__(self, logdir: Path):
     # super().__init__(logdir)
     logdir.mkdir(parents=True, exist_ok=True)
-    pass
 
   def log_training(self, reduced_loss, grad_norm, learning_rate, duration,
                    iteration):

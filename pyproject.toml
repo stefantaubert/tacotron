@@ -38,10 +38,17 @@ classifiers = [
   "License :: OSI Approved :: MIT License",
 ]
 dependencies = [
+  "torch",
+  "mel-cepstral-distance>=0.0.1",
+  "pandas",
+  "librosa",
+  "plotly",
+  "scikit-image",
+  "matplotlib",
+  "scikit-learn",
   "tqdm",
   "numpy",
   "scipy",
-  "pandas",
   "ordered_set>=4.1.0",
 ]
 

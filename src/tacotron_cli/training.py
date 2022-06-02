@@ -3,7 +3,6 @@ from argparse import ArgumentParser, Namespace
 from functools import partial
 from pathlib import Path
 from tempfile import gettempdir
-from typing import Dict, Optional
 
 from speech_dataset_parser_api import parse_directory
 

@@ -3,8 +3,7 @@ import random
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 from logging import getLogger
-from pathlib import Path
-from typing import List, Optional
+from typing import List
 from typing import OrderedDict as OrderedDictType
 
 import imageio

@@ -1,18 +1,15 @@
 import dataclasses
 import json
 import logging
-import math
 import os
 import pickle
 import random
 import unicodedata
-from collections import OrderedDict
 from dataclasses import asdict, dataclass
 from logging import Logger, getLogger
 from math import floor, sqrt
 from pathlib import Path
-from typing import Any, Callable, Dict, Generator, Iterable, List, Optional
-from typing import OrderedDict as OrderedDictType
+from typing import Any, Dict, Generator, Iterable, List, Optional
 from typing import Set, Tuple, Type, TypeVar, Union
 
 import matplotlib.ticker as ticker

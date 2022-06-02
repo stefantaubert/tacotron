@@ -1,7 +1,6 @@
 from argparse import ArgumentParser, Namespace
 from functools import partial
 from pathlib import Path
-from typing import Dict, List, Optional, Set
 
 import imageio
 import numpy as np
