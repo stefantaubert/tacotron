@@ -246,3 +246,5 @@ def validate_v2(ns: Namespace) -> None:
   #     logger.info(copy_mel_info_to)
 
   logger.info(f"Saved output to: {ns.output_dir.absolute()}")
+
+  return True

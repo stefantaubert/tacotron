@@ -77,7 +77,7 @@ def plot_embeddings_v2(ns: Namespace) -> bool:
       ns.output_directory / "3d.html"), auto_open=False)
 
   logger.info(f"Saved analysis to: {ns.output_directory.absolute()}")
-
+  return True
 
 def compare_embeddings(checkpoint1: Path, checkpoint2: Path, output_directory: Path) -> bool:
   logger = getLogger(__name__)

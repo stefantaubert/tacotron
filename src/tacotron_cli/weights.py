@@ -101,4 +101,4 @@ def map_missing_symbols_v2(ns: Namespace) -> bool:
   if ns.custom_output is not None:
     target_path = ns.custom_output
   save_checkpoint(checkpoint2_dict, target_path)
-  logger.info("Success!")
+  return True

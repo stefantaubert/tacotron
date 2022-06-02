@@ -120,6 +120,8 @@ def train_new(ns: Namespace) -> None:
     checkpoint_logger=checkpoint_logger,
     checkpoint=None,
   )
+  
+  return True
 
 
 def init_continue_train_parser(parser: ArgumentParser) -> None:
@@ -178,3 +180,5 @@ def continue_train_v2(ns: Namespace) -> None:
     warm_start=False,
     map_speaker_weights=False,
   )
+  
+  return True
