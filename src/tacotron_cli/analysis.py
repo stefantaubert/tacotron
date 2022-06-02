@@ -13,6 +13,7 @@ from tacotron.analysis import (emb_plot_2d, emb_plot_3d, embeddings_to_csv, get_
 from tacotron.checkpoint_handling import (get_hparams, get_speaker_embedding_weights,
                                           get_speaker_mapping, get_symbol_embedding_weights,
                                           get_symbol_mapping)
+from tacotron_cli.argparse_helper import parse_existing_file, parse_path
 from tacotron_cli.io import load_checkpoint
 
 
@@ -21,9 +22,9 @@ def get_analysis_root_dir(train_dir: Path) -> Path:
 
 
 def init_plot_emb_parser(parser: ArgumentParser) -> None:
-  parser.add_argument('checkpoint', metavar="CHECKPOINT-PATH", type=Path)
+  parser.add_argument('checkpoint', metavar="CHECKPOINT-PATH", type=parse_existing_file)
   parser.add_argument('output_directory',
-                      metavar="OUTPUT-FOLDER-PATH", type=Path)
+                      metavar="OUTPUT-FOLDER-PATH", type=parse_path)
   return plot_embeddings_v2
 
 

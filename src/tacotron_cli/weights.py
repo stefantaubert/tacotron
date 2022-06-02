@@ -7,15 +7,16 @@ import torch
 
 from tacotron.checkpoint_handling import (get_symbol_embedding_weights, get_symbol_mapping,
                                           update_symbol_embedding_weights, update_symbol_mapping)
+from tacotron_cli.argparse_helper import parse_existing_file, parse_path
 from tacotron_cli.io import load_checkpoint, save_checkpoint
 
 
 def init_add_missing_weights_parser(parser: ArgumentParser) -> None:
-  parser.add_argument('checkpoint1', metavar="CHECKPOINT1-PATH", type=Path)
-  parser.add_argument('checkpoint2', metavar="CHECKPOINT2-PATH", type=Path)
+  parser.add_argument('checkpoint1', metavar="CHECKPOINT1-PATH", type=parse_existing_file)
+  parser.add_argument('checkpoint2', metavar="CHECKPOINT2-PATH", type=parse_existing_file)
   parser.add_argument('--mode', type=str,
                       choices=["copy", "predict"], default="copy")
-  parser.add_argument('-out', '--custom-output', type=Path, default=None)
+  parser.add_argument('-out', '--custom-output', type=parse_path, default=None)
   return map_missing_symbols_v2
 
 

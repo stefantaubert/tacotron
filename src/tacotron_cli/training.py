@@ -13,6 +13,9 @@ from tacotron.parser import get_entries_from_sdp_entries
 from tacotron.training import start_training
 from tacotron.utils import (get_last_checkpoint, get_pytorch_filename, parse_json, prepare_logger,
                             split_hparams_string)
+from tacotron_cli.argparse_helper import (get_optional, parse_existing_directory,
+                                          parse_existing_file, parse_non_empty,
+                                          parse_non_empty_or_whitespace, parse_path)
 from tacotron_cli.io import load_checkpoint, save_checkpoint
 
 # def try_load_checkpoint(train_name: Optional[str], checkpoint: Optional[int], logger: Logger) -> Optional[CheckpointDict]:
@@ -47,26 +50,28 @@ def save_checkpoint_iteration(checkpoint: CheckpointDict, save_checkpoint_dir: P
 
 def init_train_parser(parser: ArgumentParser) -> None:
   default_log_path = Path(gettempdir()) / "tacotron_logs"
-  parser.add_argument('train_folder', metavar="TRAIN-FOLDER-PATH", type=Path)
-  parser.add_argument('val_folder', metavar="VAL-FOLDER-PATH", type=Path)
-  parser.add_argument("tier", metavar="TIER", type=str)
+  parser.add_argument('train_folder', metavar="TRAIN-FOLDER-PATH", type=parse_existing_directory)
+  parser.add_argument('val_folder', metavar="VAL-FOLDER-PATH", type=parse_existing_directory)
+  parser.add_argument("tier", metavar="TIER", type=parse_non_empty_or_whitespace)
   parser.add_argument('checkpoints_dir',
-                      metavar="CHECKPOINTS-FOLDER-PATH", type=Path)
-  parser.add_argument('--custom-hparams', type=str, default=None)
+                      metavar="CHECKPOINTS-FOLDER-PATH", type=parse_path)
+  parser.add_argument('--custom-hparams', type=get_optional(parse_non_empty),
+                      default=None, help="custom hparams comma separated")
   # Pretrained model
-  parser.add_argument('--pretrained-model', type=Path, default=None)
+  parser.add_argument('--pretrained-model', type=get_optional(parse_existing_file), default=None)
   # Warm start
   parser.add_argument('--warm-start', action='store_true')
   # Symbol weights
   parser.add_argument('--map-symbol_weights', action='store_true')
-  parser.add_argument('--custom-symbol-weights-map', type=Path, default=None)
+  parser.add_argument('--custom-symbol-weights-map',
+                      type=get_optional(parse_existing_file), default=None)
   # Speaker weights
   parser.add_argument('--map-speaker-weights', action='store_true')
-  parser.add_argument('--map-from-speaker', type=str, default=None)
-  parser.add_argument('--tl-dir', type=Path, default=default_log_path)
-  parser.add_argument('--log-path', type=Path,
+  parser.add_argument('--map-from-speaker', type=get_optional(parse_non_empty), default=None)
+  parser.add_argument('--tl-dir', type=parse_path, default=default_log_path)
+  parser.add_argument('--log-path', type=parse_path,
                       default=default_log_path / "log.txt")
-  parser.add_argument('--ckp-log-path', type=Path,
+  parser.add_argument('--ckp-log-path', type=parse_path,
                       default=default_log_path / "log-checkpoints.txt")
   return train_new
 
@@ -120,22 +125,23 @@ def train_new(ns: Namespace) -> None:
     checkpoint_logger=checkpoint_logger,
     checkpoint=None,
   )
-  
+
   return True
 
 
 def init_continue_train_parser(parser: ArgumentParser) -> None:
   default_log_path = Path(gettempdir()) / "tacotron_logs"
-  parser.add_argument('train_folder', metavar="TRAIN-FOLDER-PATH", type=Path)
-  parser.add_argument('val_folder', metavar="VAL-FOLDER-PATH", type=Path)
-  parser.add_argument("tier", metavar="TIER", type=str)
+  parser.add_argument('train_folder', metavar="TRAIN-FOLDER-PATH", type=parse_existing_directory)
+  parser.add_argument('val_folder', metavar="VAL-FOLDER-PATH", type=parse_existing_directory)
+  parser.add_argument("tier", metavar="TIER", type=parse_non_empty_or_whitespace)
   parser.add_argument('checkpoints_dir',
-                      metavar="CHECKPOINTS-FOLDER-PATH", type=Path)
-  parser.add_argument('--custom-hparams', type=str, default=None)
-  parser.add_argument('--tl-dir', type=Path, default=default_log_path)
-  parser.add_argument('--log-path', type=Path,
+                      metavar="CHECKPOINTS-FOLDER-PATH", type=parse_existing_directory)
+  parser.add_argument('--custom-hparams', type=get_optional(parse_non_empty),
+                      default=None, help="custom hparams comma separated")
+  parser.add_argument('--tl-dir', type=parse_path, default=default_log_path)
+  parser.add_argument('--log-path', type=parse_path,
                       default=default_log_path / "log.txt")
-  parser.add_argument('--ckp-log-path', type=Path,
+  parser.add_argument('--ckp-log-path', type=parse_path,
                       default=default_log_path / "log-checkpoints.txt")
   return continue_train_v2
 
@@ -180,5 +186,5 @@ def continue_train_v2(ns: Namespace) -> None:
     warm_start=False,
     map_speaker_weights=False,
   )
-  
+
   return True

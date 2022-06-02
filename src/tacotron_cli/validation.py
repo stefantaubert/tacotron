@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Set
 import imageio
 import numpy as np
 import pandas as pd
+from ordered_set import OrderedSet
 from scipy.io.wavfile import write
 from speech_dataset_parser_api import parse_directory
 from tqdm import tqdm
@@ -16,6 +17,11 @@ from tacotron.parser import get_entries_from_sdp_entries
 from tacotron.typing import Entry
 from tacotron.utils import get_checkpoint, get_last_checkpoint, prepare_logger, split_hparams_string
 from tacotron.validation import ValidationEntries, ValidationEntryOutput, get_df, validate
+from tacotron_cli.argparse_helper import (ConvertToOrderedSetAction, ConvertToSetAction,
+                                          get_optional, parse_existing_directory,
+                                          parse_existing_file, parse_non_empty,
+                                          parse_non_negative_integer, parse_path,
+                                          parse_positive_integer)
 from tacotron_cli.defaults import (DEFAULT_MAX_DECODER_STEPS, DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME,
                                    DEFAULT_REPETITIONS, DEFAULT_SEED)
 from tacotron_cli.io import load_checkpoint
@@ -142,29 +148,31 @@ def save_results(entry: Entry, output: ValidationEntryOutput, val_dir: Path, ite
 
 def init_validate_parser(parser: ArgumentParser) -> None:
   parser.add_argument('checkpoints_dir',
-                      metavar="CHECKPOINTS-FOLDER-PATH", type=Path)
+                      metavar="CHECKPOINTS-FOLDER-PATH", type=parse_existing_directory)
   parser.add_argument('output_dir',
-                      metavar="OUTPUT-FOLDER-PATH", type=Path)
+                      metavar="OUTPUT-FOLDER-PATH", type=parse_path)
   parser.add_argument('dataset_dir', metavar="DATA-FOLDER-PATH",
-                      type=Path, help="train or val set folder")
-  parser.add_argument("tier", metavar="TIER", type=str)
-  parser.add_argument('--entry-names', type=str, nargs="*",
-                      help="Utterance names or nothing if random", default=[])
-  parser.add_argument('--speaker', type=str, help="ds_name,speaker_name")
+                      type=parse_existing_directory, help="train or val set folder")
+  parser.add_argument("tier", metavar="TIER", type=parse_non_empty)
+  parser.add_argument('--entry-names', type=parse_non_empty, nargs="*",
+                      help="Utterance names or nothing if random", default={}, action=ConvertToSetAction)
+  parser.add_argument('--speaker', type=get_optional(parse_non_empty),
+                      help="ds_name,speaker_name", default=None)
   parser.add_argument('--custom-checkpoints',
-                      type=int, nargs="*", default=[])
+                      type=parse_positive_integer, nargs="*", default={}, action=ConvertToOrderedSetAction)
   parser.add_argument('--full-run', action='store_true')
-  parser.add_argument('--max-decoder-steps', type=int,
+  parser.add_argument('--max-decoder-steps', type=parse_positive_integer,
                       default=DEFAULT_MAX_DECODER_STEPS)
   # parser.add_argument('--copy-mel_info_to', type=Path,
   #                     default=DEFAULT_SAVE_MEL_INFO_COPY_PATH)
-  parser.add_argument('--custom-hparams', type=str)
-  parser.add_argument('--select-best-from', type=str)
-  parser.add_argument('--mcd-no-of-coeffs-per-frame', type=int,
+  parser.add_argument('--custom-hparams', type=get_optional(parse_non_empty),
+                      default=None, help="custom hparams comma separated")
+  parser.add_argument('--select-best-from', type=parse_existing_file)
+  parser.add_argument('--mcd-no-of-coeffs-per-frame', type=parse_positive_integer,
                       default=DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME)
   parser.add_argument('--fast', action='store_true')
-  parser.add_argument('--repetitions', type=int, default=DEFAULT_REPETITIONS)
-  parser.add_argument('--seed', type=int, default=DEFAULT_SEED)
+  parser.add_argument('--repetitions', type=parse_positive_integer, default=DEFAULT_REPETITIONS)
+  parser.add_argument('--seed', type=parse_non_negative_integer, default=DEFAULT_SEED)
 
   return validate_v2
 
@@ -175,16 +183,15 @@ def validate_v2(ns: Namespace) -> None:
   data = list(get_entries_from_sdp_entries(
       parse_directory(ns.dataset_dir, ns.tier, 16)))
 
-  iterations: Set[int] = set()
-
+  iterations: OrderedSet[int]
   if len(ns.custom_checkpoints) == 0:
     _, last_it = get_last_checkpoint(ns.checkpoints_dir)
-    iterations.add(last_it)
+    iterations = OrderedSet((last_it,))
   else:
     # if len(custom_checkpoints) == 0:
     #     iterations = set(get_all_checkpoint_iterations(checkpoint_dir))
     # else:
-    iterations = set(ns.custom_checkpoints)
+    iterations = ns.custom_checkpoints
   ns.output_dir.mkdir(parents=True, exist_ok=True)
 
   val_log_path = ns.output_dir / "log.txt"
@@ -212,7 +219,7 @@ def validate_v2(ns: Namespace) -> None:
         checkpoint=taco_checkpoint,
         data=data,
         custom_hparams=custom_hparams,
-        entry_names=set(ns.entry_names),
+        entry_names=ns.entry_names,
         full_run=ns.full_run,
         speaker_name=ns.speaker,
         logger=logger,

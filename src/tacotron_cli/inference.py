@@ -18,6 +18,10 @@ from tacotron.image_utils import stack_images_vertically
 from tacotron.synthesizer import Synthesizer
 from tacotron.typing import Symbols
 from tacotron.utils import plot_alignment_np_new, split_hparams_string
+from tacotron_cli.argparse_helper import (ConvertToOrderedSetAction, get_optional, parse_codec,
+                                          parse_existing_file, parse_non_empty,
+                                          parse_non_negative_integer, parse_path,
+                                          parse_positive_integer)
 from tacotron_cli.io import load_checkpoint
 
 Utterances = OrderedDictType[int, Symbols]
@@ -53,23 +57,25 @@ def parse_paragraphs_from_text(text: str, sep: str) -> Paragraphs:
 
 
 def init_inference_v2_parser(parser: ArgumentParser) -> None:
-  parser.add_argument('checkpoint', metavar="CHECKPOINT-PATH", type=Path)
-  parser.add_argument('text', metavar="TEXT-PATH", type=Path)
-  parser.add_argument('--encoding', type=str, default="UTF-8")
-  parser.add_argument('--custom-speaker', type=str, default=None)
-  parser.add_argument('--custom-lines', type=int, nargs="*", default=[])
-  parser.add_argument('--max-decoder-steps', type=int, default=3000)
-  parser.add_argument('--batch-size', type=int, default=64)
+  parser.add_argument('checkpoint', metavar="CHECKPOINT-PATH", type=parse_existing_file)
+  parser.add_argument('text', metavar="TEXT-PATH", type=parse_existing_file)
+  parser.add_argument('--encoding', type=parse_codec, default="UTF-8")
+  parser.add_argument('--custom-speaker', type=get_optional(parse_non_empty), default=None)
+  parser.add_argument('--custom-lines', type=parse_non_negative_integer,
+                      nargs="*", default={}, action=ConvertToOrderedSetAction)
+  parser.add_argument('--max-decoder-steps', type=parse_positive_integer, default=3000)
+  parser.add_argument('--batch-size', type=parse_positive_integer, default=64)
   parser.add_argument('--sep', type=str, default="")
-  parser.add_argument('--custom-seed', type=int, default=None)
+  parser.add_argument('--custom-seed', type=get_optional(parse_non_negative_integer), default=None)
   parser.add_argument('-p', '--paragraph-directories', action='store_true')
   parser.add_argument('--include-stats', action='store_true')
   parser.add_argument('--prepend', type=str, default="",
                       help="prepend text to all output file names")
   parser.add_argument('--append', type=str, default="",
                       help="append text to all output file names")
-  parser.add_argument('--custom-hparams', type=str)
-  parser.add_argument('-out', '--output-directory', type=Path, default=None)
+  parser.add_argument('--custom-hparams', type=get_optional(parse_non_empty),
+                      default=None, help="custom hparams comma separated")
+  parser.add_argument('-out', '--output-directory', type=parse_path, default=None)
   parser.add_argument('-o', '--overwrite', action='store_true')
   return infer_text
 
@@ -77,34 +83,8 @@ def init_inference_v2_parser(parser: ArgumentParser) -> None:
 def infer_text(ns: Namespace) -> bool:
   logger = getLogger(__name__)
 
-  if not ns.checkpoint.is_file():
-    logger.error("Checkpoint was not found!")
-    return False
-
-  if not ns.text.is_file():
-    logger.error("Text was not found!")
-    return False
-
-  custom_lines = OrderedSet(ns.custom_lines)
-  if not all(x >= 0 for x in custom_lines):
-    logger.error(
-        "Custom line values need to be greater than or equal to zero!")
-    return False
-
-  if not ns.max_decoder_steps > 0:
-    logger.error("Maximum decoder steps need to be greater than zero!")
-    return False
-
-  if not ns.batch_size > 0:
-    logger.error("Batch size need to be greater than zero!")
-    return False
-
-  if ns.custom_seed is not None and not ns.custom_seed >= 0:
-    logger.error("Custom seed needs to be greater than or equal to zero!")
-    return False
-
   try:
-    logger.debug(f"Loading checkpoint...")
+    logger.debug("Loading checkpoint...")
     checkpoint_dict = load_checkpoint(ns.checkpoint)
   except Exception as ex:
     logger.error("Checkpoint couldn't be loaded!")
@@ -117,12 +97,12 @@ def infer_text(ns: Namespace) -> bool:
       return False
 
   try:
-    logger.debug(f"Loading text.")
+    logger.debug("Loading text.")
     text_content = ns.text.read_text(ns.encoding)
   except Exception as ex:
     logger.error("Text couldn't be read!")
     return False
-  
+
   output_directory = ns.output_directory
   if output_directory is None:
     output_directory = ns.text.parent / ns.text.stem
@@ -135,13 +115,13 @@ def infer_text(ns: Namespace) -> bool:
 
   line_nrs_to_infer = OrderedSet(
       line_nr for par in paragraphs.values() for line_nr in par.keys())
-  if len(custom_lines) > 0:
-    for custom_line in custom_lines:
+  if len(ns.custom_lines) > 0:
+    for custom_line in ns.custom_lines:
       if custom_line not in line_nrs_to_infer:
         logger.error(f"Line {custom_line} is not inferable!")
         return False
 
-    line_nrs_to_infer = custom_lines
+    line_nrs_to_infer = ns.custom_lines
 
   logger.info("Inferring...")
   logger.info(
