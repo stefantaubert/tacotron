@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from logging import Logger
 from typing import Callable, Dict, List, Optional, Set
 
-import jiwer
-import jiwer.transforms as tr
+#import jiwer
+#import jiwer.transforms as tr
 import numpy as np
 import pandas as pd
 from mel_cepstral_distance import get_metrics_mels
@@ -18,6 +18,7 @@ from tacotron.audio_utils import align_mels_with_dtw, get_msd, plot_melspec_np
 from tacotron.checkpoint_handling import CheckpointDict, get_iteration
 from tacotron.image_utils import calculate_structual_similarity_np
 from tacotron.synthesizer import Synthesizer
+from tacotron.taco_stft import TacotronSTFT
 from tacotron.typing import Entries, Entry
 from tacotron.utils import (cosine_dist_mels, make_same_dim,
                             plot_alignment_np_new)
@@ -50,10 +51,10 @@ class ValidationEntry():
     mfcc_dtw_penalty: float = None
     mfcc_dtw_frames: int = None
     msd: float = None
-    wer: float = None
-    mer: float = None
-    wil: float = None
-    wip: float = None
+    # wer: float = None
+    # mer: float = None
+    # wil: float = None
+    # wip: float = None
     # train_one_gram_rarity: float = None
     # train_two_gram_rarity: float = None
     # train_three_gram_rarity: float = None
@@ -287,20 +288,20 @@ def validate(checkpoint: CheckpointDict, data: Entries, custom_hparams: Optional
     validation_entries = ValidationEntries()
 
     if not fast:
-        jiwer_ground_truth_transform = tr.Compose([
-            tr.ToLowerCase(),
-            tr.ReduceToListOfListOfWords(),
-        ])
+        # jiwer_ground_truth_transform = tr.Compose([
+        #     tr.ToLowerCase(),
+        #     tr.ReduceToListOfListOfWords(),
+        # ])
 
-        jiwer_inferred_asr_transform = tr.Compose([
-            tr.ToLowerCase(),
-            tr.ReduceToListOfListOfWords(),
-        ])
+        # jiwer_inferred_asr_transform = tr.Compose([
+        #     tr.ToLowerCase(),
+        #     tr.ReduceToListOfListOfWords(),
+        # ])
 
         # train_onegram_rarities = get_ngram_rarity(validation_data, trainset, 1)
         # train_twogram_rarities = get_ngram_rarity(validation_data, trainset, 2)
         # train_threegram_rarities = get_ngram_rarity(validation_data, trainset, 3)
-
+        pass
     #asr_pipeline = asr.load('deepspeech2', lang='en')
     # asr_pipeline.model.summary()
 
@@ -372,21 +373,20 @@ def validate(checkpoint: CheckpointDict, data: Entries, custom_hparams: Optional
                 padded_structural_similarity = None
                 aligned_structural_similarity = None
 
-                ground_truth = ''.join(entry.symbols)
+                #ground_truth = ''.join(entry.symbols)
                 #hypothesis = asr_pipeline.predict([inference_result.mel_outputs_postnet])[0]
-                hypothesis = ""
 
-                measures = jiwer.compute_measures(
-                    truth=ground_truth,
-                    truth_transform=jiwer_ground_truth_transform,
-                    hypothesis=hypothesis,
-                    hypothesis_transform=jiwer_inferred_asr_transform,
-                )
+                # measures = jiwer.compute_measures(
+                #     truth=ground_truth,
+                #     truth_transform=jiwer_ground_truth_transform,
+                #     hypothesis=hypothesis,
+                #     hypothesis_transform=jiwer_inferred_asr_transform,
+                # )
 
-                wer = measures['wer']
-                mer = measures['mer']
-                wil = measures['wil']
-                wip = measures['wip']
+                # wer = measures['wer']
+                # mer = measures['mer']
+                # wil = measures['wil']
+                # wip = measures['wip']
 
                 padded_mel_orig_img_raw_1, padded_mel_orig_img = plot_melspec_np(
                     padded_mel_orig, title="padded_mel_orig")
@@ -427,10 +427,10 @@ def validate(checkpoint: CheckpointDict, data: Entries, custom_hparams: Optional
                 val_entry.padded_structural_similarity = padded_structural_similarity
                 val_entry.padded_mse = padded_mse
                 val_entry.msd = msd
-                val_entry.wer = wer
-                val_entry.mer = mer
-                val_entry.wil = wil
-                val_entry.wip = wip
+                # val_entry.wer = wer
+                # val_entry.mer = mer
+                # val_entry.wil = wil
+                # val_entry.wip = wip
                 val_entry.aligned_cosine_similarity = aligned_cosine_similarity
                 val_entry.aligned_mse = aligned_mse
                 val_entry.aligned_structural_similarity = aligned_structural_similarity
