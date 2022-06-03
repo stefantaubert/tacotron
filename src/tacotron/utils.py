@@ -9,8 +9,7 @@ from dataclasses import asdict, dataclass
 from logging import Logger, getLogger
 from math import floor, sqrt
 from pathlib import Path
-from typing import Any, Dict, Generator, Iterable, List, Optional
-from typing import Set, Tuple, Type, TypeVar, Union
+from typing import Any, Dict, Generator, Iterable, List, Optional, Set, Tuple, Type, TypeVar, Union
 
 import matplotlib.ticker as ticker
 import numpy as np
