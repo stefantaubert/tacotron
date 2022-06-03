@@ -10,6 +10,20 @@
 # from tacotron.eval_checkpoints import eval_checkpoints
 
 
+# def init_eval_checkpoints_parser(parser):
+#   parser.add_argument('--train_name', type=str, required=True)
+#   parser.add_argument('--custom_hparams', type=str)
+#   parser.add_argument('--select', type=int)
+#   parser.add_argument('--min_it', type=int)
+#   parser.add_argument('--max_it', type=int)
+#   return eval_checkpoints_main_cli
+
+
+# def evaeckpoints_main_cli(**args):
+#   argsl_ch["custom_hparams"] = split_hparams_string(args["custom_hparams"])
+#   eval_checkpoints(**args)
+
+
 # def eval_checkpoints_main(base_dir: Path, train_name: str, select: int, min_it: int, max_it: int):
 #   train_dir = get_train_dir(base_dir, train_name, create=False)
 #   assert train_dir.is_dir()

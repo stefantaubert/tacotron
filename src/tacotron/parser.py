@@ -11,7 +11,7 @@ def __get_entries_from_sdp_entries(audio_dir: Path, entries: Iterator[SDPEntry])
   result = []
   for entry in entries:
     new_entry = Entry(
-        stem=entry.audio_file_abs.relative_to(audio_dir).parent / entry.audio_file_rel.stem,
+        stem=entry.audio_file_abs.relative_to(audio_dir).parent / entry.audio_file_abs.stem,
         basename=entry.audio_file_abs.stem,
         speaker_gender=entry.speaker_gender,
         speaker_name=entry.speaker_name,

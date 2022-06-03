@@ -13,11 +13,12 @@ rope = "*"
 pytest = "*"
 autoflake = "*"
 twine = "*"
+tox = "*"
 
 [packages]
-speech-dataset-parser = {editable = true, path = "./../speech-dataset-parser"}
 torch = "*"
 mel-cepstral-distance = ">=0.0.1"
+speech-dataset-parser = ">=0.0.1"
 #tensorboard = "==2.7.0"
 pandas = "*"
 librosa = "*"

@@ -12,57 +12,12 @@ from typing import Callable, Generator, List, Tuple
 
 from tacotron_cli.analysis import init_plot_emb_parser
 from tacotron_cli.argparse_helper import get_optional, parse_path
-# from tacotron_cli.eval_checkpoints import eval_checkpoints
 from tacotron_cli.inference import init_inference_v2_parser
 from tacotron_cli.logging_configuration import (configure_root_logger, get_file_logger,
                                                 try_init_file_logger)
 from tacotron_cli.training import init_continue_train_parser, init_train_parser
 from tacotron_cli.validation import init_validate_parser
 from tacotron_cli.weights import init_add_missing_weights_parser
-
-# def init_eval_checkpoints_parser(parser):
-#   parser.add_argument('--train_name', type=str, required=True)
-#   parser.add_argument('--custom_hparams', type=str)
-#   parser.add_argument('--select', type=int)
-#   parser.add_argument('--min_it', type=int)
-#   parser.add_argument('--max_it', type=int)
-#   return eval_checkpoints_main_cli
-
-
-# def evaeckpoints_main_cli(**args):
-#   argsl_ch["custom_hparams"] = split_hparams_string(args["custom_hparams"])
-#   eval_checkpoints(**args)
-
-
-# def init_restore_parser(parser: ArgumentParser) -> None:
-#   parser.add_argument('--train_name', type=str, required=True)
-#   parser.add_argument('--checkpoint_dir', type=Path, required=True)
-#   return restore_model
-
-
-def _add_parser_to(subparsers, name: str, init_method) -> None:
-  parser = subparsers.add_parser(name, help=f"{name} help")
-  invoke_method = init_method(parser)
-  parser.set_defaults(invoke_handler=invoke_method)
-  return parser
-
-
-def _init_parser():
-  result = ArgumentParser()
-  subparsers = result.add_subparsers(help='sub-command help')
-
-  _add_parser_to(subparsers, "train", init_train_parser)
-  _add_parser_to(subparsers, "continue-train", init_continue_train_parser)
-  _add_parser_to(subparsers, "validate checkpoint(s)", init_validate_parser)
-  _add_parser_to(subparsers, "infer-text from checkpoint", init_inference_v2_parser)
-  # _add_parser_to(subparsers, "eval-checkpoints", init_taco_eval_checkpoints_parser)
-  _add_parser_to(subparsers, "plot-embeddings contained in a checkpoint", init_plot_emb_parser)
-  _add_parser_to(subparsers, "add-missing-symbols from one checkpoint to another",
-                 init_add_missing_weights_parser)
-  #_add_parser_to(subparsers, "restore", init_restore_parser)
-
-  return result
-
 
 __version__ = version("tacotron")
 
@@ -99,11 +54,11 @@ def print_features():
 def _init_parser():
   main_parser = ArgumentParser(
     formatter_class=formatter,
-    description="This program provides methods to modify a text file.",
+    description="This program trains Tacotron 2.",
   )
   main_parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + __version__)
   subparsers = main_parser.add_subparsers(help="description")
-  default_log_path = Path(gettempdir()) / "txt-utils.log"
+  default_log_path = Path(gettempdir()) / "tacotron-cli.log"
 
   methods = get_parsers()
   for command, description, method in methods:
