@@ -7,6 +7,7 @@ import unicodedata
 from dataclasses import asdict, dataclass
 from logging import Logger, getLogger
 from math import floor, sqrt
+from multiprocessing import cpu_count
 from pathlib import Path
 from typing import Dict, Generator, Iterable, List, Optional, Set, Tuple, Type, TypeVar, Union
 
@@ -16,7 +17,7 @@ import torch
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 from scipy.spatial.distance import cosine
-from torch import Tensor, nn
+from torch import IntTensor, Tensor, nn
 from torch.nn import Module
 
 from tacotron.globals import SPACE_DISPLAYABLE
@@ -187,13 +188,20 @@ def get_checkpoint(checkpoint_dir: Path, iteration: int) -> Path:
   return checkpoint_path
 
 
+def set_torch_thread_to_max() -> None:
+  torch.set_num_threads(cpu_count())
+  torch.set_num_interop_threads(cpu_count())
+
+
 def get_custom_or_last_checkpoint(checkpoint_dir: Path, custom_iteration: Optional[int]) -> Tuple[Path, int]:
   return (get_checkpoint(checkpoint_dir, custom_iteration), custom_iteration) if custom_iteration is not None else get_last_checkpoint(checkpoint_dir)
 
 
-def get_mask_from_lengths(lengths) -> None:
+def get_mask_from_lengths(lengths: IntTensor) -> None:
   max_len = torch.max(lengths).item()
-  ids = torch.arange(0, max_len, out=torch.LongTensor(max_len))
+
+  ids = torch.arange(0, max_len, device=lengths.device, dtype=lengths.dtype)
+  #ids2 = torch.arange(0, max_len, out=torch.LongTensor(max_len))
   mask = (ids < lengths.unsqueeze(1)).bool()
   return mask
 

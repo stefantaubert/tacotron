@@ -9,7 +9,7 @@ from tacotron.checkpoint_handling import CheckpointDict, get_iteration
 from tacotron.logger import Tacotron2Logger
 from tacotron.parser import load_dataset
 from tacotron.training import start_training
-from tacotron.utils import (get_last_checkpoint, get_pytorch_filename, parse_json, prepare_logger,
+from tacotron.utils import (get_last_checkpoint, get_pytorch_filename, parse_json, prepare_logger, set_torch_thread_to_max,
                             split_hparams_string)
 from tacotron_cli.argparse_helper import (get_optional, parse_device, parse_existing_directory,
                                           parse_existing_file, parse_non_empty,
@@ -79,7 +79,7 @@ import torch
 
 
 def train_new(ns: Namespace) -> None:
-  torch.set_num_threads(cpu_count())
+  set_torch_thread_to_max()
   taco_logger = Tacotron2Logger(ns.tl_dir)
   logger = prepare_logger(ns.log_path, reset=True)
   checkpoint_logger = prepare_logger(

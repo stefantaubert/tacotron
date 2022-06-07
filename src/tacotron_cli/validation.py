@@ -15,7 +15,7 @@ from tacotron.globals import DEFAULT_CSV_SEPERATOR
 from tacotron.image_utils import stack_images_vertically
 from tacotron.parser import load_dataset
 from tacotron.typing import Entry
-from tacotron.utils import get_checkpoint, get_last_checkpoint, prepare_logger, split_hparams_string
+from tacotron.utils import get_checkpoint, get_last_checkpoint, prepare_logger, set_torch_thread_to_max, split_hparams_string
 from tacotron.validation import ValidationEntries, ValidationEntryOutput, get_df, validate
 from tacotron_cli.argparse_helper import (ConvertToOrderedSetAction, ConvertToSetAction,
                                           get_optional, parse_device, parse_existing_directory,
@@ -183,7 +183,7 @@ def init_validation_parser(parser: ArgumentParser) -> None:
 def validate_ns(ns: Namespace) -> None:
   assert ns.repetitions > 0
 
-  torch.set_num_threads(cpu_count())
+  set_torch_thread_to_max()
   data = load_dataset(ns.dataset_dir, ns.tier)
 
   iterations: OrderedSet[int]

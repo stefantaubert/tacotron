@@ -18,7 +18,7 @@ from tacotron.checkpoint_handling import get_learning_rate, get_speaker_mapping
 from tacotron.image_utils import stack_images_vertically
 from tacotron.synthesizer import Synthesizer
 from tacotron.typing import Symbols
-from tacotron.utils import plot_alignment_np_new, split_hparams_string
+from tacotron.utils import plot_alignment_np_new, set_torch_thread_to_max, split_hparams_string
 from tacotron_cli.argparse_helper import (ConvertToOrderedSetAction, get_optional, parse_codec,
                                           parse_device, parse_existing_file, parse_non_empty,
                                           parse_non_negative_integer, parse_path,
@@ -88,7 +88,7 @@ def init_synthesis_parser(parser: ArgumentParser) -> None:
 
 def synthesize_ns(ns: Namespace) -> bool:
   logger = getLogger(__name__)
-  torch.set_num_threads(cpu_count())
+  set_torch_thread_to_max()
 
   try:
     logger.debug("Loading checkpoint...")

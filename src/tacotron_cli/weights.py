@@ -6,6 +6,7 @@ import torch
 
 from tacotron.checkpoint_handling import (get_symbol_embedding_weights, get_symbol_mapping,
                                           update_symbol_embedding_weights, update_symbol_mapping)
+from tacotron.utils import set_torch_thread_to_max
 from tacotron_cli.argparse_helper import parse_device, parse_existing_file, parse_path
 from tacotron_cli.defaults import DEFAULT_DEVICE
 from tacotron_cli.io import load_checkpoint, save_checkpoint
@@ -24,7 +25,7 @@ def init_add_missing_weights_parser(parser: ArgumentParser) -> None:
 
 def map_missing_symbols_v2(ns: Namespace) -> bool:
   logger = getLogger(__name__)
-  torch.set_num_threads(cpu_count())
+  set_torch_thread_to_max()
 
   if not ns.checkpoint1.is_file():
     logger.error("Checkpoint 1 was not found!")

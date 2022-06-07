@@ -15,7 +15,9 @@ from tacotron.analysis import (emb_plot_2d, emb_plot_3d, embeddings_to_csv, get_
 from tacotron.checkpoint_handling import (get_hparams, get_speaker_embedding_weights,
                                           get_speaker_mapping, get_symbol_embedding_weights,
                                           get_symbol_mapping)
-from tacotron_cli.argparse_helper import parse_existing_file, parse_path
+from tacotron.utils import set_torch_thread_to_max
+from tacotron_cli.argparse_helper import parse_device, parse_existing_file, parse_path
+from tacotron_cli.defaults import DEFAULT_DEVICE
 from tacotron_cli.io import load_checkpoint
 
 
@@ -27,17 +29,20 @@ def init_plot_emb_parser(parser: ArgumentParser) -> None:
   parser.add_argument('checkpoint', metavar="CHECKPOINT-PATH", type=parse_existing_file)
   parser.add_argument('output_directory',
                       metavar="OUTPUT-FOLDER-PATH", type=parse_path)
+  parser.add_argument("--device", type=parse_device, default=DEFAULT_DEVICE,
+                      help="device used for loading checkpoint")
   return plot_embeddings_v2
 
 
 def plot_embeddings_v2(ns: Namespace) -> bool:
   logger = getLogger(__name__)
-  torch.set_num_threads(cpu_count())
+  set_torch_thread_to_max()
 
   try:
     logger.debug(f"Loading checkpoint...")
     checkpoint_dict = load_checkpoint(ns.checkpoint, ns.device)
   except Exception as ex:
+    logger.debug(ex)
     logger.error("Checkpoint couldn't be loaded!")
     return False
 
@@ -82,7 +87,7 @@ def plot_embeddings_v2(ns: Namespace) -> bool:
 
 def compare_embeddings(checkpoint1: Path, checkpoint2: Path, device: torch.device, output_directory: Path) -> bool:
   logger = getLogger(__name__)
-  torch.set_num_threads(cpu_count())
+  set_torch_thread_to_max()
 
   if not checkpoint1.is_file():
     logger.error("Checkpoint 1 was not found!")
@@ -96,6 +101,7 @@ def compare_embeddings(checkpoint1: Path, checkpoint2: Path, device: torch.devic
     logger.debug(f"Loading checkpoint...")
     checkpoint1_dict = load_checkpoint(checkpoint1, device)
   except Exception as ex:
+    logger.debug(ex)
     logger.error("Checkpoint 1 couldn't be loaded!")
     return False
 
@@ -103,6 +109,7 @@ def compare_embeddings(checkpoint1: Path, checkpoint2: Path, device: torch.devic
     logger.debug(f"Loading checkpoint...")
     checkpoint2_dict = load_checkpoint(checkpoint2, device)
   except Exception as ex:
+    logger.debug(ex)
     logger.error("Checkpoint 2 couldn't be loaded!")
     return False
 
