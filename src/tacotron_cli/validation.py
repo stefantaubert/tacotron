@@ -1,10 +1,12 @@
 from argparse import ArgumentParser, Namespace
 from functools import partial
+from multiprocessing import cpu_count
 from pathlib import Path
 
 import imageio
 import numpy as np
 import pandas as pd
+import torch
 from ordered_set import OrderedSet
 from scipy.io.wavfile import write
 from tqdm import tqdm
@@ -145,7 +147,7 @@ def save_results(entry: Entry, output: ValidationEntryOutput, val_dir: Path, ite
   # mel_postnet_npy_paths.append(mel_info)
 
 
-def init_validate_parser(parser: ArgumentParser) -> None:
+def init_validation_parser(parser: ArgumentParser) -> None:
   parser.add_argument('checkpoints_dir',
                       metavar="CHECKPOINTS-FOLDER-PATH", type=parse_existing_directory)
   parser.add_argument('output_dir',
@@ -175,12 +177,13 @@ def init_validate_parser(parser: ArgumentParser) -> None:
   parser.add_argument('--repetitions', type=parse_positive_integer, default=DEFAULT_REPETITIONS)
   parser.add_argument('--seed', type=parse_non_negative_integer, default=DEFAULT_SEED)
 
-  return validate_v2
+  return validate_ns
 
 
-def validate_v2(ns: Namespace) -> None:
+def validate_ns(ns: Namespace) -> None:
   assert ns.repetitions > 0
 
+  torch.set_num_threads(cpu_count())
   data = load_dataset(ns.dataset_dir, ns.tier)
 
   iterations: OrderedSet[int]

@@ -1,6 +1,7 @@
 import logging
 from argparse import ArgumentParser, Namespace
 from functools import partial
+from multiprocessing import cpu_count
 from pathlib import Path
 from tempfile import gettempdir
 
@@ -53,7 +54,7 @@ def init_train_parser(parser: ArgumentParser) -> None:
   parser.add_argument("tier", metavar="TIER", type=parse_non_empty_or_whitespace)
   parser.add_argument('checkpoints_dir',
                       metavar="CHECKPOINTS-FOLDER-PATH", type=parse_path)
-  parser.add_argument("--device", type=parse_device, default="cuda:0",
+  parser.add_argument("--device", type=parse_device, default=DEFAULT_DEVICE,
                       help="device used for training")
   parser.add_argument('--custom-hparams', type=get_optional(parse_non_empty),
                       default=None, help="custom hparams comma separated")
@@ -74,9 +75,11 @@ def init_train_parser(parser: ArgumentParser) -> None:
   parser.add_argument('--ckp-log-path', type=parse_path,
                       default=default_log_path / "log-checkpoints.txt")
   return train_new
+import torch
 
 
 def train_new(ns: Namespace) -> None:
+  torch.set_num_threads(cpu_count())
   taco_logger = Tacotron2Logger(ns.tl_dir)
   logger = prepare_logger(ns.log_path, reset=True)
   checkpoint_logger = prepare_logger(

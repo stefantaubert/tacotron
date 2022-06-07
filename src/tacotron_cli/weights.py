@@ -1,5 +1,6 @@
 from argparse import ArgumentParser, Namespace
 from logging import getLogger
+from multiprocessing import cpu_count
 
 import torch
 
@@ -22,9 +23,8 @@ def init_add_missing_weights_parser(parser: ArgumentParser) -> None:
 
 
 def map_missing_symbols_v2(ns: Namespace) -> bool:
-  assert ns.mode in ["copy", "predict"]
-
   logger = getLogger(__name__)
+  torch.set_num_threads(cpu_count())
 
   if not ns.checkpoint1.is_file():
     logger.error("Checkpoint 1 was not found!")

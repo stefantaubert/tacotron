@@ -3,11 +3,13 @@ import random
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 from logging import getLogger
+from multiprocessing import cpu_count
 from typing import List
 from typing import OrderedDict as OrderedDictType
 
 import imageio
 import numpy as np
+import torch
 from ordered_set import OrderedSet
 from tqdm import tqdm
 
@@ -86,6 +88,7 @@ def init_synthesis_parser(parser: ArgumentParser) -> None:
 
 def synthesize_ns(ns: Namespace) -> bool:
   logger = getLogger(__name__)
+  torch.set_num_threads(cpu_count())
 
   try:
     logger.debug("Loading checkpoint...")

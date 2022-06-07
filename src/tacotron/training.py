@@ -1,5 +1,6 @@
 import time
 from logging import Logger, getLogger
+from multiprocessing import cpu_count
 from typing import Callable, Dict, List, Optional, Tuple, cast
 
 import numpy as np
@@ -27,7 +28,7 @@ from tacotron.hparams import ExperimentHParams, HParams, OptimizerHParams
 from tacotron.logger import Tacotron2Logger
 from tacotron.model import SPEAKER_EMBEDDING_LAYER_NAME, SYMBOL_EMBEDDING_LAYER_NAME, Tacotron2
 from tacotron.typing import Entries, SymbolToSymbolMapping
-from tacotron.utils import (SaveIterationSettings, check_is_on_gpu, check_save_it, copy_state_dict,
+from tacotron.utils import (SaveIterationSettings, check_save_it, copy_state_dict,
                             get_continue_batch_iteration, get_continue_epoch, get_last_iteration,
                             get_next_save_it, get_symbol_printable, init_cuddn,
                             init_cuddn_benchmark, init_global_seeds, iteration_to_epoch,
@@ -605,8 +606,8 @@ def load_model(hparams: HParams, checkpoint: Optional[CheckpointDict], n_symbols
 
 def load_optimizer(model: Tacotron2, hparams: OptimizerHParams, checkpoint: Optional[CheckpointDict]) -> Adam:
   # see: https://discuss.pytorch.org/t/code-that-loads-sgd-fails-to-load-adam-state-to-gpu/61783/3
-  for parameter in model.parameters():
-    assert check_is_on_gpu(parameter)
+  # for parameter in model.parameters():
+  #  assert check_is_on_gpu(parameter)
 
   optimizer = Adam(
       params=model.parameters(),

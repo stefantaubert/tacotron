@@ -16,7 +16,7 @@ from tacotron_cli.inference import init_synthesis_parser
 from tacotron_cli.logging_configuration import (configure_root_logger, get_file_logger,
                                                 try_init_file_logger)
 from tacotron_cli.training import init_continue_train_parser, init_train_parser
-from tacotron_cli.validation import init_validate_parser
+from tacotron_cli.validation import init_validation_parser
 from tacotron_cli.weights import init_add_missing_weights_parser
 
 __version__ = version("tacotron")
@@ -39,7 +39,7 @@ def formatter(prog):
 def get_parsers() -> Parsers:
   yield "train", "start training", init_train_parser
   yield "continue-train", "continue training from a checkpoint", init_continue_train_parser
-  yield "validate", "validate checkpoint(s)", init_validate_parser
+  yield "validate", "validate checkpoint(s)", init_validation_parser
   yield "synthesize", "synthesize lines from a file", init_synthesis_parser
   yield "plot-embeddings", "plot trained embeddings", init_plot_emb_parser
   yield "add-missing-symbols", "copy missing symbol embeddings from one checkpoint to another", init_add_missing_weights_parser

@@ -193,29 +193,27 @@ def get_custom_or_last_checkpoint(checkpoint_dir: Path, custom_iteration: Option
 
 def get_mask_from_lengths(lengths) -> None:
   max_len = torch.max(lengths).item()
-  ids = torch.arange(0, max_len, out=torch.cuda.LongTensor(max_len))
+  ids = torch.arange(0, max_len, out=torch.LongTensor(max_len))
   mask = (ids < lengths.unsqueeze(1)).bool()
   return mask
 
 
 def get_uniform_weights(dimension: int, emb_dim: int) -> Tensor:
   # TODO check cuda is correct here
-  weight = torch.zeros(size=(dimension, emb_dim),
-                       device="cuda", requires_grad=True)
+  weight = torch.zeros(size=(dimension, emb_dim), requires_grad=True)
   std = sqrt(2.0 / (dimension + emb_dim))
   val = sqrt(3.0) * std  # uniform bounds for std
   nn.init.uniform_(weight, -val, val)
-  assert weight.is_cuda
+  # assert weight.is_cuda
   assert weight.requires_grad
   assert weight.is_leaf
   return weight
 
 
 def get_xavier_weights(dimension: int, emb_dim: int) -> Tensor:
-  weight = torch.zeros(size=(dimension, emb_dim),
-                       device="cuda", requires_grad=True)
+  weight = torch.zeros(size=(dimension, emb_dim), requires_grad=True)
   torch.nn.init.xavier_uniform_(weight)
-  assert weight.is_cuda
+  # assert weight.is_cuda
   assert weight.requires_grad
   assert weight.is_leaf
   return weight
@@ -403,7 +401,9 @@ def init_global_seeds(seed: int) -> None:
   np.random.seed(seed)
   torch.random.manual_seed(seed)
   torch.manual_seed(seed)
-  torch.cuda.manual_seed(seed)
+  # not required but more readable
+  if torch.cuda.is_available():
+    torch.cuda.manual_seed(seed)
   # only on multi GPU
   # torch.cuda.manual_seed_all(seed)
 
@@ -453,8 +453,8 @@ def try_copy_to(x: Union[Tensor, Module], device: torch.device) -> Union[Tensor,
   return x
 
 
-def check_is_on_gpu(x: Union[Tensor, Module]) -> bool:
-  return x.is_cuda
+# def check_is_on_gpu(x: Union[Tensor, Module]) -> bool:
+#   return x.is_cuda
 
 
 # def try_copy_tensors_to_gpu_iterable(tensors: Iterable[Optional[Tensor]]) -> Generator[Optional[Tensor], None, None]:

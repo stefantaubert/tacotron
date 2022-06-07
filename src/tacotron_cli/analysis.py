@@ -1,6 +1,7 @@
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 from logging import getLogger
+from multiprocessing import cpu_count
 from pathlib import Path
 from statistics import mean, median
 
@@ -31,10 +32,7 @@ def init_plot_emb_parser(parser: ArgumentParser) -> None:
 
 def plot_embeddings_v2(ns: Namespace) -> bool:
   logger = getLogger(__name__)
-
-  if not ns.checkpoint.is_file():
-    logger.error("Checkpoint was not found!")
-    return False
+  torch.set_num_threads(cpu_count())
 
   try:
     logger.debug(f"Loading checkpoint...")
@@ -84,6 +82,7 @@ def plot_embeddings_v2(ns: Namespace) -> bool:
 
 def compare_embeddings(checkpoint1: Path, checkpoint2: Path, device: torch.device, output_directory: Path) -> bool:
   logger = getLogger(__name__)
+  torch.set_num_threads(cpu_count())
 
   if not checkpoint1.is_file():
     logger.error("Checkpoint 1 was not found!")

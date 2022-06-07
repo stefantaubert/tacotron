@@ -121,6 +121,8 @@ LoaderEntry = Tuple[IntTensor, Tensor,
 
 class SymbolsMelLoader(Dataset):
   def __init__(self, data: Entries, hparams: HParams, symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], speaker_mapping: Optional[SpeakerMapping], device: torch.device, logger: Logger):
+    super().__init__()
+
     # random.seed(hparams.seed)
     # random.shuffle(data)
     self.use_saved_mels = hparams.use_saved_mels
@@ -299,13 +301,15 @@ def prepare_valloader(hparams: HParams, collate_fn: SymbolsMelCollate, valset: E
   val = SymbolsMelLoader(valset, hparams, symbols_dict,
                          stress_dict, speakers_dict, device, logger)
 
+  device_is_cuda = device.type == "cuda"
+
   val_loader = DataLoader(
       dataset=val,
       num_workers=16,
       shuffle=False,
       sampler=None,
       batch_size=hparams.batch_size,
-      pin_memory=True,
+      pin_memory=device_is_cuda,
       drop_last=False,
       collate_fn=collate_fn,
   )
@@ -321,6 +325,10 @@ def prepare_trainloader(hparams: HParams, collate_fn: SymbolsMelCollate, trainse
   trn = SymbolsMelLoader(trainset, hparams, symbols_dict,
                          stress_dict, speakers_dict, device, logger)
 
+  # https://discuss.pytorch.org/t/when-to-set-pin-memory-to-true/19723/7
+  # https://developer.nvidia.com/blog/how-optimize-data-transfers-cuda-cc/
+  device_is_cuda = device.type == "cuda"
+
   train_loader = DataLoader(
       dataset=trn,
       num_workers=16,
@@ -328,8 +336,7 @@ def prepare_trainloader(hparams: HParams, collate_fn: SymbolsMelCollate, trainse
       shuffle=True,
       sampler=None,
       batch_size=hparams.batch_size,
-      # https://discuss.pytorch.org/t/when-to-set-pin-memory-to-true/19723/7
-      pin_memory=True,
+      pin_memory=device_is_cuda,
       #  drop the last incomplete batch, if the dataset size is not divisible by the batch size
       drop_last=True,
       collate_fn=collate_fn,
