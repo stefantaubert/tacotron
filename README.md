@@ -28,7 +28,7 @@ pip install tacotron-cli --user
 ```txt
 usage: tacotron-cli [-h] [-v] {train,continue-train,validate,synthesize,plot-embeddings,add-missing-symbols} ...
 
-This program trains Tacotron 2.
+Command-line interface (CLI) to train Tacotron 2 using .wav <=> .TextGrid pairs.
 
 positional arguments:
   {train,continue-train,validate,synthesize,plot-embeddings,add-missing-symbols}
@@ -83,15 +83,9 @@ To prepare a text for synthesis, following things need to be considered.
 - each symbol needs can be separated by an separator like `|`, e.g. `s|ˌɪ|ɡ|ɝ|ˈɛ|t`
   - this is useful if the model contains phonemes/symbols that consist of multiple characters, e.g., `ˈɛ`
 
-### Example valid sentence
+Example valid sentence: "As the overlying plate lifts up, it also forms mountain ranges." => `ˈæ|z|SIL0|ð|ʌ|SIL0|ˌoʊ|v|ɝ|l|ˈaɪ|ɪ|ŋ|SIL0|p|l|ˈeɪ|t|SIL0|l|ˈɪ|f|t|s|SIL0|ˈʌ|p|,|SIL1|ɪ|t|SIL0|ˈɔ|l|s|oʊ|SIL0|f|ˈɔ|ɹ|m|z|SIL0|m|ˈaʊ|n|t|ʌ|n|SIL0|ɹ|ˈeɪ|n|d͡ʒ|ʌ|z|.|SIL2`
 
-- As the overlying plate lifts up, it also forms mountain ranges.
-  - `ˈæ|z|SIL0|ð|ʌ|SIL0|ˌoʊ|v|ɝ|l|ˈaɪ|ɪ|ŋ|SIL0|p|l|ˈeɪ|t|SIL0|l|ˈɪ|f|t|s|SIL0|ˈʌ|p|,|SIL1|ɪ|t|SIL0|ˈɔ|l|s|oʊ|SIL0|f|ˈɔ|ɹ|m|z|SIL0|m|ˈaʊ|n|t|ʌ|n|SIL0|ɹ|ˈeɪ|n|d͡ʒ|ʌ|z|.|SIL2`
-
-#### Example invalid sentence
-
-- Digestion is a vital process which involves the breakdown of food into smaller and smaller components, until they can be absorbed and assimilated into the body.
-  - `daɪˈʤɛsʧʌn ɪz ʌ ˈvaɪtʌl ˈpɹɑˌsɛs wɪʧ ɪnˈvɑlvz ðʌ ˈbɹeɪkˌdaʊn ʌv fud ˈɪntu ˈsmɔlɝ ænd ˈsmɔlɝ kʌmˈpoʊnʌnts, ʌnˈtɪl ðeɪ kæn bi ʌbˈzɔɹbd ænd ʌˈsɪmʌˌleɪtɪd ˈɪntu ðʌ ˈbɑdi.`
+Example invalid sentence: "Digestion is a vital process which involves the breakdown of food into smaller and smaller components, until they can be absorbed and assimilated into the body." => `daɪˈʤɛsʧʌn ɪz ʌ ˈvaɪtʌl ˈpɹɑˌsɛs wɪʧ ɪnˈvɑlvz ðʌ ˈbɹeɪkˌdaʊn ʌv fud ˈɪntu ˈsmɔlɝ ænd ˈsmɔlɝ kʌmˈpoʊnʌnts, ʌnˈtɪl ðeɪ kæn bi ʌbˈzɔɹbd ænd ʌˈsɪmʌˌleɪtɪd ˈɪntu ðʌ ˈbɑdi.`
 
 ## Roadmap
 
@@ -104,19 +98,26 @@ To prepare a text for synthesis, following things need to be considered.
 
 ## Pretrained Models
 
-- [LJ Speech](https://tuc.cloud/index.php/s/xxFCDMgEk8dZKbp)
+- [LJS-IPA-101500](https://tuc.cloud/index.php/s/xxFCDMgEk8dZKbp): Model trained on LJ Speech dataset with IPA transcriptions for 101500 iterations (= 500 epochs)
+  - Symbolset: `! " ' ( ) , - . : ; ? SIL0 SIL1 SIL2 [ ] aɪ aʊ b d d͡ʒ eɪ f h i j k l m n oʊ p s t t͡ʃ u v w z æ ð ŋ ɑ ɔ ɔɪ ɛ ɝ ɡ ɪ ɹ ʃ ʊ ʌ ʒ ˈaɪ ˈaʊ ˈeɪ ˈi ˈoʊ ˈu ˈæ ˈɑ ˈɔ ˈɔɪ ˈɛ ˈɝ ˈɪ ˈʊ ˈʌ ˌaɪ ˌaʊ ˌeɪ ˌi ˌoʊ ˌu ˌæ ˌɑ ˌɔ ˌɔɪ ˌɛ ˌɝ ˌɪ ˌʊ ˌʌ θ`
+
+## Audio Example
+
+"The North Wind and the Sun were disputing which was the stronger, when a traveler came along wrapped in a warm cloak." [Listen here](https://tuc.cloud/index.php/s/gzaYDNKinHw6GCz) (headphones recommended)
 
 ## Example Synthesis
+
+To reproduce the audio example from above, you can use the following commands:
 
 ```sh
 # Create example directory
 mkdir ~/example
 
 # Download pre-trained Tacotron model checkpoint
-wget https://tuc.cloud/index.php/s/xxFCDMgEk8dZKbp/download/101500.pt -O ~/example/checkpoint-tacotron.pt
+wget https://tuc.cloud/index.php/s/xxFCDMgEk8dZKbp/download/LJS-IPA-101500.pt -O ~/example/checkpoint-tacotron.pt
 
 # Download pre-trained Waveglow model checkpoint
-wget https://tuc.cloud/index.php/s/xxFCDMgEk8dZKbp/download/101500.pt -O ~/example/checkpoint-waveglow.pt
+wget https://tuc.cloud/index.php/s/yBRaWz5oHrFwigf/download/LJS-v3-580000.pt -O ~/example/checkpoint-waveglow.pt
 
 # Create text containing phonetic transcription of: "The North Wind and the Sun were disputing which was the stronger, when a traveler came along wrapped in a warm cloak."
 cat > ~/example/text.txt << EOF
@@ -137,7 +138,7 @@ waveglow-cli synthesize \
   ~/example/checkpoint-waveglow.pt \
   ~/example/text -o
 
-# Result is written to: ~/example/text/1-1.npy.wav
+# Resulting wav is written to: ~/example/text/1-1.npy.wav
 ```
 
 ## License

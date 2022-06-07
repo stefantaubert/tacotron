@@ -54,7 +54,7 @@ def print_features():
 def _init_parser():
   main_parser = ArgumentParser(
     formatter_class=formatter,
-    description="This program trains Tacotron 2.",
+    description="Command-line interface (CLI) to train Tacotron 2 using .wav <=> .TextGrid pairs.",
   )
   main_parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + __version__)
   subparsers = main_parser.add_subparsers(help="description")
