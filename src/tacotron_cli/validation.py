@@ -16,12 +16,13 @@ from tacotron.typing import Entry
 from tacotron.utils import get_checkpoint, get_last_checkpoint, prepare_logger, split_hparams_string
 from tacotron.validation import ValidationEntries, ValidationEntryOutput, get_df, validate
 from tacotron_cli.argparse_helper import (ConvertToOrderedSetAction, ConvertToSetAction,
-                                          get_optional, parse_existing_directory,
+                                          get_optional, parse_device, parse_existing_directory,
                                           parse_existing_file, parse_non_empty,
                                           parse_non_negative_integer, parse_path,
                                           parse_positive_integer)
-from tacotron_cli.defaults import (DEFAULT_MAX_DECODER_STEPS, DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME,
-                                   DEFAULT_REPETITIONS, DEFAULT_SEED)
+from tacotron_cli.defaults import (DEFAULT_DEVICE, DEFAULT_MAX_DECODER_STEPS,
+                                   DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME, DEFAULT_REPETITIONS,
+                                   DEFAULT_SEED)
 from tacotron_cli.io import load_checkpoint
 
 # def get_repr_entries(entry_names: Optional[Set[str]]) -> str:
@@ -152,6 +153,8 @@ def init_validate_parser(parser: ArgumentParser) -> None:
   parser.add_argument('dataset_dir', metavar="DATA-FOLDER-PATH",
                       type=parse_existing_directory, help="train or val set folder")
   parser.add_argument("tier", metavar="TIER", type=parse_non_empty)
+  parser.add_argument("--device", type=parse_device, default=DEFAULT_DEVICE,
+                      help="device used for synthesis")
   parser.add_argument('--entry-names', type=parse_non_empty, nargs="*",
                       help="Utterance names or nothing if random", default={}, action=ConvertToSetAction)
   parser.add_argument('--speaker', type=get_optional(parse_non_empty),
@@ -208,7 +211,7 @@ def validate_v2(ns: Namespace) -> None:
   for iteration in tqdm(sorted(iterations)):
     logger.info(f"Current checkpoint: {iteration}")
     checkpoint_path = get_checkpoint(ns.checkpoints_dir, iteration)
-    taco_checkpoint = load_checkpoint(checkpoint_path)
+    taco_checkpoint = load_checkpoint(checkpoint_path, ns.device)
     save_callback = partial(
         save_results, val_dir=ns.output_dir, iteration=iteration)
 
@@ -226,6 +229,7 @@ def validate_v2(ns: Namespace) -> None:
         mcd_no_of_coeffs_per_frame=ns.mcd_no_of_coeffs_per_frame,
         repetitions=ns.repetitions,
         seed=ns.seed,
+        device=ns.device,
         select_best_from=select_best_from_df,
     )
 

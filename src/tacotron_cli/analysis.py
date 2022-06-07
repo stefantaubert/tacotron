@@ -6,6 +6,7 @@ from statistics import mean, median
 
 import pandas as pd
 import plotly.offline as plt
+import torch
 from scipy.spatial.distance import cosine
 
 from tacotron.analysis import (emb_plot_2d, emb_plot_3d, embeddings_to_csv, get_similarities,
@@ -37,7 +38,7 @@ def plot_embeddings_v2(ns: Namespace) -> bool:
 
   try:
     logger.debug(f"Loading checkpoint...")
-    checkpoint_dict = load_checkpoint(ns.checkpoint)
+    checkpoint_dict = load_checkpoint(ns.checkpoint, ns.device)
   except Exception as ex:
     logger.error("Checkpoint couldn't be loaded!")
     return False
@@ -80,7 +81,8 @@ def plot_embeddings_v2(ns: Namespace) -> bool:
   logger.info(f"Saved analysis to: {ns.output_directory.absolute()}")
   return True
 
-def compare_embeddings(checkpoint1: Path, checkpoint2: Path, output_directory: Path) -> bool:
+
+def compare_embeddings(checkpoint1: Path, checkpoint2: Path, device: torch.device, output_directory: Path) -> bool:
   logger = getLogger(__name__)
 
   if not checkpoint1.is_file():
@@ -93,14 +95,14 @@ def compare_embeddings(checkpoint1: Path, checkpoint2: Path, output_directory: P
 
   try:
     logger.debug(f"Loading checkpoint...")
-    checkpoint1_dict = load_checkpoint(checkpoint1)
+    checkpoint1_dict = load_checkpoint(checkpoint1, device)
   except Exception as ex:
     logger.error("Checkpoint 1 couldn't be loaded!")
     return False
 
   try:
     logger.debug(f"Loading checkpoint...")
-    checkpoint2_dict = load_checkpoint(checkpoint2)
+    checkpoint2_dict = load_checkpoint(checkpoint2, device)
   except Exception as ex:
     logger.error("Checkpoint 2 couldn't be loaded!")
     return False

@@ -52,7 +52,7 @@ class TSTFTHParams(STFTHParams):
 
 
 class TacotronSTFT(torch.nn.Module):  # todo rename to Mel
-  def __init__(self, hparams: TSTFTHParams, logger: Logger):
+  def __init__(self, hparams: TSTFTHParams, device: torch.device, logger: Logger):
     super().__init__()
     self.logger = logger
     self.n_mel_channels = hparams.n_mel_channels
@@ -62,6 +62,7 @@ class TacotronSTFT(torch.nn.Module):  # todo rename to Mel
         hop_length=hparams.hop_length,
         win_length=hparams.win_length,
         window=hparams.window,
+        device=device,
     )
 
     mel_basis = librosa_mel_fn(

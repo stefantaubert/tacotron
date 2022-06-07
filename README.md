@@ -24,18 +24,25 @@ pip install tacotron-cli --user
 
 ## Usage
 
-```sh
-tacotron-cli [-h] [-v] {train,continue-train,validate,synthesize,plot-embeddings,add-missing-symbols} ...
+```txt
+usage: tacotron-cli [-h] [-v] {train,continue-train,validate,synthesize,plot-embeddings,add-missing-symbols} ...
+
+This program trains Tacotron 2.
+
+positional arguments:
+  {train,continue-train,validate,synthesize,plot-embeddings,add-missing-symbols}
+                           description
+    train                  start training
+    continue-train         continue training from a checkpoint
+    validate               validate checkpoint(s)
+    synthesize             synthesize lines from a file
+    plot-embeddings        plot trained embeddings
+    add-missing-symbols    copy missing symbol embeddings from one checkpoint to another
+
+optional arguments:
+  -h, --help               show this help message and exit
+  -v, --version            show program's version number and exit
 ```
-
-## Commands
-
-- `train`: start training
-- `continue-train`: continue training from a checkpoint
-- `validate`: validate checkpoint(s)
-- `synthesize`: synthesize lines from a file
-- `plot-embeddings`: plot trained embeddings
-- `add-missing-symbols`: copy missing symbol embeddings from one checkpoint to another
 
 ## Dependencies
 
@@ -87,6 +94,7 @@ To prepare a text for synthesis, following things need to be considered.
 
 ## Roadmap
 
+- Support synthesis on CPU
 - Outsource method to convert audio files to mel-spectrograms before training
 - Better logging
 - Provide pre-trained models

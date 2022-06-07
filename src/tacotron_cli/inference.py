@@ -18,9 +18,10 @@ from tacotron.synthesizer import Synthesizer
 from tacotron.typing import Symbols
 from tacotron.utils import plot_alignment_np_new, split_hparams_string
 from tacotron_cli.argparse_helper import (ConvertToOrderedSetAction, get_optional, parse_codec,
-                                          parse_existing_file, parse_non_empty,
+                                          parse_device, parse_existing_file, parse_non_empty,
                                           parse_non_negative_integer, parse_path,
                                           parse_positive_integer)
+from tacotron_cli.defaults import DEFAULT_DEVICE
 from tacotron_cli.io import load_checkpoint
 
 Utterances = OrderedDictType[int, Symbols]
@@ -70,6 +71,8 @@ def init_synthesis_parser(parser: ArgumentParser) -> None:
   parser.add_argument('-p', '--paragraph-directories', action='store_true',
                       help="create a new directory for each paragraph")
   parser.add_argument('--include-stats', action='store_true')
+  parser.add_argument("--device", type=parse_device, default=DEFAULT_DEVICE,
+                      help="device used for synthesis")
   parser.add_argument('--prepend', type=str, default="",
                       help="prepend text to all output file names")
   parser.add_argument('--append', type=str, default="",
@@ -86,7 +89,7 @@ def synthesize_ns(ns: Namespace) -> bool:
 
   try:
     logger.debug("Loading checkpoint...")
-    checkpoint_dict = load_checkpoint(ns.checkpoint)
+    checkpoint_dict = load_checkpoint(ns.checkpoint, ns.device)
   except Exception as ex:
     logger.error("Checkpoint couldn't be loaded!")
     return False
@@ -146,6 +149,7 @@ def synthesize_ns(ns: Namespace) -> bool:
   synth = Synthesizer(
       checkpoint=checkpoint_dict,
       custom_hparams=custom_hparams,
+      device=ns.device,
       logger=logger,
   )
 

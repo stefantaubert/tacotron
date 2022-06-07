@@ -5,6 +5,7 @@ from functools import partial
 from pathlib import Path
 from typing import Callable, List, Optional, TypeVar
 
+import torch
 from ordered_set import OrderedSet
 
 T = TypeVar("T")
@@ -22,6 +23,14 @@ class ConvertToSetAction(argparse._StoreAction):
     if values is not None:
       values = set(values)
     super().__call__(parser, namespace, values, option_string)
+
+
+def parse_device(value: str) -> torch.device:
+  try:
+    device = torch.device(value)
+  except Exception as ex:
+    raise ArgumentTypeError("Device was not found!")
+  return device
 
 
 def parse_codec(value: str) -> str:

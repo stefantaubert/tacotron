@@ -10,9 +10,10 @@ from tacotron.parser import load_dataset
 from tacotron.training import start_training
 from tacotron.utils import (get_last_checkpoint, get_pytorch_filename, parse_json, prepare_logger,
                             split_hparams_string)
-from tacotron_cli.argparse_helper import (get_optional, parse_existing_directory,
+from tacotron_cli.argparse_helper import (get_optional, parse_device, parse_existing_directory,
                                           parse_existing_file, parse_non_empty,
                                           parse_non_empty_or_whitespace, parse_path)
+from tacotron_cli.defaults import DEFAULT_DEVICE
 from tacotron_cli.io import load_checkpoint, save_checkpoint
 
 # def try_load_checkpoint(train_name: Optional[str], checkpoint: Optional[int], logger: Logger) -> Optional[CheckpointDict]:
@@ -52,6 +53,8 @@ def init_train_parser(parser: ArgumentParser) -> None:
   parser.add_argument("tier", metavar="TIER", type=parse_non_empty_or_whitespace)
   parser.add_argument('checkpoints_dir',
                       metavar="CHECKPOINTS-FOLDER-PATH", type=parse_path)
+  parser.add_argument("--device", type=parse_device, default="cuda:0",
+                      help="device used for training")
   parser.add_argument('--custom-hparams', type=get_optional(parse_non_empty),
                       default=None, help="custom hparams comma separated")
   # Pretrained model
@@ -85,7 +88,7 @@ def train_new(ns: Namespace) -> None:
   pretrained_model_checkpoint = None
   weights_map = None
   if ns.pretrained_model is not None:
-    pretrained_model_checkpoint = load_checkpoint(ns.pretrained_model)
+    pretrained_model_checkpoint = load_checkpoint(ns.pretrained_model, ns.device)
 
     if ns.custom_symbol_weights_map is not None:
       if not ns.custom_symbol_weights_map.is_file():
@@ -118,6 +121,7 @@ def train_new(ns: Namespace) -> None:
     map_from_speaker_name=ns.map_from_speaker,
     logger=logger,
     checkpoint_logger=checkpoint_logger,
+    device=ns.device,
     checkpoint=None,
   )
 
@@ -131,6 +135,8 @@ def init_continue_train_parser(parser: ArgumentParser) -> None:
   parser.add_argument("tier", metavar="TIER", type=parse_non_empty_or_whitespace)
   parser.add_argument('checkpoints_dir',
                       metavar="CHECKPOINTS-FOLDER-PATH", type=parse_existing_directory)
+  parser.add_argument("--device", type=parse_device, default=DEFAULT_DEVICE,
+                      help="device used for training")
   parser.add_argument('--custom-hparams', type=get_optional(parse_non_empty),
                       default=None, help="custom hparams comma separated")
   parser.add_argument('--tl-dir', type=parse_path, default=default_log_path)
@@ -159,7 +165,7 @@ def continue_train_v2(ns: Namespace) -> None:
   valset = load_dataset(ns.val_folder, ns.tier)
 
   last_checkpoint_path, _ = get_last_checkpoint(ns.checkpoints_dir)
-  last_checkpoint = load_checkpoint(last_checkpoint_path)
+  last_checkpoint = load_checkpoint(last_checkpoint_path, ns.device)
   custom_hparams = split_hparams_string(ns.custom_hparams)
 
   logger.info("Continuing training from checkpoint...")
@@ -178,6 +184,7 @@ def continue_train_v2(ns: Namespace) -> None:
     checkpoint_logger=checkpoint_logger,
     warm_start=False,
     map_speaker_weights=False,
+    device=ns.device,
   )
 
   return True

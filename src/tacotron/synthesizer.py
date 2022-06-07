@@ -16,8 +16,7 @@ from tacotron.globals import NOT_INFERABLE_SYMBOL_MARKER
 from tacotron.model import Tacotron2
 from tacotron.training import load_model
 from tacotron.typing import Speaker, Symbol, SymbolMapping, Symbols
-from tacotron.utils import (console_out_len, init_global_seeds, overwrite_custom_hparams,
-                            try_copy_to_gpu)
+from tacotron.utils import console_out_len, init_global_seeds, overwrite_custom_hparams, try_copy_to
 
 
 @dataclass
@@ -51,7 +50,7 @@ def get_symbols_noninferable_marked(symbols: Iterable[Symbol], symbol_mapping: S
 
 
 class Synthesizer():
-  def __init__(self, checkpoint: CheckpointDict, custom_hparams: Optional[Dict[str, str]], logger: logging.Logger):
+  def __init__(self, checkpoint: CheckpointDict, custom_hparams: Optional[Dict[str, str]], device: torch.device, logger: logging.Logger):
     super().__init__()
     self._logger = logger
 
@@ -81,7 +80,9 @@ class Synthesizer():
         n_symbols=n_symbols,
     )
 
-    model = cast(Tacotron2, try_copy_to_gpu(model))
+    self.device = device
+
+    model = cast(Tacotron2, try_copy_to(model, device))
     model = model.eval()
 
     self.hparams = hparams
@@ -139,12 +140,12 @@ class Synthesizer():
     init_global_seeds(seed)
 
     symbol_tensor = IntTensor([list(mapped_symbols)])
-    symbol_tensor = try_copy_to_gpu(symbol_tensor)
+    symbol_tensor = try_copy_to(symbol_tensor, self.device)
 
     stress_tensor = None
     if self.hparams.use_stress_embedding:
       stress_tensor = LongTensor([list(mapped_stresses)])
-      stress_tensor = try_copy_to_gpu(stress_tensor)
+      stress_tensor = try_copy_to(stress_tensor, self.device)
 
     speaker_tensor = None
     if self.hparams.use_speaker_embedding:
@@ -155,7 +156,7 @@ class Synthesizer():
       speaker_tensor = IntTensor(
           symbol_tensor.size(0), symbol_tensor.size(1))
       torch.nn.init.constant_(speaker_tensor, mapped_speaker)
-      speaker_tensor = try_copy_to_gpu(speaker_tensor)
+      speaker_tensor = try_copy_to(speaker_tensor, self.device)
 
     start = time.perf_counter()
 
@@ -236,12 +237,12 @@ class Synthesizer():
     init_global_seeds(seed)
 
     symbol_tensor = IntTensor([list(mapped_symbols)])
-    symbol_tensor = try_copy_to_gpu(symbol_tensor)
+    symbol_tensor = try_copy_to(symbol_tensor, self.device)
 
     stress_tensor = None
     if self.hparams.use_stress_embedding:
       stress_tensor = LongTensor([list(mapped_stresses)])
-      stress_tensor = try_copy_to_gpu(stress_tensor)
+      stress_tensor = try_copy_to(stress_tensor, self.device)
 
     speaker_tensor = None
     if self.hparams.use_speaker_embedding:
@@ -252,7 +253,7 @@ class Synthesizer():
       speaker_tensor = IntTensor(
           symbol_tensor.size(0), symbol_tensor.size(1))
       torch.nn.init.constant_(speaker_tensor, mapped_speaker)
-      speaker_tensor = try_copy_to_gpu(speaker_tensor)
+      speaker_tensor = try_copy_to(speaker_tensor, self.device)
 
     start = time.perf_counter()
 

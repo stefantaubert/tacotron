@@ -120,12 +120,12 @@ LoaderEntry = Tuple[IntTensor, Tensor,
 
 
 class SymbolsMelLoader(Dataset):
-  def __init__(self, data: Entries, hparams: HParams, symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], speaker_mapping: Optional[SpeakerMapping], logger: Logger):
+  def __init__(self, data: Entries, hparams: HParams, symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], speaker_mapping: Optional[SpeakerMapping], device: torch.device, logger: Logger):
     # random.seed(hparams.seed)
     # random.shuffle(data)
     self.use_saved_mels = hparams.use_saved_mels
     if not hparams.use_saved_mels:
-      self.mel_parser = TacotronSTFT(hparams, logger)
+      self.mel_parser = TacotronSTFT(hparams, device, logger)
 
     self.data: Dict[int, Tuple[IntTensor, Path,
                                Optional[SpeakerId], Optional[IntTensor]]] = {}
@@ -292,12 +292,12 @@ def parse_batch(batch: Batch) -> Tuple[ForwardXIn, Tuple[FloatTensor, FloatTenso
   return x, y
 
 
-def prepare_valloader(hparams: HParams, collate_fn: SymbolsMelCollate, valset: Entries, symbols_dict: Dict[Symbol, int], stress_dict: Optional[Dict[str, int]], speakers_dict: Optional[Dict[Speaker, SpeakerId]], logger: Logger) -> DataLoader:
+def prepare_valloader(hparams: HParams, collate_fn: SymbolsMelCollate, valset: Entries, symbols_dict: Dict[Symbol, int], stress_dict: Optional[Dict[str, int]], speakers_dict: Optional[Dict[Speaker, SpeakerId]], device: torch.device, logger: Logger) -> DataLoader:
   # logger.info(
   #   f"Duration valset {valset.total_duration_s / 60:.2f}m / {valset.total_duration_s / 60 / 60:.2f}h")
 
   val = SymbolsMelLoader(valset, hparams, symbols_dict,
-                         stress_dict, speakers_dict, logger)
+                         stress_dict, speakers_dict, device, logger)
 
   val_loader = DataLoader(
       dataset=val,
@@ -313,13 +313,13 @@ def prepare_valloader(hparams: HParams, collate_fn: SymbolsMelCollate, valset: E
   return val_loader
 
 
-def prepare_trainloader(hparams: HParams, collate_fn: SymbolsMelCollate, trainset: Entries, symbols_dict: Dict[Symbol, int], stress_dict: Optional[Dict[str, int]], speakers_dict: Optional[Dict[Speaker, SpeakerId]], logger: Logger) -> DataLoader:
+def prepare_trainloader(hparams: HParams, collate_fn: SymbolsMelCollate, trainset: Entries, symbols_dict: Dict[Symbol, int], stress_dict: Optional[Dict[str, int]], speakers_dict: Optional[Dict[Speaker, SpeakerId]], device: torch.device, logger: Logger) -> DataLoader:
   # # Get data, data loaders and collate function ready
   # logger.info(
   #   f"Duration trainset {trainset.total_duration_s / 60:.2f}m / {trainset.total_duration_s / 60 / 60:.2f}h")
 
   trn = SymbolsMelLoader(trainset, hparams, symbols_dict,
-                         stress_dict, speakers_dict, logger)
+                         stress_dict, speakers_dict, device, logger)
 
   train_loader = DataLoader(
       dataset=trn,

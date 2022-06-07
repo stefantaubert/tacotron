@@ -5,7 +5,8 @@ import torch
 
 from tacotron.checkpoint_handling import (get_symbol_embedding_weights, get_symbol_mapping,
                                           update_symbol_embedding_weights, update_symbol_mapping)
-from tacotron_cli.argparse_helper import parse_existing_file, parse_path
+from tacotron_cli.argparse_helper import parse_device, parse_existing_file, parse_path
+from tacotron_cli.defaults import DEFAULT_DEVICE
 from tacotron_cli.io import load_checkpoint, save_checkpoint
 
 
@@ -14,6 +15,8 @@ def init_add_missing_weights_parser(parser: ArgumentParser) -> None:
   parser.add_argument('checkpoint2', metavar="CHECKPOINT2-PATH", type=parse_existing_file)
   parser.add_argument('--mode', type=str,
                       choices=["copy", "predict"], default="copy")
+  parser.add_argument("--device", type=parse_device, default=DEFAULT_DEVICE,
+                      help="device used for loading checkpoint")
   parser.add_argument('-out', '--custom-output', type=parse_path, default=None)
   return map_missing_symbols_v2
 
@@ -33,14 +36,14 @@ def map_missing_symbols_v2(ns: Namespace) -> bool:
 
   try:
     logger.debug("Loading checkpoint 1...")
-    checkpoint1_dict = load_checkpoint(ns.checkpoint1)
+    checkpoint1_dict = load_checkpoint(ns.checkpoint1, ns.device)
   except Exception as ex:
     logger.error("Checkpoint 1 couldn't be loaded!")
     return False
 
   try:
     logger.debug("Loading checkpoint 2...")
-    checkpoint2_dict = load_checkpoint(ns.checkpoint2)
+    checkpoint2_dict = load_checkpoint(ns.checkpoint2, ns.device)
   except Exception as ex:
     logger.error("Checkpoint 2 couldn't be loaded!")
     return False

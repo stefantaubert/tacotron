@@ -39,6 +39,8 @@ from librosa.util import normalize, pad_center, tiny
 from scipy.signal import get_window
 from torch.autograd import Variable
 
+from tacotron.utils import try_copy_to
+
 
 def window_sumsquare(window, n_frames, hop_length=200, win_length=800,
                      n_fft=800, dtype=np.float32, norm=None):
@@ -96,9 +98,10 @@ def window_sumsquare(window, n_frames, hop_length=200, win_length=800,
 class STFT(torch.nn.Module):
   """adapted from Prem Seetharaman's https://github.com/pseeth/pytorch-stft"""
 
-  def __init__(self, filter_length=800, hop_length=200, win_length=800,
+  def __init__(self, device: torch.device, filter_length=800, hop_length=200, win_length=800,
                window: Optional[str] = 'hann'):
-    super(STFT, self).__init__()
+    super().__init__()
+    self.device = device
     self.filter_length = filter_length
     self.hop_length = hop_length
     self.win_length = win_length
@@ -179,7 +182,9 @@ class STFT(torch.nn.Module):
           np.where(window_sum > tiny(window_sum))[0])
       window_sum = torch.autograd.Variable(
           torch.from_numpy(window_sum), requires_grad=False)
-      window_sum = window_sum.cuda() if magnitude.is_cuda else window_sum
+
+      #window_sum =  window_sum.cuda() if magnitude.is_cuda else window_sum
+      window_sum = try_copy_to(window_sum, self.device)
       inverse_transform[:, :,
                         approx_nonzero_indices] /= window_sum[approx_nonzero_indices]
 

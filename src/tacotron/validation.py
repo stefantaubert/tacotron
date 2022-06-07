@@ -8,6 +8,7 @@ from typing import Callable, Dict, List, Optional, Set
 #import jiwer.transforms as tr
 import numpy as np
 import pandas as pd
+import torch
 from mel_cepstral_distance import get_metrics_mels
 from pandas import DataFrame
 from scipy.io.wavfile import read
@@ -215,11 +216,11 @@ class ValidationEntryOutput():
 #     return result
 
 
-def wav_to_text(wav: np.ndarray) -> str:
-  return ""
+# def wav_to_text(wav: np.ndarray) -> str:
+#   return ""
 
 
-def validate(checkpoint: CheckpointDict, data: Entries, custom_hparams: Optional[Dict[str, str]], entry_names: Set[str], speaker_name: Optional[str], full_run: bool, save_callback: Callable[[Entry, ValidationEntryOutput], None], max_decoder_steps: int, fast: bool, mcd_no_of_coeffs_per_frame: int, repetitions: int, seed: Optional[int], select_best_from: Optional[pd.DataFrame], logger: Logger) -> ValidationEntries:
+def validate(checkpoint: CheckpointDict, data: Entries, custom_hparams: Optional[Dict[str, str]], entry_names: Set[str], speaker_name: Optional[str], full_run: bool, save_callback: Callable[[Entry, ValidationEntryOutput], None], max_decoder_steps: int, fast: bool, mcd_no_of_coeffs_per_frame: int, repetitions: int, seed: Optional[int], select_best_from: Optional[pd.DataFrame], device: torch.device, logger: Logger) -> ValidationEntries:
   seeds: List[int]
   validation_data: Entries
   iteration = get_iteration(checkpoint)
@@ -280,10 +281,11 @@ def validate(checkpoint: CheckpointDict, data: Entries, custom_hparams: Optional
   synth = Synthesizer(
       checkpoint=checkpoint,
       custom_hparams=custom_hparams,
+      device=device,
       logger=logger,
   )
 
-  taco_stft = TacotronSTFT(synth.hparams, logger=logger)
+  taco_stft = TacotronSTFT(synth.hparams, device=device, logger=logger)
   validation_entries = ValidationEntries()
 
   if not fast:

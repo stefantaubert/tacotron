@@ -32,7 +32,7 @@ from tacotron.utils import (SaveIterationSettings, check_is_on_gpu, check_save_i
                             get_next_save_it, get_symbol_printable, init_cuddn,
                             init_cuddn_benchmark, init_global_seeds, iteration_to_epoch,
                             log_hparams, overwrite_custom_hparams, skip_batch,
-                            try_copy_tensors_to_gpu_iterable, try_copy_to_gpu)
+                            try_copy_tensors_to_device_iterable, try_copy_to)
 
 AVG_COUNT = 30
 AVG_COUNT_LONG_TERM = 300
@@ -62,10 +62,10 @@ class Tacotron2Loss(nn.Module):
     return mel_out_mse, mel_out_post_mse, gate_bce
 
 
-def validate(model: nn.Module, criterion: nn.Module, val_loader: DataLoader, iteration: int, taco_logger: Tacotron2Logger, logger: Logger) -> None:
+def validate(model: nn.Module, criterion: nn.Module, val_loader: DataLoader, iteration: int, device: torch.device, taco_logger: Tacotron2Logger, logger: Logger) -> None:
   logger.debug("Validating...")
   avg_val_loss, res = validate_model(
-      model, criterion, val_loader, parse_batch)
+      model, criterion, val_loader, device, parse_batch)
   logger.info(f"Validation loss {iteration}: {avg_val_loss:9f}")
 
   logger.debug("Logging to tensorboard...")
@@ -80,14 +80,14 @@ def validate(model: nn.Module, criterion: nn.Module, val_loader: DataLoader, ite
   return avg_val_loss
 
 
-def validate_model(model: nn.Module, criterion: Tacotron2Loss, val_loader: DataLoader, batch_parse_method) -> Tuple[float, Tuple[float, nn.Module, Tuple, Tuple]]:
+def validate_model(model: nn.Module, criterion: Tacotron2Loss, val_loader: DataLoader, device: torch.device, batch_parse_method) -> Tuple[float, Tuple[float, nn.Module, Tuple, Tuple]]:
   res = []
   logger = getLogger(__name__)
   with torch.no_grad():
     total_val_loss = 0.0
     # val_loader count is: ceil(validation set length / batch size)
     for batch in tqdm(val_loader):
-      batch = tuple(try_copy_tensors_to_gpu_iterable(batch))
+      batch = tuple(try_copy_tensors_to_device_iterable(batch, device))
       x, y = batch_parse_method(batch)
       y_pred = model(x)
       mel_out_mse, mel_out_post_mse, gate_bce = criterion(y_pred, y)
@@ -115,7 +115,7 @@ def log_symbol_weights(model: Tacotron2, logger: Logger) -> None:
   logger.info(str(model.state_dict()[SYMBOL_EMBEDDING_LAYER_NAME]))
 
 
-def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, trainset: Entries, valset: Entries, save_callback: Callable[[CheckpointDict], None], checkpoint: Optional[CheckpointDict], pretrained_model: Optional[CheckpointDict], warm_start: bool, map_symbol_weights: bool, custom_symbol_weights_map: Optional[SymbolToSymbolMapping], map_speaker_weights: bool, map_from_speaker_name: Optional[str], logger: Logger, checkpoint_logger: Logger) -> None:
+def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, trainset: Entries, valset: Entries, save_callback: Callable[[CheckpointDict], None], checkpoint: Optional[CheckpointDict], pretrained_model: Optional[CheckpointDict], warm_start: bool, map_symbol_weights: bool, custom_symbol_weights_map: Optional[SymbolToSymbolMapping], map_speaker_weights: bool, map_from_speaker_name: Optional[str], device: torch.device, logger: Logger, checkpoint_logger: Logger) -> None:
   complete_start = time.time()
 
   if checkpoint is not None:
@@ -177,7 +177,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
       n_speakers=n_speakers,
   )
 
-  model = cast(Tacotron2, try_copy_to_gpu(model))
+  model = cast(Tacotron2, try_copy_to(model, device))
   model = model.train()
 
   optimizer = load_optimizer(
@@ -351,9 +351,9 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
   )
 
   val_loader = prepare_valloader(hparams, collate_fn, valset,
-                                 symbol_mapping, stress_mapping, speaker_mapping, logger)
+                                 symbol_mapping, stress_mapping, speaker_mapping, device, logger)
   train_loader = prepare_trainloader(
-      hparams, collate_fn, trainset, symbol_mapping, stress_mapping, speaker_mapping, logger)
+      hparams, collate_fn, trainset, symbol_mapping, stress_mapping, speaker_mapping, device, logger)
 
   batch_iterations = len(train_loader)
   enough_traindata = batch_iterations > 0
@@ -422,7 +422,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
       # update_learning_rate_optimizer(optimizer, hparams.learning_rate)
 
       model.zero_grad()
-      batch = tuple(try_copy_tensors_to_gpu_iterable(batch))
+      batch = tuple(try_copy_tensors_to_device_iterable(batch, device))
       x, y = parse_batch(batch)
       y_pred = model(x)
 
@@ -536,7 +536,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
 
         model.eval()
         valloss = validate(model, criterion, val_loader,
-                           iteration, taco_logger, logger)
+                           iteration, device, taco_logger, logger)
         model.train()
 
         # if rank == 0:

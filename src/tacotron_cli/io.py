@@ -1,7 +1,10 @@
 from pathlib import Path
 
+import torch
+
 from tacotron.checkpoint_handling import CheckpointDict
-from tacotron.utils import load_obj, save_obj
+
+#from tacotron.utils import load_obj, save_obj
 
 # def get_train_dir(base_dir: Path, train_name: str) -> Path:
 #     return base_dir / train_name
@@ -102,11 +105,22 @@ from tacotron.utils import load_obj, save_obj
 
 def save_checkpoint(checkpoint: CheckpointDict, path: Path) -> None:
   path.parent.mkdir(exist_ok=True, parents=True)
-  save_obj(checkpoint, path)
+
+  assert isinstance(path, Path)
+  assert path.parent.exists() and path.parent.is_dir()
+  with open(path, mode="wb") as file:
+    torch.save(checkpoint, file)
+
+  #save_obj(checkpoint, path)
 
 
-def load_checkpoint(path: Path) -> CheckpointDict:
-  return load_obj(path)
+def load_checkpoint(path: Path, device: torch.device) -> CheckpointDict:
+  assert isinstance(path, Path)
+  assert path.is_file()
+  with open(path, mode="rb") as file:
+    return torch.load(file, map_location=device)
+
+  # return load_obj(path)
 
 # def split_dataset(prep_dir: Path, train_dir: Path, test_size: float = 0.01, validation_size: float = 0.05, split_seed: int = 1234):
 #   wholeset = load_filelist(prep_dir)

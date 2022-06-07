@@ -2,14 +2,13 @@ import dataclasses
 import json
 import logging
 import os
-import pickle
 import random
 import unicodedata
 from dataclasses import asdict, dataclass
 from logging import Logger, getLogger
 from math import floor, sqrt
 from pathlib import Path
-from typing import Any, Dict, Generator, Iterable, List, Optional, Set, Tuple, Type, TypeVar, Union
+from typing import Dict, Generator, Iterable, List, Optional, Set, Tuple, Type, TypeVar, Union
 
 import matplotlib.ticker as ticker
 import numpy as np
@@ -429,12 +428,28 @@ def is_pytorch_file(filename: str) -> None:
   return filename.endswith(PYTORCH_EXT)
 
 
-def try_copy_to_gpu(x: Union[Tensor, Module]) -> Union[Tensor, Module]:
-  if torch.cuda.is_available():
-    x = x.to("cuda:0", non_blocking=True)
-  else:
+# def try_copy_to_gpu(x: Union[Tensor, Module]) -> Union[Tensor, Module]:
+#   if torch.cuda.is_available():
+#     x = x.to("cuda:0", non_blocking=True)
+#   else:
+#     logger = getLogger(__name__)
+#     logger.warning("No GPU found to copy data to!")
+#   return x
+
+
+# def copy_to_cpu(x: Union[Tensor, Module]) -> Union[Tensor, Module]:
+#   x = x.to("cpu", non_blocking=True)
+#   return x
+
+
+def try_copy_to(x: Union[Tensor, Module], device: torch.device) -> Union[Tensor, Module]:
+  try:
+    x = x.to(device, non_blocking=True)
+  except Exception as ex:
     logger = getLogger(__name__)
-    logger.warning("No GPU found to copy data to!")
+    logger.debug(ex)
+    logger.warning(f"Mapping to device '{device}' was not successful, therefore using CPU!")
+    x = x.to("cpu", non_blocking=True)
   return x
 
 
@@ -442,21 +457,29 @@ def check_is_on_gpu(x: Union[Tensor, Module]) -> bool:
   return x.is_cuda
 
 
-def try_copy_tensors_to_gpu_iterable(tensors: Iterable[Optional[Tensor]]) -> Generator[Optional[Tensor], None, None]:
+# def try_copy_tensors_to_gpu_iterable(tensors: Iterable[Optional[Tensor]]) -> Generator[Optional[Tensor], None, None]:
+#   for tensor in tensors:
+#     if tensor is not None:
+#       yield try_copy_to_gpu(tensor)
+#     else:
+#       yield None
+
+
+def try_copy_tensors_to_device_iterable(tensors: Iterable[Optional[Tensor]], device: torch.device) -> Generator[Optional[Tensor], None, None]:
   for tensor in tensors:
     if tensor is not None:
-      yield try_copy_to_gpu(tensor)
+      yield try_copy_to(tensor, device)
     else:
       yield None
 
 
-def to_gpu_old(x: Tensor) -> Tensor:
-  x = x.contiguous()
+# def to_gpu_old(x: Tensor) -> Tensor:
+#   x = x.contiguous()
 
-  if torch.cuda.is_available():
-    x = x.cuda(non_blocking=True)
-  result = torch.autograd.Variable(x)
-  return result
+#   if torch.cuda.is_available():
+#     x = x.cuda(non_blocking=True)
+#   result = torch.autograd.Variable(x)
+#   return result
 
 
 def figure_to_numpy_rgb(figure: Figure) -> np.ndarray:
@@ -618,18 +641,18 @@ def disable_imageio_logger():
   logging.getLogger('imageio').disabled = True
 
 
-def save_obj(obj: Any, path: Path) -> None:
-  assert isinstance(path, Path)
-  assert path.parent.exists() and path.parent.is_dir()
-  with open(path, mode="wb") as file:
-    pickle.dump(obj, file)
+# def save_obj(obj: Any, path: Path) -> None:
+#   assert isinstance(path, Path)
+#   assert path.parent.exists() and path.parent.is_dir()
+#   with open(path, mode="wb") as file:
+#     pickle.dump(obj, file)
 
 
-def load_obj(path: Path) -> Any:
-  assert isinstance(path, Path)
-  assert path.is_file()
-  with open(path, mode="rb") as file:
-    return pickle.load(file)
+# def load_obj(path: Path) -> Any:
+#   assert isinstance(path, Path)
+#   assert path.is_file()
+#   with open(path, mode="rb") as file:
+#     return pickle.load(file)
 
 
 def parse_json(path: Path, encoding: str = 'utf-8') -> Dict:
