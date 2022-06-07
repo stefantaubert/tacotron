@@ -656,13 +656,6 @@ def disable_imageio_logger():
 #     pickle.dump(obj, file)
 
 
-# def load_obj(path: Path) -> Any:
-#   assert isinstance(path, Path)
-#   assert path.is_file()
-#   with open(path, mode="rb") as file:
-#     return pickle.load(file)
-
-
 def parse_json(path: Path, encoding: str = 'utf-8') -> Dict:
   assert path.is_file()
   with path.open(mode='r', encoding=encoding) as f:

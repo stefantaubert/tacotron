@@ -1,7 +1,6 @@
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 from logging import getLogger
-from multiprocessing import cpu_count
 from pathlib import Path
 from statistics import mean, median
 
@@ -18,7 +17,7 @@ from tacotron.checkpoint_handling import (get_hparams, get_speaker_embedding_wei
 from tacotron.utils import set_torch_thread_to_max
 from tacotron_cli.argparse_helper import parse_device, parse_existing_file, parse_path
 from tacotron_cli.defaults import DEFAULT_DEVICE
-from tacotron_cli.io import load_checkpoint
+from tacotron_cli.io import try_load_checkpoint
 
 
 def get_analysis_root_dir(train_dir: Path) -> Path:
@@ -38,12 +37,8 @@ def plot_embeddings_v2(ns: Namespace) -> bool:
   logger = getLogger(__name__)
   set_torch_thread_to_max()
 
-  try:
-    logger.debug(f"Loading checkpoint...")
-    checkpoint_dict = load_checkpoint(ns.checkpoint, ns.device)
-  except Exception as ex:
-    logger.debug(ex)
-    logger.error("Checkpoint couldn't be loaded!")
+  checkpoint_dict = try_load_checkpoint(ns.checkpoint, ns.device, logger)
+  if checkpoint_dict is None:
     return False
 
   ns.output_directory.mkdir(parents=True, exist_ok=True)
@@ -97,20 +92,12 @@ def compare_embeddings(checkpoint1: Path, checkpoint2: Path, device: torch.devic
     logger.error("Checkpoint 2 was not found!")
     return False
 
-  try:
-    logger.debug(f"Loading checkpoint...")
-    checkpoint1_dict = load_checkpoint(checkpoint1, device)
-  except Exception as ex:
-    logger.debug(ex)
-    logger.error("Checkpoint 1 couldn't be loaded!")
+  checkpoint1_dict = try_load_checkpoint(checkpoint1, device, logger)
+  if checkpoint1_dict is None:
     return False
 
-  try:
-    logger.debug(f"Loading checkpoint...")
-    checkpoint2_dict = load_checkpoint(checkpoint2, device)
-  except Exception as ex:
-    logger.debug(ex)
-    logger.error("Checkpoint 2 couldn't be loaded!")
+  checkpoint2_dict = try_load_checkpoint(checkpoint2, device, logger)
+  if checkpoint2_dict is None:
     return False
 
   output_directory.mkdir(parents=True, exist_ok=True)

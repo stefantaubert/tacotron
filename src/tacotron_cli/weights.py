@@ -1,6 +1,5 @@
 from argparse import ArgumentParser, Namespace
 from logging import getLogger
-from multiprocessing import cpu_count
 
 import torch
 
@@ -9,7 +8,7 @@ from tacotron.checkpoint_handling import (get_symbol_embedding_weights, get_symb
 from tacotron.utils import set_torch_thread_to_max
 from tacotron_cli.argparse_helper import parse_device, parse_existing_file, parse_path
 from tacotron_cli.defaults import DEFAULT_DEVICE
-from tacotron_cli.io import load_checkpoint, save_checkpoint
+from tacotron_cli.io import save_checkpoint, try_load_checkpoint
 
 
 def init_add_missing_weights_parser(parser: ArgumentParser) -> None:
@@ -35,18 +34,12 @@ def map_missing_symbols_v2(ns: Namespace) -> bool:
     logger.error("Checkpoint 2 was not found!")
     return False
 
-  try:
-    logger.debug("Loading checkpoint 1...")
-    checkpoint1_dict = load_checkpoint(ns.checkpoint1, ns.device)
-  except Exception as ex:
-    logger.error("Checkpoint 1 couldn't be loaded!")
+  checkpoint1_dict = try_load_checkpoint(ns.checkpoint1, ns.device, logger)
+  if checkpoint1_dict is None:
     return False
 
-  try:
-    logger.debug("Loading checkpoint 2...")
-    checkpoint2_dict = load_checkpoint(ns.checkpoint2, ns.device)
-  except Exception as ex:
-    logger.error("Checkpoint 2 couldn't be loaded!")
+  checkpoint2_dict = try_load_checkpoint(ns.checkpoint2, ns.device, logger)
+  if checkpoint2_dict is None:
     return False
 
   symbol_mapping1 = get_symbol_mapping(checkpoint1_dict)

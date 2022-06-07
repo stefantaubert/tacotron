@@ -1,6 +1,5 @@
 import time
 from logging import Logger, getLogger
-from multiprocessing import cpu_count
 from typing import Callable, Dict, List, Optional, Tuple, cast
 
 import numpy as np

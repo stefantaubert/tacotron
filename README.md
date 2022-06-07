@@ -1,18 +1,19 @@
 # tacotron-cli
 
-[![PyPI](https://img.shields.io/pypi/v/tacotron.svg)](https://pypi.python.org/pypi/tacotron-cli)
-[![PyPI](https://img.shields.io/pypi/pyversions/tacotron.svg)](https://pypi.python.org/pypi/tacotron-cli)
+[![PyPI](https://img.shields.io/pypi/v/tacotron-cli.svg)](https://pypi.python.org/pypi/tacotron-cli)
+[![PyPI](https://img.shields.io/pypi/pyversions/tacotron-cli.svg)](https://pypi.python.org/pypi/tacotron-cli)
 [![MIT](https://img.shields.io/github/license/stefantaubert/tacotron.svg)](https://github.com/stefantaubert/tacotron/blob/main/LICENSE)
-[![PyPI](https://img.shields.io/pypi/wheel/tacotron.svg)](https://pypi.python.org/pypi/tacotron-cli)
-[![PyPI](https://img.shields.io/pypi/implementation/tacotron.svg)](https://pypi.python.org/pypi/tacotron-cli)
+[![PyPI](https://img.shields.io/pypi/wheel/tacotron-cli.svg)](https://pypi.python.org/pypi/tacotron-cli)
+[![PyPI](https://img.shields.io/pypi/implementation/tacotron-cli.svg)](https://pypi.python.org/pypi/tacotron-cli)
 [![PyPI](https://img.shields.io/github/commits-since/stefantaubert/tacotron/latest/master.svg)](https://pypi.python.org/pypi/tacotron-cli)
 
-CLI to train Tacotron 2 using .wav <=> .TextGrid pairs.
+Command-line interface (CLI) to train Tacotron 2 using .wav <=> .TextGrid pairs.
 
 ## Features
 
 - train phoneme stress separately
 - train single-speaker or multi-speaker
+- train/synthesize on CPU or GPU
 - synthesis of paragraphs
 - copy phoneme embeddings from one checkpoint to another
 
@@ -94,12 +95,50 @@ To prepare a text for synthesis, following things need to be considered.
 
 ## Roadmap
 
-- Support synthesis on CPU
 - Outsource method to convert audio files to mel-spectrograms before training
 - Better logging
-- Provide pre-trained models
+- Provide more pre-trained models
 - Add audio examples
+- Add printing of statistics of a model, e.g., trained symbols, speakers, accents
 - Adding tests
+
+## Pretrained Models
+
+- [LJ Speech](https://tuc.cloud/index.php/s/xxFCDMgEk8dZKbp)
+
+## Example Synthesis
+
+```sh
+# Create example directory
+mkdir ~/example
+
+# Download pre-trained Tacotron model checkpoint
+wget https://tuc.cloud/index.php/s/xxFCDMgEk8dZKbp/download/101500.pt -O ~/example/checkpoint-tacotron.pt
+
+# Download pre-trained Waveglow model checkpoint
+wget https://tuc.cloud/index.php/s/xxFCDMgEk8dZKbp/download/101500.pt -O ~/example/checkpoint-waveglow.pt
+
+# Create text containing phonetic transcription of: "The North Wind and the Sun were disputing which was the stronger, when a traveler came along wrapped in a warm cloak."
+cat > ~/example/text.txt << EOF
+ð|ʌ|SIL0|n|ˈɔ|ɹ|θ|SIL0|w|ˈɪ|n|d|SIL0|ˈæ|n|d|SIL0|ð|ʌ|SIL0|s|ˈʌ|n|SIL0|w|ɝ|SIL0|d|ɪ|s|p|j|ˈu|t|ɪ|ŋ|SIL0|h|w|ˈɪ|t͡ʃ|SIL0|w|ˈɑ|z|SIL0|ð|ʌ|SIL0|s|t|ɹ|ˈɔ|ŋ|ɝ|,|SIL1|h|w|ˈɛ|n|SIL0|ʌ|SIL0|t|ɹ|ˈæ|v|ʌ|l|ɝ|SIL0|k|ˈeɪ|m|SIL0|ʌ|l|ˈɔ|ŋ|SIL0|ɹ|ˈæ|p|t|SIL0|ɪ|n|SIL0|ʌ|SIL0|w|ˈɔ|ɹ|m|SIL0|k|l|ˈoʊ|k|.|SIL2
+EOF
+
+# Synthesize text to mel-spectrogram
+tacotron-cli synthesize \
+  ~/example/checkpoint-tacotron.pt \
+  ~/example/text.txt \
+  --sep "|"
+
+# Install waveglow-cli for synthesis of mel-spectrograms
+pip install waveglow-cli --user
+
+# Synthesize mel-spectrogram to wav
+waveglow-cli synthesize \
+  ~/example/checkpoint-waveglow.pt \
+  ~/example/text -o
+
+# Result is written to: ~/example/text/1-1.npy.wav
+```
 
 ## License
 
@@ -107,7 +146,11 @@ MIT License
 
 ## Acknowledgments
 
-Model code adapted from: https://github.com/NVIDIA/tacotron2
+Model code adapted from [Nvidia](https://github.com/NVIDIA/tacotron2).
+
+Papers:
+- [Tacotron: Towards End-to-End Speech Synthesis](https://www.isca-speech.org/archive/interspeech_2017/wang17n_interspeech.html)
+- [Natural TTS Synthesis by Conditioning Wavenet on MEL Spectrogram Predictions](https://ieeexplore.ieee.org/document/8461368)
 
 Funded by the Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) – Project-ID 416228727 – CRC 1410
 

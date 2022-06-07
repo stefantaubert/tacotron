@@ -3,13 +3,11 @@ import random
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 from logging import getLogger
-from multiprocessing import cpu_count
 from typing import List
 from typing import OrderedDict as OrderedDictType
 
 import imageio
 import numpy as np
-import torch
 from ordered_set import OrderedSet
 from tqdm import tqdm
 
@@ -24,7 +22,7 @@ from tacotron_cli.argparse_helper import (ConvertToOrderedSetAction, get_optiona
                                           parse_non_negative_integer, parse_path,
                                           parse_positive_integer)
 from tacotron_cli.defaults import DEFAULT_DEVICE
-from tacotron_cli.io import load_checkpoint
+from tacotron_cli.io import try_load_checkpoint
 
 Utterances = OrderedDictType[int, Symbols]
 Paragraphs = OrderedDictType[int, Utterances]
@@ -90,11 +88,8 @@ def synthesize_ns(ns: Namespace) -> bool:
   logger = getLogger(__name__)
   set_torch_thread_to_max()
 
-  try:
-    logger.debug("Loading checkpoint...")
-    checkpoint_dict = load_checkpoint(ns.checkpoint, ns.device)
-  except Exception as ex:
-    logger.error("Checkpoint couldn't be loaded!")
+  checkpoint_dict = try_load_checkpoint(ns.checkpoint, ns.device, logger)
+  if checkpoint_dict is None:
     return False
 
   if ns.custom_speaker is not None:

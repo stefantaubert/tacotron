@@ -1,10 +1,11 @@
+import pickle
+from logging import Logger
 from pathlib import Path
+from typing import Any
 
 import torch
 
 from tacotron.checkpoint_handling import CheckpointDict
-
-#from tacotron.utils import load_obj, save_obj
 
 # def get_train_dir(base_dir: Path, train_name: str) -> Path:
 #     return base_dir / train_name
@@ -121,6 +122,29 @@ def load_checkpoint(path: Path, device: torch.device) -> CheckpointDict:
     return torch.load(file, map_location=device)
 
   # return load_obj(path)
+
+
+def try_load_checkpoint(path: Path, device: torch.device, logger: Logger) -> CheckpointDict:
+  try:
+    logger.debug("Loading checkpoint...")
+    checkpoint_dict = load_checkpoint(path, device)
+  except Exception as ex:
+    try:
+      checkpoint_dict = load_obj(path)
+      save_checkpoint(checkpoint_dict, path)
+      logger.debug("Converted to torch file!")
+    except Exception as ex:
+      logger.debug(ex)
+      logger.error("Checkpoint couldn't be loaded!")
+      return None
+  return checkpoint_dict
+
+
+def load_obj(path: Path) -> Any:
+  assert isinstance(path, Path)
+  assert path.is_file()
+  with open(path, mode="rb") as file:
+    return pickle.load(file)
 
 # def split_dataset(prep_dir: Path, train_dir: Path, test_size: float = 0.01, validation_size: float = 0.05, split_seed: int = 1234):
 #   wholeset = load_filelist(prep_dir)

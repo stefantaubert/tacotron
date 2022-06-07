@@ -1,12 +1,10 @@
 from argparse import ArgumentParser, Namespace
 from functools import partial
-from multiprocessing import cpu_count
 from pathlib import Path
 
 import imageio
 import numpy as np
 import pandas as pd
-import torch
 from ordered_set import OrderedSet
 from scipy.io.wavfile import write
 from tqdm import tqdm
@@ -15,7 +13,8 @@ from tacotron.globals import DEFAULT_CSV_SEPERATOR
 from tacotron.image_utils import stack_images_vertically
 from tacotron.parser import load_dataset
 from tacotron.typing import Entry
-from tacotron.utils import get_checkpoint, get_last_checkpoint, prepare_logger, set_torch_thread_to_max, split_hparams_string
+from tacotron.utils import (get_checkpoint, get_last_checkpoint, prepare_logger,
+                            set_torch_thread_to_max, split_hparams_string)
 from tacotron.validation import ValidationEntries, ValidationEntryOutput, get_df, validate
 from tacotron_cli.argparse_helper import (ConvertToOrderedSetAction, ConvertToSetAction,
                                           get_optional, parse_device, parse_existing_directory,
@@ -25,7 +24,7 @@ from tacotron_cli.argparse_helper import (ConvertToOrderedSetAction, ConvertToSe
 from tacotron_cli.defaults import (DEFAULT_DEVICE, DEFAULT_MAX_DECODER_STEPS,
                                    DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME, DEFAULT_REPETITIONS,
                                    DEFAULT_SEED)
-from tacotron_cli.io import load_checkpoint
+from tacotron_cli.io import try_load_checkpoint
 
 # def get_repr_entries(entry_names: Optional[Set[str]]) -> str:
 #     if entry_names is None:
@@ -214,7 +213,11 @@ def validate_ns(ns: Namespace) -> None:
   for iteration in tqdm(sorted(iterations)):
     logger.info(f"Current checkpoint: {iteration}")
     checkpoint_path = get_checkpoint(ns.checkpoints_dir, iteration)
-    taco_checkpoint = load_checkpoint(checkpoint_path, ns.device)
+    
+    taco_checkpoint = try_load_checkpoint(checkpoint_path, ns.device, logger)
+    if taco_checkpoint is None:
+      return False
+
     save_callback = partial(
         save_results, val_dir=ns.output_dir, iteration=iteration)
 

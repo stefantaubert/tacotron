@@ -1,7 +1,6 @@
 import logging
 from argparse import ArgumentParser, Namespace
 from functools import partial
-from multiprocessing import cpu_count
 from pathlib import Path
 from tempfile import gettempdir
 
@@ -9,13 +8,13 @@ from tacotron.checkpoint_handling import CheckpointDict, get_iteration
 from tacotron.logger import Tacotron2Logger
 from tacotron.parser import load_dataset
 from tacotron.training import start_training
-from tacotron.utils import (get_last_checkpoint, get_pytorch_filename, parse_json, prepare_logger, set_torch_thread_to_max,
-                            split_hparams_string)
+from tacotron.utils import (get_last_checkpoint, get_pytorch_filename, parse_json, prepare_logger,
+                            set_torch_thread_to_max, split_hparams_string)
 from tacotron_cli.argparse_helper import (get_optional, parse_device, parse_existing_directory,
                                           parse_existing_file, parse_non_empty,
                                           parse_non_empty_or_whitespace, parse_path)
 from tacotron_cli.defaults import DEFAULT_DEVICE
-from tacotron_cli.io import load_checkpoint, save_checkpoint
+from tacotron_cli.io import save_checkpoint, try_load_checkpoint
 
 # def try_load_checkpoint(train_name: Optional[str], checkpoint: Optional[int], logger: Logger) -> Optional[CheckpointDict]:
 #     result = None
@@ -75,7 +74,6 @@ def init_train_parser(parser: ArgumentParser) -> None:
   parser.add_argument('--ckp-log-path', type=parse_path,
                       default=default_log_path / "log-checkpoints.txt")
   return train_new
-import torch
 
 
 def train_new(ns: Namespace) -> None:
@@ -91,7 +89,9 @@ def train_new(ns: Namespace) -> None:
   pretrained_model_checkpoint = None
   weights_map = None
   if ns.pretrained_model is not None:
-    pretrained_model_checkpoint = load_checkpoint(ns.pretrained_model, ns.device)
+    pretrained_model_checkpoint = try_load_checkpoint(ns.pretrained_model, ns.device, logger)
+    if pretrained_model_checkpoint is None:
+      return False
 
     if ns.custom_symbol_weights_map is not None:
       if not ns.custom_symbol_weights_map.is_file():
@@ -150,7 +150,7 @@ def init_continue_train_parser(parser: ArgumentParser) -> None:
   return continue_train_v2
 
 
-def continue_train_v2(ns: Namespace) -> None:
+def continue_train_v2(ns: Namespace) -> bool:
   taco_logger = Tacotron2Logger(ns.tl_dir)
   logger = prepare_logger(ns.log_path, reset=False)
   checkpoint_logger = prepare_logger(
@@ -168,7 +168,11 @@ def continue_train_v2(ns: Namespace) -> None:
   valset = load_dataset(ns.val_folder, ns.tier)
 
   last_checkpoint_path, _ = get_last_checkpoint(ns.checkpoints_dir)
-  last_checkpoint = load_checkpoint(last_checkpoint_path, ns.device)
+
+  last_checkpoint = try_load_checkpoint(last_checkpoint_path, ns.device, logger)
+  if last_checkpoint is None:
+    return False
+
   custom_hparams = split_hparams_string(ns.custom_hparams)
 
   logger.info("Continuing training from checkpoint...")
