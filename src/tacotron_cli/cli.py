@@ -19,7 +19,7 @@ from tacotron_cli.training import init_continue_train_parser, init_train_parser
 from tacotron_cli.validation import init_validation_parser
 from tacotron_cli.weights import init_add_missing_weights_parser
 
-__version__ = version("tacotron")
+__version__ = version("tacotron-cli")
 
 INVOKE_HANDLER_VAR = "invoke_handler"
 

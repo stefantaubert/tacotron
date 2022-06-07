@@ -150,6 +150,7 @@ MIT License
 Model code adapted from [Nvidia](https://github.com/NVIDIA/tacotron2).
 
 Papers:
+
 - [Tacotron: Towards End-to-End Speech Synthesis](https://www.isca-speech.org/archive/interspeech_2017/wang17n_interspeech.html)
 - [Natural TTS Synthesis by Conditioning Wavenet on MEL Spectrogram Predictions](https://ieeexplore.ieee.org/document/8461368)
 
