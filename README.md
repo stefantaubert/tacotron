@@ -1,5 +1,119 @@
-# Tacotron
+# tacotron-cli
 
-![Python](https://img.shields.io/github/license/stefantaubert/tacotron)
-![Python](https://img.shields.io/badge/python-3.8.6-green.svg)
+[![PyPI](https://img.shields.io/pypi/v/tacotron.svg)](https://pypi.python.org/pypi/tacotron-cli)
+[![PyPI](https://img.shields.io/pypi/pyversions/tacotron.svg)](https://pypi.python.org/pypi/tacotron-cli)
+[![MIT](https://img.shields.io/github/license/stefantaubert/tacotron.svg)](https://github.com/stefantaubert/tacotron/blob/main/LICENSE)
+[![PyPI](https://img.shields.io/pypi/wheel/tacotron.svg)](https://pypi.python.org/pypi/tacotron-cli)
+[![PyPI](https://img.shields.io/pypi/implementation/tacotron.svg)](https://pypi.python.org/pypi/tacotron-cli)
+[![PyPI](https://img.shields.io/github/commits-since/stefantaubert/tacotron/latest/master.svg)](https://pypi.python.org/pypi/tacotron-cli)
 
+CLI to train Tacotron 2 using .wav <=> .TextGrid pairs.
+
+## Features
+
+- train phoneme stress separately
+- train single-speaker or multi-speaker
+- synthesis of paragraphs
+- copy phoneme embeddings from one checkpoint to another
+
+## Installation
+
+```sh
+pip install tacotron-cli --user
+```
+
+## Usage
+
+```sh
+tacotron-cli [-h] [-v] {train,continue-train,validate,synthesize,plot-embeddings,add-missing-symbols} ...
+```
+
+## Commands
+
+- `train`: start training
+- `continue-train`: continue training from a checkpoint
+- `validate`: validate checkpoint(s)
+- `synthesize`: synthesize lines from a file
+- `plot-embeddings`: plot trained embeddings
+- `add-missing-symbols`: copy missing symbol embeddings from one checkpoint to another
+
+## Dependencies
+
+- `torch`
+- `pandas`
+- `numpy`
+- `librosa`
+- `plotly`
+- `matplotlib`
+- `scikit-image`
+- `scikit-learn`
+- `scipy`
+- `tqdm`
+- `ordered_set>=4.1.0`
+- `mel-cepstral-distance>=0.0.1`
+
+## Training
+
+The dataset structure need to follow the generic format of [speech-dataset-parser](https://pypi.org/project/speech-dataset-parser/), i.e., each TextGrid need to contain a tier in which all characters/phonemes/symbols are separated into single intervals, e.g., `T|h|i|s| |i|s| |a| |t|e|x|t|.`.
+
+Tips:
+
+- place stress directly to the vowel of the syllable, e.g. `b|ˈo|d|i` instead of `ˈb|o|d|i`
+- normalize the text, e.g., numbers should be written out
+- substituted space by either `SIL0`, `SIL1` or `SIL2` depending on how long the duration of the pause should take
+  - use `SIL0` for no pause
+  - use `SIL1` for a short pause, for example after a comma `...|v|i|ˈɛ|n|ʌ|,|SIL1|ˈɔ|s|t|ɹ|i|ʌ|...`
+  - use `SIL2` for a longer pause, for example after a sentence: `...|ˈɝ|θ|.|SIL2`
+- Note: only phonemes occurring in the TextGrids (on the selected tier) are possible to synthesize
+
+## Synthesis
+
+To prepare a text for synthesis, following things need to be considered.
+
+- each line in the text file will be synthesized as a single file, therefore it is recommended to place each sentence onto a single line
+- paragraphs can be separated by a blank line
+- each symbol needs can be separated by an separator like `|`, e.g. `s|ˌɪ|ɡ|ɝ|ˈɛ|t`
+  - this is useful if the model contains phonemes/symbols that consist of multiple characters, e.g., `ˈɛ`
+
+### Example valid sentence
+
+- As the overlying plate lifts up, it also forms mountain ranges.
+  - `ˈæ|z|SIL0|ð|ʌ|SIL0|ˌoʊ|v|ɝ|l|ˈaɪ|ɪ|ŋ|SIL0|p|l|ˈeɪ|t|SIL0|l|ˈɪ|f|t|s|SIL0|ˈʌ|p|,|SIL1|ɪ|t|SIL0|ˈɔ|l|s|oʊ|SIL0|f|ˈɔ|ɹ|m|z|SIL0|m|ˈaʊ|n|t|ʌ|n|SIL0|ɹ|ˈeɪ|n|d͡ʒ|ʌ|z|.|SIL2`
+
+#### Example invalid sentence
+
+- Digestion is a vital process which involves the breakdown of food into smaller and smaller components, until they can be absorbed and assimilated into the body.
+  - `daɪˈʤɛsʧʌn ɪz ʌ ˈvaɪtʌl ˈpɹɑˌsɛs wɪʧ ɪnˈvɑlvz ðʌ ˈbɹeɪkˌdaʊn ʌv fud ˈɪntu ˈsmɔlɝ ænd ˈsmɔlɝ kʌmˈpoʊnʌnts, ʌnˈtɪl ðeɪ kæn bi ʌbˈzɔɹbd ænd ʌˈsɪmʌˌleɪtɪd ˈɪntu ðʌ ˈbɑdi.`
+
+## Roadmap
+
+- Outsource method to convert audio files to mel-spectrograms before training
+- Better logging
+- Provide pre-trained models
+- Add audio examples
+- Adding tests
+
+## License
+
+MIT License
+
+## Acknowledgments
+
+Model code adapted from: https://github.com/NVIDIA/tacotron2
+
+Funded by the Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) – Project-ID 416228727 – CRC 1410
+
+## Citation
+
+If you want to cite this repo, you can use this BibTeX-entry:
+
+```bibtex
+@misc{tst22,
+  author = {Taubert, Stefan},
+  title = {tacotron-cli},
+  year = {2022},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/stefantaubert/tacotron}}
+}
+```

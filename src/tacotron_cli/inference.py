@@ -55,7 +55,8 @@ def parse_paragraphs_from_text(text: str, sep: str) -> Paragraphs:
   return result
 
 
-def init_inference_v2_parser(parser: ArgumentParser) -> None:
+def init_synthesis_parser(parser: ArgumentParser) -> None:
+  parser.description = "Synthesize each line of an text file into a mel spectrogram."
   parser.add_argument('checkpoint', metavar="CHECKPOINT-PATH", type=parse_existing_file)
   parser.add_argument('text', metavar="TEXT-PATH", type=parse_existing_file)
   parser.add_argument('--encoding', type=parse_codec, default="UTF-8")
@@ -66,7 +67,8 @@ def init_inference_v2_parser(parser: ArgumentParser) -> None:
   parser.add_argument('--batch-size', type=parse_positive_integer, default=64)
   parser.add_argument('--sep', type=str, default="")
   parser.add_argument('--custom-seed', type=get_optional(parse_non_negative_integer), default=None)
-  parser.add_argument('-p', '--paragraph-directories', action='store_true')
+  parser.add_argument('-p', '--paragraph-directories', action='store_true',
+                      help="create a new directory for each paragraph")
   parser.add_argument('--include-stats', action='store_true')
   parser.add_argument('--prepend', type=str, default="",
                       help="prepend text to all output file names")
@@ -76,10 +78,10 @@ def init_inference_v2_parser(parser: ArgumentParser) -> None:
                       default=None, help="custom hparams comma separated")
   parser.add_argument('-out', '--output-directory', type=parse_path, default=None)
   parser.add_argument('-o', '--overwrite', action='store_true')
-  return infer_text
+  return synthesize_ns
 
 
-def infer_text(ns: Namespace) -> bool:
+def synthesize_ns(ns: Namespace) -> bool:
   logger = getLogger(__name__)
 
   try:
@@ -222,7 +224,7 @@ def infer_text(ns: Namespace) -> bool:
                   f"Line {line_nr}: Comparison image already exists! Skipped inference.")
               continue
 
-        logger.debug(f"Infering {line_nr}...")
+        logger.debug(f"Synthesizing line {line_nr}...")
 
         inf_sent_output = synth.infer_v2(
             symbols=utterance,

@@ -109,6 +109,21 @@ exclude = [
 ]
 useLibraryCodeForTypes = true
 
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+envlist = py{37,38,39,310}
+isolated_build = true
+
+[testenv]
+deps = 
+  pytest
+commands = 
+  pytest
+  tacotron-cli
+  tacotron-cli -v
+"""
+
 [build-system]
 requires = [
   "setuptools >= 40.9.0",

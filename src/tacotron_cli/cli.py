@@ -12,7 +12,7 @@ from typing import Callable, Generator, List, Tuple
 
 from tacotron_cli.analysis import init_plot_emb_parser
 from tacotron_cli.argparse_helper import get_optional, parse_path
-from tacotron_cli.inference import init_inference_v2_parser
+from tacotron_cli.inference import init_synthesis_parser
 from tacotron_cli.logging_configuration import (configure_root_logger, get_file_logger,
                                                 try_init_file_logger)
 from tacotron_cli.training import init_continue_train_parser, init_train_parser
@@ -37,12 +37,12 @@ def formatter(prog):
 
 
 def get_parsers() -> Parsers:
-  yield "train", "train", init_train_parser
-  yield "continue-train", "continue-train", init_continue_train_parser
-  yield "validate", "validate", init_validate_parser
-  yield "infer-text", "infer-text", init_inference_v2_parser
-  yield "plot-embeddings", "plot-embeddings", init_plot_emb_parser
-  yield "add-missing-symbols", "add-missing-symbols", init_add_missing_weights_parser
+  yield "train", "start training", init_train_parser
+  yield "continue-train", "continue training from a checkpoint", init_continue_train_parser
+  yield "validate", "validate checkpoint(s)", init_validate_parser
+  yield "synthesize", "synthesize lines from a file", init_synthesis_parser
+  yield "plot-embeddings", "plot trained embeddings", init_plot_emb_parser
+  yield "add-missing-symbols", "copy missing symbol embeddings from one checkpoint to another", init_add_missing_weights_parser
 
 
 def print_features():

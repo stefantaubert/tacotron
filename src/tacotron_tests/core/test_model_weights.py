@@ -1,8 +1,6 @@
 import unittest
 
 
-
-
 class UnitTests(unittest.TestCase):
   pass
   # def test_load_symbol_emb_weights_from(self):

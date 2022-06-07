@@ -4,7 +4,6 @@ from functools import partial
 from pathlib import Path
 from tempfile import gettempdir
 
-
 from tacotron.checkpoint_handling import CheckpointDict, get_iteration
 from tacotron.logger import Tacotron2Logger
 from tacotron.parser import load_dataset
