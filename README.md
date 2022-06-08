@@ -26,23 +26,23 @@ pip install tacotron-cli --user
 ## Usage
 
 ```txt
-usage: tacotron-cli [-h] [-v] {train,continue-train,validate,synthesize,plot-embeddings,add-missing-symbols} ...
+usage: tacotron-cli [-h] [-v] {train,continue-train,validate,synthesize,analyze,add-missing-symbols} ...
 
 Command-line interface (CLI) to train Tacotron 2 using .wav <=> .TextGrid pairs.
 
 positional arguments:
-  {train,continue-train,validate,synthesize,plot-embeddings,add-missing-symbols}
-                           description
-    train                  start training
-    continue-train         continue training from a checkpoint
-    validate               validate checkpoint(s)
-    synthesize             synthesize lines from a file
-    plot-embeddings        plot trained embeddings
-    add-missing-symbols    copy missing symbol embeddings from one checkpoint to another
+  {train,continue-train,validate,synthesize,analyze,add-missing-symbols}
+                              description
+    train                     start training
+    continue-train            continue training from a checkpoint
+    validate                  validate checkpoint(s)
+    synthesize                synthesize lines from a file
+    analyze                   analyze checkpoint
+    add-missing-symbols       copy missing symbols from one checkpoint to another
 
 optional arguments:
-  -h, --help               show this help message and exit
-  -v, --version            show program's version number and exit
+  -h, --help                  show this help message and exit
+  -v, --version               show program's version number and exit
 ```
 
 ## Dependencies
