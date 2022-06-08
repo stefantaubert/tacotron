@@ -66,7 +66,9 @@ include = [
   "tacotron",
   "tacotron_cli",
   "tacotron_tests",
+  "tacotron_tests.*",
   "tacotron_cli_tests",
+  "tacotron_cli_tests.*",
 ]
 exclude = [
   "tacotron_debug",
