@@ -162,7 +162,7 @@ def init_validation_parser(parser: ArgumentParser) -> None:
   parser.add_argument('--speaker', type=get_optional(parse_non_empty),
                       help="chose random utterance only from this speaker (only relevant if no UTTERANCE is defined)", default=None)
   parser.add_argument('--custom-checkpoints',
-                      type=parse_positive_integer, nargs="*", default=OrderedSet(), action=ConvertToOrderedSetAction, help="validate checkpoints with these iterations; is left unset the last iteration is chosen")
+                      type=parse_positive_integer, nargs="*", default=OrderedSet(), action=ConvertToOrderedSetAction, help="validate checkpoints with these iterations; if left unset the last iteration is chosen")
   add_max_decoder_steps_argument(parser)
   parser.add_argument('--include-stats', action='store_true',
                       help="include logging of statistics (increases synthesis duration)")
