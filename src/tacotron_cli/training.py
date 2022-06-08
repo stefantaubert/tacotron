@@ -96,11 +96,11 @@ def start_training_ns(ns: Namespace) -> None:
     reset=True
   )
 
-  pretrained_model_checkpoint = None
+  pre_trained_model_checkpoint = None
   weights_map = None
-  if ns.pretrained_model is not None:
-    pretrained_model_checkpoint = try_load_checkpoint(ns.pretrained_model, ns.device, logger)
-    if pretrained_model_checkpoint is None:
+  if ns.pre_trained_model is not None:
+    pre_trained_model_checkpoint = try_load_checkpoint(ns.pre_trained_model, ns.device, logger)
+    if pre_trained_model_checkpoint is None:
       return False
 
     if ns.custom_symbol_weights_map is not None:
@@ -127,7 +127,7 @@ def start_training_ns(ns: Namespace) -> None:
     valset=valset,
     save_callback=save_callback,
     custom_symbol_weights_map=weights_map,
-    pretrained_model=pretrained_model_checkpoint,
+    pretrained_model=pre_trained_model_checkpoint,
     warm_start=ns.warm_start,
     map_symbol_weights=ns.map_symbol_weights,
     map_speaker_weights=ns.map_speaker_weights,
@@ -197,7 +197,7 @@ def continue_training_ns(ns: Namespace) -> bool:
     valset=valset,
     save_callback=save_callback,
     custom_symbol_weights_map=None,
-    pretrained_model=None,
+    pre_trained_model=None,
     map_from_speaker_name=None,
     map_symbol_weights=False,
     checkpoint=last_checkpoint,

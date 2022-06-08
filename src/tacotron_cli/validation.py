@@ -227,7 +227,7 @@ def validate_ns(ns: Namespace) -> None:
         checkpoint=taco_checkpoint,
         data=data,
         custom_hparams=custom_hparams,
-        entry_names=ns.entry_names,
+        entry_names=ns.files,
         full_run=ns.full_run,
         speaker_name=ns.speaker,
         logger=logger,

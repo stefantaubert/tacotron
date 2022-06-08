@@ -492,6 +492,7 @@ def validate(checkpoint: CheckpointDict, data: Entries, custom_hparams: Optional
 
       save_callback(entry, validation_entry_output)
 
-      logger.info(f"MFCC MCD DTW: {val_entry.mfcc_dtw_mcd}")
+      if not fast:
+        logger.info(f"MFCC MCD DTW: {val_entry.mfcc_dtw_mcd}")
 
   return validation_entries
