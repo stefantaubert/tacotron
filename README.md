@@ -68,7 +68,7 @@ Tips:
 
 - place stress directly to the vowel of the syllable, e.g. `b|ˈo|d|i` instead of `ˈb|o|d|i`
 - normalize the text, e.g., numbers should be written out
-- substituted space by either `SIL0`, `SIL1` or `SIL2` depending on how long the duration of the pause should take
+- substituted space by either `SIL0`, `SIL1` or `SIL2` depending on the duration of the pause
   - use `SIL0` for no pause
   - use `SIL1` for a short pause, for example after a comma `...|v|i|ˈɛ|n|ʌ|,|SIL1|ˈɔ|s|t|ɹ|i|ʌ|...`
   - use `SIL2` for a longer pause, for example after a sentence: `...|ˈɝ|θ|.|SIL2`
@@ -76,7 +76,7 @@ Tips:
 
 ## Synthesis
 
-To prepare a text for synthesis, following things need to be considered.
+To prepare a text for synthesis, following things need to be considered:
 
 - each line in the text file will be synthesized as a single file, therefore it is recommended to place each sentence onto a single line
 - paragraphs can be separated by a blank line
@@ -86,15 +86,6 @@ To prepare a text for synthesis, following things need to be considered.
 Example valid sentence: "As the overlying plate lifts up, it also forms mountain ranges." => `ˈæ|z|SIL0|ð|ʌ|SIL0|ˌoʊ|v|ɝ|l|ˈaɪ|ɪ|ŋ|SIL0|p|l|ˈeɪ|t|SIL0|l|ˈɪ|f|t|s|SIL0|ˈʌ|p|,|SIL1|ɪ|t|SIL0|ˈɔ|l|s|oʊ|SIL0|f|ˈɔ|ɹ|m|z|SIL0|m|ˈaʊ|n|t|ʌ|n|SIL0|ɹ|ˈeɪ|n|d͡ʒ|ʌ|z|.|SIL2`
 
 Example invalid sentence: "Digestion is a vital process which involves the breakdown of food into smaller and smaller components, until they can be absorbed and assimilated into the body." => `daɪˈʤɛsʧʌn ɪz ʌ ˈvaɪtʌl ˈpɹɑˌsɛs wɪʧ ɪnˈvɑlvz ðʌ ˈbɹeɪkˌdaʊn ʌv fud ˈɪntu ˈsmɔlɝ ænd ˈsmɔlɝ kʌmˈpoʊnʌnts, ʌnˈtɪl ðeɪ kæn bi ʌbˈzɔɹbd ænd ʌˈsɪmʌˌleɪtɪd ˈɪntu ðʌ ˈbɑdi.`
-
-## Roadmap
-
-- Outsource method to convert audio files to mel-spectrograms before training
-- Better logging
-- Provide more pre-trained models
-- Add audio examples
-- Add printing of statistics of a model, e.g., trained symbols, speakers, accents
-- Adding tests
 
 ## Pretrained Models
 
@@ -140,6 +131,15 @@ waveglow-cli synthesize \
 
 # Resulting wav is written to: ~/example/text/1-1.npy.wav
 ```
+
+## Roadmap
+
+- Outsource method to convert audio files to mel-spectrograms before training
+- Better logging
+- Provide more pre-trained models
+- Add audio examples
+- Add printing of statistics of a model, e.g., trained symbols, speakers, accents
+- Adding tests
 
 ## License
 
