@@ -18,11 +18,10 @@ from tacotron.synthesizer import Synthesizer
 from tacotron.typing import Symbols
 from tacotron.utils import plot_alignment_np_new, set_torch_thread_to_max, split_hparams_string
 from tacotron_cli.argparse_helper import (ConvertToOrderedSetAction, get_optional, parse_codec,
-                                          parse_device, parse_existing_file, parse_non_empty,
-                                          parse_non_negative_integer, parse_path,
-                                          parse_positive_integer)
-from tacotron_cli.defaults import DEFAULT_DEVICE
-from tacotron_cli.helper import add_device_argument, add_hparams_argument, add_max_decoder_steps_argument
+                                          parse_existing_file, parse_non_empty,
+                                          parse_non_negative_integer, parse_path)
+from tacotron_cli.helper import (add_device_argument, add_hparams_argument,
+                                 add_max_decoder_steps_argument)
 from tacotron_cli.io import try_load_checkpoint
 
 Utterances = OrderedDictType[int, Symbols]

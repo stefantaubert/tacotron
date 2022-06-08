@@ -10,10 +10,9 @@ from tacotron.parser import load_dataset
 from tacotron.training import start_training
 from tacotron.utils import (get_last_checkpoint, get_pytorch_filename, parse_json, prepare_logger,
                             set_torch_thread_to_max, split_hparams_string)
-from tacotron_cli.argparse_helper import (get_optional, parse_device, parse_existing_directory,
+from tacotron_cli.argparse_helper import (get_optional, parse_existing_directory,
                                           parse_existing_file, parse_non_empty,
                                           parse_non_empty_or_whitespace, parse_path)
-from tacotron_cli.defaults import DEFAULT_DEVICE
 from tacotron_cli.helper import add_device_argument, add_hparams_argument
 from tacotron_cli.io import save_checkpoint, try_load_checkpoint
 
@@ -197,7 +196,7 @@ def continue_training_ns(ns: Namespace) -> bool:
     valset=valset,
     save_callback=save_callback,
     custom_symbol_weights_map=None,
-    pre_trained_model=None,
+    pretrained_model=None,
     map_from_speaker_name=None,
     map_symbol_weights=False,
     checkpoint=last_checkpoint,

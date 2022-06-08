@@ -6,8 +6,7 @@ import torch
 from tacotron.checkpoint_handling import (get_symbol_embedding_weights, get_symbol_mapping,
                                           update_symbol_embedding_weights, update_symbol_mapping)
 from tacotron.utils import set_torch_thread_to_max
-from tacotron_cli.argparse_helper import parse_device, parse_existing_file, parse_path
-from tacotron_cli.defaults import DEFAULT_DEVICE
+from tacotron_cli.argparse_helper import parse_existing_file
 from tacotron_cli.helper import add_device_argument
 from tacotron_cli.io import save_checkpoint, try_load_checkpoint
 

@@ -4,7 +4,6 @@ from pathlib import Path
 
 import imageio
 import numpy as np
-import pandas as pd
 from ordered_set import OrderedSet
 from scipy.io.wavfile import write
 from tqdm import tqdm
@@ -17,13 +16,10 @@ from tacotron.utils import (get_checkpoint, get_last_checkpoint, prepare_logger,
                             set_torch_thread_to_max, split_hparams_string)
 from tacotron.validation import ValidationEntries, ValidationEntryOutput, get_df, validate
 from tacotron_cli.argparse_helper import (ConvertToOrderedSetAction, ConvertToSetAction,
-                                          get_optional, parse_device, parse_existing_directory,
-                                          parse_existing_file, parse_non_empty,
+                                          get_optional, parse_existing_directory, parse_non_empty,
                                           parse_non_empty_or_whitespace, parse_non_negative_integer,
                                           parse_path, parse_positive_integer)
-from tacotron_cli.defaults import (DEFAULT_DEVICE, DEFAULT_MAX_DECODER_STEPS,
-                                   DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME, DEFAULT_REPETITIONS,
-                                   DEFAULT_SEED)
+from tacotron_cli.defaults import DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME, DEFAULT_REPETITIONS
 from tacotron_cli.helper import (add_device_argument, add_hparams_argument,
                                  add_max_decoder_steps_argument)
 from tacotron_cli.io import try_load_checkpoint
