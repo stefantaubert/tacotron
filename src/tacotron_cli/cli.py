@@ -10,16 +10,18 @@ from tempfile import gettempdir
 from time import perf_counter
 from typing import Callable, Generator, List, Tuple
 
-from tacotron_cli.analysis import init_plot_emb_parser
+from tacotron_cli.analysis import init_analysis_parser
 from tacotron_cli.argparse_helper import get_optional, parse_path
 from tacotron_cli.inference import init_synthesis_parser
 from tacotron_cli.logging_configuration import (configure_root_logger, get_file_logger,
                                                 try_init_file_logger)
-from tacotron_cli.training import init_continue_train_parser, init_train_parser
+from tacotron_cli.training import init_training_continuing_parser, init_training_parser
 from tacotron_cli.validation import init_validation_parser
 from tacotron_cli.weights import init_add_missing_weights_parser
 
-__version__ = version("tacotron-cli")
+__APP_NAME = "tacotron-cli"
+
+__version__ = version(__APP_NAME)
 
 INVOKE_HANDLER_VAR = "invoke_handler"
 
@@ -33,22 +35,22 @@ Parsers = Generator[Tuple[str, str, Callable[[ArgumentParser],
 
 
 def formatter(prog):
-  return argparse.ArgumentDefaultsHelpFormatter(prog, max_help_position=40)
+  return argparse.ArgumentDefaultsHelpFormatter(prog, max_help_position=30)
 
 
 def get_parsers() -> Parsers:
-  yield "train", "start training", init_train_parser
-  yield "continue-train", "continue training from a checkpoint", init_continue_train_parser
+  yield "train", "start training", init_training_parser
+  yield "continue-train", "continue training from a checkpoint", init_training_continuing_parser
   yield "validate", "validate checkpoint(s)", init_validation_parser
   yield "synthesize", "synthesize lines from a file", init_synthesis_parser
-  yield "plot-embeddings", "plot trained embeddings", init_plot_emb_parser
-  yield "add-missing-symbols", "copy missing symbol embeddings from one checkpoint to another", init_add_missing_weights_parser
+  yield "analyze", "analyze checkpoint", init_analysis_parser
+  yield "add-missing-symbols", "copy missing symbols from one checkpoint to another", init_add_missing_weights_parser
 
 
-def print_features():
-  parsers = get_parsers()
-  for command, description, method in parsers:
-    print(f"- `{command}`: {description}")
+# def print_features():
+#   parsers = get_parsers()
+#   for command, description, method in parsers:
+#     print(f"- `{command}`: {description}")
 
 
 def _init_parser():
@@ -58,7 +60,7 @@ def _init_parser():
   )
   main_parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + __version__)
   subparsers = main_parser.add_subparsers(help="description")
-  default_log_path = Path(gettempdir()) / "tacotron-cli.log"
+  default_log_path = Path(gettempdir()) / f"{__APP_NAME}.log"
 
   methods = get_parsers()
   for command, description, method in methods:
@@ -154,11 +156,11 @@ def run_prod():
 
 
 def debug_file_exists():
-  return (Path(gettempdir()) / "tacotron-debug").is_file()
+  return (Path(gettempdir()) / f"{__APP_NAME}-debug").is_file()
 
 
 def create_debug_file():
-  (Path(gettempdir()) / "tacotron-debug").write_text("", "UTF-8")
+  (Path(gettempdir()) / f"{__APP_NAME}-debug").write_text("", "UTF-8")
 
 
 if __name__ == "__main__":

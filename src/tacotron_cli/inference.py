@@ -22,6 +22,7 @@ from tacotron_cli.argparse_helper import (ConvertToOrderedSetAction, get_optiona
                                           parse_non_negative_integer, parse_path,
                                           parse_positive_integer)
 from tacotron_cli.defaults import DEFAULT_DEVICE
+from tacotron_cli.helper import add_device_argument, add_hparams_argument, add_max_decoder_steps_argument
 from tacotron_cli.io import try_load_checkpoint
 
 Utterances = OrderedDictType[int, Symbols]
@@ -57,30 +58,35 @@ def parse_paragraphs_from_text(text: str, sep: str) -> Paragraphs:
 
 
 def init_synthesis_parser(parser: ArgumentParser) -> None:
-  parser.description = "Synthesize each line of an text file into a mel spectrogram."
-  parser.add_argument('checkpoint', metavar="CHECKPOINT-PATH", type=parse_existing_file)
-  parser.add_argument('text', metavar="TEXT-PATH", type=parse_existing_file)
-  parser.add_argument('--encoding', type=parse_codec, default="UTF-8")
-  parser.add_argument('--custom-speaker', type=get_optional(parse_non_empty), default=None)
+  parser.description = "Synthesize each line of an text file into a mel-spectrogram."
+  parser.add_argument('checkpoint', metavar="CHECKPOINT", type=parse_existing_file,
+                      help="path to checkpoint that should be used for synthesis")
+  parser.add_argument('text', metavar="TEXT", type=parse_existing_file,
+                      help="path to text file containing lines that should be synthesized")
+  parser.add_argument('--sep', type=str, default="", help="separator between each symbol")
+  parser.add_argument('--encoding', type=parse_codec, default="UTF-8", help="encoding of TEXT")
+  parser.add_argument('--custom-speaker', type=get_optional(parse_non_empty), default=None,
+                      help="use that speaker for syntheses; defaults to the first speaker if left unset")
   parser.add_argument('--custom-lines', type=parse_non_negative_integer,
-                      nargs="*", default={}, action=ConvertToOrderedSetAction)
-  parser.add_argument('--max-decoder-steps', type=parse_positive_integer, default=3000)
-  parser.add_argument('--batch-size', type=parse_positive_integer, default=64)
-  parser.add_argument('--sep', type=str, default="")
-  parser.add_argument('--custom-seed', type=get_optional(parse_non_negative_integer), default=None)
+                      nargs="*", default=OrderedSet(), action=ConvertToOrderedSetAction, help="synthesize only lines with these numbers")
+  add_max_decoder_steps_argument(parser)
+  #parser.add_argument('--batch-size', type=parse_positive_integer, default=64, help="")
+  parser.add_argument('--custom-seed', type=get_optional(parse_non_negative_integer),
+                      default=None, help="custom seed used for synthesis; if left unset a random seed will be chosen")
   parser.add_argument('-p', '--paragraph-directories', action='store_true',
                       help="create a new directory for each paragraph")
-  parser.add_argument('--include-stats', action='store_true')
-  parser.add_argument("--device", type=parse_device, default=DEFAULT_DEVICE,
-                      help="device used for synthesis")
+  parser.add_argument('--include-stats', action='store_true',
+                      help="include logging of statistics (increases synthesis duration)")
+  add_device_argument(parser)
+  add_hparams_argument(parser)
   parser.add_argument('--prepend', type=str, default="",
-                      help="prepend text to all output file names")
+                      help="prepend this text to all output files")
   parser.add_argument('--append', type=str, default="",
-                      help="append text to all output file names")
-  parser.add_argument('--custom-hparams', type=get_optional(parse_non_empty),
-                      default=None, help="custom hparams comma separated")
-  parser.add_argument('-out', '--output-directory', type=parse_path, default=None)
-  parser.add_argument('-o', '--overwrite', action='store_true')
+                      help="append this text to all output files")
+  parser.add_argument('-out', '--output-directory', type=parse_path, default=None,
+                      help="custom output directory if parent folder of TEXT should not be used")
+  parser.add_argument('-o', '--overwrite', action='store_true',
+                      help="overwrite already synthesized lines")
   return synthesize_ns
 
 

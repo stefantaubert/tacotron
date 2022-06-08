@@ -19,11 +19,13 @@ from tacotron.validation import ValidationEntries, ValidationEntryOutput, get_df
 from tacotron_cli.argparse_helper import (ConvertToOrderedSetAction, ConvertToSetAction,
                                           get_optional, parse_device, parse_existing_directory,
                                           parse_existing_file, parse_non_empty,
-                                          parse_non_negative_integer, parse_path,
-                                          parse_positive_integer)
+                                          parse_non_empty_or_whitespace, parse_non_negative_integer,
+                                          parse_path, parse_positive_integer)
 from tacotron_cli.defaults import (DEFAULT_DEVICE, DEFAULT_MAX_DECODER_STEPS,
                                    DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME, DEFAULT_REPETITIONS,
                                    DEFAULT_SEED)
+from tacotron_cli.helper import (add_device_argument, add_hparams_argument,
+                                 add_max_decoder_steps_argument)
 from tacotron_cli.io import try_load_checkpoint
 
 # def get_repr_entries(entry_names: Optional[Set[str]]) -> str:
@@ -147,34 +149,34 @@ def save_results(entry: Entry, output: ValidationEntryOutput, val_dir: Path, ite
 
 
 def init_validation_parser(parser: ArgumentParser) -> None:
+  parser.description = "Validate checkpoint(s) using the validation set or any other dataset."
   parser.add_argument('checkpoints_dir',
-                      metavar="CHECKPOINTS-FOLDER-PATH", type=parse_existing_directory)
+                      metavar="CHECKPOINTS-FOLDER", type=parse_existing_directory, help="path to folder containing the checkpoints that should be validated")
   parser.add_argument('output_dir',
-                      metavar="OUTPUT-FOLDER-PATH", type=parse_path)
-  parser.add_argument('dataset_dir', metavar="DATA-FOLDER-PATH",
-                      type=parse_existing_directory, help="train or val set folder")
-  parser.add_argument("tier", metavar="TIER", type=parse_non_empty)
-  parser.add_argument("--device", type=parse_device, default=DEFAULT_DEVICE,
-                      help="device used for synthesis")
-  parser.add_argument('--entry-names', type=parse_non_empty, nargs="*",
-                      help="Utterance names or nothing if random", default={}, action=ConvertToSetAction)
+                      metavar="OUTPUT-FOLDER", type=parse_path, help="path to folder in which the resulting files should be written")
+  parser.add_argument('dataset_dir', metavar="DATA-FOLDER",
+                      type=parse_existing_directory, help="path to validation set folder or any other dataset")
+  parser.add_argument("tier", metavar="TIER", type=parse_non_empty_or_whitespace,
+                      help="name of grids tier that contains the symbol intervals")
+  add_device_argument(parser)
+  add_hparams_argument(parser)
+  parser.add_argument('--full-run', action='store_true', help="validate all files in DATA-FOLDER")
+  parser.add_argument('--files', type=parse_non_empty, nargs="*", metavar="UTTERANCE",
+                      help="names of utterances in DATA-FOLDER that should be validated; if left unset a random utterance will be chosen", default=OrderedSet(), action=ConvertToSetAction)
   parser.add_argument('--speaker', type=get_optional(parse_non_empty),
-                      help="ds_name,speaker_name", default=None)
+                      help="chose random utterance only from this speaker (only relevant if no UTTERANCE is defined)", default=None)
   parser.add_argument('--custom-checkpoints',
-                      type=parse_positive_integer, nargs="*", default={}, action=ConvertToOrderedSetAction)
-  parser.add_argument('--full-run', action='store_true')
-  parser.add_argument('--max-decoder-steps', type=parse_positive_integer,
-                      default=DEFAULT_MAX_DECODER_STEPS)
-  # parser.add_argument('--copy-mel_info_to', type=Path,
-  #                     default=DEFAULT_SAVE_MEL_INFO_COPY_PATH)
-  parser.add_argument('--custom-hparams', type=get_optional(parse_non_empty),
-                      default=None, help="custom hparams comma separated")
-  parser.add_argument('--select-best-from', type=parse_existing_file)
-  parser.add_argument('--mcd-no-of-coeffs-per-frame', type=parse_positive_integer,
-                      default=DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME)
-  parser.add_argument('--fast', action='store_true')
-  parser.add_argument('--repetitions', type=parse_positive_integer, default=DEFAULT_REPETITIONS)
-  parser.add_argument('--seed', type=parse_non_negative_integer, default=DEFAULT_SEED)
+                      type=parse_positive_integer, nargs="*", default=OrderedSet(), action=ConvertToOrderedSetAction, help="validate checkpoints with these iterations; is left unset the last iteration is chosen")
+  add_max_decoder_steps_argument(parser)
+  parser.add_argument('--include-stats', action='store_true',
+                      help="include logging of statistics (increases synthesis duration)")
+  #parser.add_argument('--select-best-from', type=parse_existing_file)
+  parser.add_argument('--mcd-no-of-coeffs-per-frame', metavar="NUMBER-OF-COEFFICIENTS", type=parse_positive_integer,
+                      default=DEFAULT_MCD_NO_OF_COEFFS_PER_FRAME, help="number of coefficients used for calculating MCD")
+  parser.add_argument('--custom-seed', metavar="CUSTOM-SEED", type=get_optional(parse_non_negative_integer),
+                      default=None, help="custom seed used for synthesis; if left unset a random seed will be chosen")
+  parser.add_argument('--repetitions', type=parse_positive_integer, metavar="REPETITIONS", default=DEFAULT_REPETITIONS,
+                      help="how often the synthesis should be done; the seed will be increased by one in each repetition")
 
   return validate_ns
 
@@ -205,15 +207,15 @@ def validate_ns(ns: Namespace) -> None:
   save_callback = None
 
   select_best_from_df = None
-  if ns.select_best_from is not None:
-    select_best_from_df = pd.read_csv(ns.select_best_from, sep="\t")
+  # if ns.select_best_from is not None:
+  #   select_best_from_df = pd.read_csv(ns.select_best_from, sep="\t")
 
   custom_hparams = split_hparams_string(ns.custom_hparams)
 
   for iteration in tqdm(sorted(iterations)):
     logger.info(f"Current checkpoint: {iteration}")
     checkpoint_path = get_checkpoint(ns.checkpoints_dir, iteration)
-    
+
     taco_checkpoint = try_load_checkpoint(checkpoint_path, ns.device, logger)
     if taco_checkpoint is None:
       return False
@@ -230,11 +232,11 @@ def validate_ns(ns: Namespace) -> None:
         speaker_name=ns.speaker,
         logger=logger,
         max_decoder_steps=ns.max_decoder_steps,
-        fast=ns.fast,
+        fast=not ns.include_stats,
         save_callback=save_callback,
         mcd_no_of_coeffs_per_frame=ns.mcd_no_of_coeffs_per_frame,
         repetitions=ns.repetitions,
-        seed=ns.seed,
+        seed=ns.custom_seed,
         device=ns.device,
         select_best_from=select_best_from_df,
     )

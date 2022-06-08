@@ -8,31 +8,25 @@ from tacotron.checkpoint_handling import (get_symbol_embedding_weights, get_symb
 from tacotron.utils import set_torch_thread_to_max
 from tacotron_cli.argparse_helper import parse_device, parse_existing_file, parse_path
 from tacotron_cli.defaults import DEFAULT_DEVICE
+from tacotron_cli.helper import add_device_argument
 from tacotron_cli.io import save_checkpoint, try_load_checkpoint
 
 
 def init_add_missing_weights_parser(parser: ArgumentParser) -> None:
-  parser.add_argument('checkpoint1', metavar="CHECKPOINT1-PATH", type=parse_existing_file)
-  parser.add_argument('checkpoint2', metavar="CHECKPOINT2-PATH", type=parse_existing_file)
+  parser.description = "Copy missing symbols from one checkpoint to another."
+  parser.add_argument('checkpoint1', metavar="CHECKPOINT1", type=parse_existing_file,
+                      help="path to checkpoint from which the symbols should be copied")
+  parser.add_argument('checkpoint2', metavar="CHECKPOINT2", type=parse_existing_file,
+                      help="path to checkpoint to which the symbols should be copied")
   parser.add_argument('--mode', type=str,
-                      choices=["copy", "predict"], default="copy")
-  parser.add_argument("--device", type=parse_device, default=DEFAULT_DEVICE,
-                      help="device used for loading checkpoint")
-  parser.add_argument('-out', '--custom-output', type=parse_path, default=None)
-  return map_missing_symbols_v2
+                      choices=["copy", "predict"], default="copy", help="mode how the weights of the symbols should be transferred: copy => 1:1 copy of weights; predict => predict weights mathematically using a difference vector")
+  add_device_argument(parser)
+  return map_missing_symbols_ns
 
 
-def map_missing_symbols_v2(ns: Namespace) -> bool:
+def map_missing_symbols_ns(ns: Namespace) -> bool:
   logger = getLogger(__name__)
   set_torch_thread_to_max()
-
-  if not ns.checkpoint1.is_file():
-    logger.error("Checkpoint 1 was not found!")
-    return False
-
-  if not ns.checkpoint2.is_file():
-    logger.error("Checkpoint 2 was not found!")
-    return False
 
   checkpoint1_dict = try_load_checkpoint(ns.checkpoint1, ns.device, logger)
   if checkpoint1_dict is None:
@@ -93,8 +87,5 @@ def map_missing_symbols_v2(ns: Namespace) -> bool:
   update_symbol_mapping(checkpoint2_dict, target_symbol_mapping)
   update_symbol_embedding_weights(checkpoint2_dict, target_embedding)
 
-  target_path = ns.checkpoint2
-  if ns.custom_output is not None:
-    target_path = ns.custom_output
-  save_checkpoint(checkpoint2_dict, target_path)
+  save_checkpoint(checkpoint2_dict, ns.checkpoint2)
   return True

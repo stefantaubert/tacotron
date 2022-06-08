@@ -14,6 +14,7 @@ from tacotron_cli.argparse_helper import (get_optional, parse_device, parse_exis
                                           parse_existing_file, parse_non_empty,
                                           parse_non_empty_or_whitespace, parse_path)
 from tacotron_cli.defaults import DEFAULT_DEVICE
+from tacotron_cli.helper import add_device_argument, add_hparams_argument
 from tacotron_cli.io import save_checkpoint, try_load_checkpoint
 
 # def try_load_checkpoint(train_name: Optional[str], checkpoint: Optional[int], logger: Logger) -> Optional[CheckpointDict]:
@@ -46,37 +47,46 @@ def save_checkpoint_iteration(checkpoint: CheckpointDict, save_checkpoint_dir: P
 #   logger.info("Restoring done.")
 
 
-def init_train_parser(parser: ArgumentParser) -> None:
+def init_training_parser(parser: ArgumentParser) -> None:
   default_log_path = Path(gettempdir()) / "tacotron_logs"
-  parser.add_argument('train_folder', metavar="TRAIN-FOLDER-PATH", type=parse_existing_directory)
-  parser.add_argument('val_folder', metavar="VAL-FOLDER-PATH", type=parse_existing_directory)
-  parser.add_argument("tier", metavar="TIER", type=parse_non_empty_or_whitespace)
+  parser.description = "Start training of a new model."
+  parser.add_argument('train_folder', metavar="TRAIN-FOLDER",
+                      type=parse_existing_directory, help="path to folder containing training data (i.e., .wav <=> .TextGrid pairs)")
+  parser.add_argument('val_folder', metavar="VAL-FOLDER",
+                      type=parse_existing_directory, help="path to folder containing validation data (i.e., .wav <=> .TextGrid pairs)")
+  parser.add_argument("tier", metavar="TIER", type=parse_non_empty_or_whitespace,
+                      help="name of grids tier that contains the symbol intervals")
   parser.add_argument('checkpoints_dir',
-                      metavar="CHECKPOINTS-FOLDER-PATH", type=parse_path)
-  parser.add_argument("--device", type=parse_device, default=DEFAULT_DEVICE,
-                      help="device used for training")
-  parser.add_argument('--custom-hparams', type=get_optional(parse_non_empty),
-                      default=None, help="custom hparams comma separated")
+                      metavar="CHECKPOINTS-FOLDER", type=parse_path, help="path to folder to write checkpoints")
+  add_device_argument(parser)
+  add_hparams_argument(parser)
   # Pretrained model
-  parser.add_argument('--pretrained-model', type=get_optional(parse_existing_file), default=None)
+  parser.add_argument('--pre-trained-model', type=get_optional(parse_existing_file), metavar="PRE-TRAINED-MODEL",
+                      default=None, help="path to checkpoint that will be used for warm-start or for mapping weights")
   # Warm start
-  parser.add_argument('--warm-start', action='store_true')
+  parser.add_argument('--warm-start', action='store_true',
+                      help="warm start using PRE-TRAINED-MODEL")
   # Symbol weights
-  parser.add_argument('--map-symbol_weights', action='store_true')
+  parser.add_argument('--map-symbol-weights', action='store_true',
+                      help="map symbol embedding weights from PRE-TRAINED-MODEL")
   parser.add_argument('--custom-symbol-weights-map',
-                      type=get_optional(parse_existing_file), default=None)
+                      type=get_optional(parse_existing_file), default=None, help="path to custom json mapping that should be applied (key and value are symbols)")
   # Speaker weights
-  parser.add_argument('--map-speaker-weights', action='store_true')
-  parser.add_argument('--map-from-speaker', type=get_optional(parse_non_empty), default=None)
-  parser.add_argument('--tl-dir', type=parse_path, default=default_log_path)
-  parser.add_argument('--log-path', type=parse_path,
-                      default=default_log_path / "log.txt")
-  parser.add_argument('--ckp-log-path', type=parse_path,
-                      default=default_log_path / "log-checkpoints.txt")
-  return train_new
+  parser.add_argument('--map-speaker-weights', action='store_true',
+                      help="map speaker embedding weights from checkpoint from PRE-TRAINED-MODEL")
+  parser.add_argument('--map-from-speaker', type=get_optional(parse_non_empty), default=None,
+                      help="if map-speaker-weights, map this speaker to all speakers in the current model")
+  # Logging
+  parser.add_argument('--tl-dir', type=parse_path, metavar="TENSORBOARD-LOG", default=default_log_path,
+                      help="path to folder for outputting tensorboard logs (currently not available)")
+  parser.add_argument('--log-path', type=parse_path, metavar="LOG",
+                      default=default_log_path / "log.txt", help="path to file for outputting training logs")
+  parser.add_argument('--ckp-log-path', type=parse_path, metavar="CHECKPOINT-LOG",
+                      default=default_log_path / "log-checkpoints.txt", help="path to file for outputting checkpoint logs")
+  return start_training_ns
 
 
-def train_new(ns: Namespace) -> None:
+def start_training_ns(ns: Namespace) -> None:
   set_torch_thread_to_max()
   taco_logger = Tacotron2Logger(ns.tl_dir)
   logger = prepare_logger(ns.log_path, reset=True)
@@ -131,26 +141,30 @@ def train_new(ns: Namespace) -> None:
   return True
 
 
-def init_continue_train_parser(parser: ArgumentParser) -> None:
+def init_training_continuing_parser(parser: ArgumentParser) -> None:
   default_log_path = Path(gettempdir()) / "tacotron_logs"
-  parser.add_argument('train_folder', metavar="TRAIN-FOLDER-PATH", type=parse_existing_directory)
-  parser.add_argument('val_folder', metavar="VAL-FOLDER-PATH", type=parse_existing_directory)
-  parser.add_argument("tier", metavar="TIER", type=parse_non_empty_or_whitespace)
+  parser.description = "Continue training of an existing model using the last iteration."
+  parser.add_argument('train_folder', metavar="TRAIN-FOLDER",
+                      type=parse_existing_directory, help="path to folder containing training data (i.e., .wav <=> .TextGrid pairs)")
+  parser.add_argument('val_folder', metavar="VAL-FOLDER",
+                      type=parse_existing_directory, help="path to folder containing validation data (i.e., .wav <=> .TextGrid pairs)")
+  parser.add_argument("tier", metavar="TIER", type=parse_non_empty_or_whitespace,
+                      help="name of grids tier that contains the symbol intervals")
   parser.add_argument('checkpoints_dir',
-                      metavar="CHECKPOINTS-FOLDER-PATH", type=parse_existing_directory)
-  parser.add_argument("--device", type=parse_device, default=DEFAULT_DEVICE,
-                      help="device used for training")
-  parser.add_argument('--custom-hparams', type=get_optional(parse_non_empty),
-                      default=None, help="custom hparams comma separated")
-  parser.add_argument('--tl-dir', type=parse_path, default=default_log_path)
-  parser.add_argument('--log-path', type=parse_path,
-                      default=default_log_path / "log.txt")
-  parser.add_argument('--ckp-log-path', type=parse_path,
-                      default=default_log_path / "log-checkpoints.txt")
-  return continue_train_v2
+                      metavar="CHECKPOINTS-FOLDER", type=parse_existing_directory, help="path to folder to write checkpoints")
+  add_device_argument(parser)
+  add_hparams_argument(parser)
+  # Logging
+  parser.add_argument('--tl-dir', type=parse_path, metavar="TENSORBOARD-LOG", default=default_log_path,
+                      help="path to folder for outputting tensorboard logs (currently not available)")
+  parser.add_argument('--log-path', type=parse_path, metavar="LOG",
+                      default=default_log_path / "log.txt", help="path to file for outputting training logs")
+  parser.add_argument('--ckp-log-path', type=parse_path, metavar="CHECKPOINT-LOG",
+                      default=default_log_path / "log-checkpoints.txt", help="path to file for outputting checkpoint logs")
+  return continue_training_ns
 
 
-def continue_train_v2(ns: Namespace) -> bool:
+def continue_training_ns(ns: Namespace) -> bool:
   taco_logger = Tacotron2Logger(ns.tl_dir)
   logger = prepare_logger(ns.log_path, reset=False)
   checkpoint_logger = prepare_logger(
