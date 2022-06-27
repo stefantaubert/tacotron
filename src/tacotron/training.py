@@ -115,7 +115,7 @@ def log_symbol_weights(model: Tacotron2, logger: Logger) -> None:
   logger.info(str(model.state_dict()[SYMBOL_EMBEDDING_LAYER_NAME]))
 
 
-def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, trainset: Entries, valset: Entries, save_callback: Callable[[CheckpointDict], None], checkpoint: Optional[CheckpointDict], pretrained_model: Optional[CheckpointDict], warm_start: bool, map_symbol_weights: bool, custom_symbol_weights_map: Optional[SymbolToSymbolMapping], map_speaker_weights: bool, map_from_speaker_name: Optional[str], device: torch.device, logger: Logger, checkpoint_logger: Logger) -> None:
+def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, trainset: Entries, valset: Entries, save_callback: Callable[[CheckpointDict], None], checkpoint: Optional[CheckpointDict], pretrained_model: Optional[CheckpointDict], warm_start: bool, map_symbol_weights: bool, custom_symbol_weights_map: Optional[SymbolToSymbolMapping], map_speaker_weights: bool, map_from_speaker_name: Optional[str], device: torch.device, logger: Logger, checkpoint_logger: Logger) -> bool:
   complete_start = time.time()
 
   if checkpoint is not None:
@@ -161,6 +161,9 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
   if hparams.use_stress_embedding:
     logger.info(
         f"Stresses: {' '.join(stress_mapping.keys())} (#{len(stress_mapping)})")
+    if len(stress_mapping) != 4:
+      logger.error("Not all stress marks exist in the data!")
+      return False
   else:
     logger.info("Use no stress embedding.")
   if hparams.use_speaker_embedding:
@@ -206,12 +209,12 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
       if pretrained_model is None:
         logger.error(
             "Warm start: For warm start a pretrained model must be provided!")
-        return
+        return False
 
       success = warm_start_model(
           model, pretrained_model, hparams, logger)
       if not success:
-        return
+        return False
     else:
       logger.info("Didn't used warm start.")
 
@@ -220,19 +223,19 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
       if pretrained_model is None:
         logger.error(
             "Mapping symbol weights: For mapping symbol weights a pretrained model must be provided!")
-        return
+        return False
 
       pre_hparams = get_hparams(pretrained_model)
       if pre_hparams.stress_embedding_dim != hparams.stress_embedding_dim:
         logger.error(
             "Mapping symbol weights: Stress embedding dimensions do not match!")
-        return
+        return False
 
       pre_stress_mapping = get_stress_mapping(pretrained_model)
       if pre_stress_mapping.keys() != stress_mapping.keys():
         logger.error(
             f"Mapping symbol weights: Stress mappings are not equal! '{' '.join(pre_stress_mapping.keys())}' vs. '{' '.join(stress_mapping.keys())}'")
-        return
+        return False
 
       pre_symbol_weights = get_symbol_embedding_weights(pretrained_model)
       pre_symbol_mapping = get_symbol_mapping(pretrained_model)
@@ -302,25 +305,25 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
       if pretrained_model is None:
         logger.error(
             "Mapping speaker weights: For mapping speaker weights a pretrained model must be provided!")
-        return
+        return False
 
       if map_from_speaker_name is None:
         logger.error(
             "Mapping speaker weights: A speaker name is required for mapping speaker weights.")
-        return
+        return False
 
       pre_hparams = get_hparams(pretrained_model)
       both_models_use_speaker_emb = hparams.use_speaker_embedding and pre_hparams.use_speaker_embedding
       if not both_models_use_speaker_emb:
         logger.error(
             "Mapping speaker weights: Couldn't map speaker embeddings because one of the models use no speaker embeddings!")
-        return
+        return False
 
       pre_speaker_mapping = get_speaker_mapping(pretrained_model)
       if map_from_speaker_name not in pre_speaker_mapping:
         logger.error(
             f"Mapping speaker weights: Speaker '{map_from_speaker_name}' was not found in weights checkpoint.")
-        return
+        return False
 
       pre_speaker_embedding = get_speaker_embedding_weights(
           pretrained_model)
@@ -360,7 +363,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
   if not enough_traindata:
     msg = "Not enough training data!"
     logger.error(msg)
-    return
+    return False
 
   save_it_settings = SaveIterationSettings(
       epochs=hparams.epochs,
@@ -557,6 +560,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
 
   duration_s = time.time() - complete_start
   logger.info(f'Finished training. Total duration: {duration_s / 60:.2f}m')
+  return True
 
 
 def adjust_lr(hparams: HParams, optimizer: Optimizer, epoch: int, scheduler, logger: Logger) -> None:
