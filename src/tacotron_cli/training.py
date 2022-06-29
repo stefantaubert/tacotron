@@ -119,7 +119,7 @@ def start_training_ns(ns: Namespace) -> None:
   custom_hparams = split_hparams_string(ns.custom_hparams)
 
   logger.info("Starting new model...")
-  start_training(
+  success = start_training(
     custom_hparams=custom_hparams,
     taco_logger=taco_logger,
     trainset=trainset,
@@ -137,7 +137,7 @@ def start_training_ns(ns: Namespace) -> None:
     checkpoint=None,
   )
 
-  return True
+  return success
 
 
 def init_training_continuing_parser(parser: ArgumentParser) -> None:
@@ -189,7 +189,7 @@ def continue_training_ns(ns: Namespace) -> bool:
   custom_hparams = split_hparams_string(ns.custom_hparams)
 
   logger.info("Continuing training from checkpoint...")
-  start_training(
+  success = start_training(
     custom_hparams=custom_hparams,
     taco_logger=taco_logger,
     trainset=trainset,
@@ -207,4 +207,4 @@ def continue_training_ns(ns: Namespace) -> bool:
     device=ns.device,
   )
 
-  return True
+  return success
