@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+title: tacotron-cli
+abstract: Command-line interface (CLI) to train Tacotron 2 using .wav <=> .TextGrid pairs.
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - email: github@stefantaubert.com
+    given-names: Stefan
+    family-names: Taubert
+    affiliation: Chemnitz University of Technology
+    orcid: 'https://orcid.org/0000-0002-4932-2874'
+    website: 'https://stefantaubert.com/'
+version: 0.0.1
+date-released: 2022-06-08
+license: MIT
+url: https://github.com/stefantaubert/txt-utils
+doi: 10.5281/zenodo.7044285
