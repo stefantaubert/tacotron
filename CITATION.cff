@@ -15,5 +15,5 @@ authors:
 version: 0.0.1
 date-released: 2022-06-08
 license: MIT
-url: https://github.com/stefantaubert/txt-utils
+url: https://github.com/stefantaubert/tacotron
 doi: 10.5281/zenodo.7044285
