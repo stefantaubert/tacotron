@@ -2,7 +2,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/tacotron-cli.svg)](https://pypi.python.org/pypi/tacotron-cli)
 [![PyPI](https://img.shields.io/pypi/pyversions/tacotron-cli.svg)](https://pypi.python.org/pypi/tacotron-cli)
-[![MIT](https://img.shields.io/github/license/stefantaubert/tacotron.svg)](https://github.com/stefantaubert/tacotron/blob/main/LICENSE)
+[![MIT](https://img.shields.io/github/license/stefantaubert/tacotron.svg)](https://github.com/stefantaubert/tacotron/blob/master/LICENSE)
 [![PyPI](https://img.shields.io/pypi/wheel/tacotron-cli.svg)](https://pypi.python.org/pypi/tacotron-cli)
 [![PyPI](https://img.shields.io/pypi/implementation/tacotron-cli.svg)](https://pypi.python.org/pypi/tacotron-cli)
 [![PyPI](https://img.shields.io/github/commits-since/stefantaubert/tacotron/latest/master.svg)](https://pypi.python.org/pypi/tacotron-cli)
