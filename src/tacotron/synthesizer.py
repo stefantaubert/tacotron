@@ -144,7 +144,7 @@ class Synthesizer():
       )
 
       mapped_tones = (
-          self.stress_mapping[tone]
+          self.tone_mapping[tone]
           for tone, is_mappable in zip(tones, mappable_entries)
           if is_mappable
       )
@@ -268,7 +268,7 @@ class Synthesizer():
       )
 
       mapped_tones = (
-          self.stress_mapping[tone]
+          self.tone_mapping[tone]
           for tone, is_mappable in zip(tones, mappable_entries)
           if is_mappable
       )
