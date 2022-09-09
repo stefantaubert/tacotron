@@ -40,6 +40,9 @@ class ModelHParams():
 
   # None for 1-hot encoding
   stress_embedding_dim: Optional[int] = None
+  
+  # None for 1-hot encoding
+  tone_embedding_dim: Optional[int] = None
 
   # Encoder parameters
   encoder_kernel_size: int = 5

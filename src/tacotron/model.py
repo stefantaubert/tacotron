@@ -626,7 +626,7 @@ class Tacotron2(nn.Module):
       assert tones is not None
       # Note: num_classes need to be defined because otherwise the dimension is not always the same since not all batches contain all tones
       tones_one_hot_tensor: LongTensor = F.one_hot(
-          tones, num_classes=self.tones_embedding_dim)
+          tones, num_classes=self.tone_embedding_dim)
       tones_one_hot_tensor = tones_one_hot_tensor.type(torch.float32)
       assert not tones_one_hot_tensor.requires_grad
       embedded_inputs = torch.cat(

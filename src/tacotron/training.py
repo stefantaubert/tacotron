@@ -131,7 +131,9 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
   init_torch(hparams)
 
   n_stresses = None
+  n_tones = None
   stress_mapping = None
+  tone_mapping = None
   if hparams.use_stress_embedding:
     assert not hparams.use_tone_embedding
     if checkpoint is None:
@@ -249,6 +251,12 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
       if pre_hparams.stress_embedding_dim != hparams.stress_embedding_dim:
         logger.error(
             "Mapping symbol weights: Stress embedding dimensions do not match!")
+        return False
+
+      pre_hparams = get_hparams(pretrained_model)
+      if pre_hparams.tone_embedding_dim != hparams.tone_embedding_dim:
+        logger.error(
+            "Mapping symbol weights: Tone embedding dimensions do not match!")
         return False
 
       pre_stress_mapping = get_stress_mapping(pretrained_model)
