@@ -254,16 +254,16 @@ class Synthesizer():
           for symbol, stress, is_mappable in zip(symbols, stresses, mappable_entries)
       )
     elif self.hparams.use_tone_embedding:
-      symbols_wo_tone, tones = split_tones(symbols)
+      symbols, tones = split_tones(symbols)
 
       mappable_entries = tuple(
           symbol in self.symbol_mapping and tone in self.tone_mapping
-          for symbol, tone in zip(symbols_wo_tone, tones)
+          for symbol, tone in zip(symbols, tones)
       )
 
       mapped_symbols = (
           self.symbol_mapping[symbol]
-          for symbol, is_mappable in zip(symbols_wo_tone, mappable_entries)
+          for symbol, is_mappable in zip(symbols, mappable_entries)
           if is_mappable
       )
 
@@ -276,7 +276,7 @@ class Synthesizer():
       print_text = ' '.join(
           f"{symbol}{tone}" if is_mappable
           else marker * (console_out_len(symbol) + console_out_len(tone))
-          for symbol, tone, is_mappable in zip(symbols_wo_tone, tones, mappable_entries)
+          for symbol, tone, is_mappable in zip(symbols, tones, mappable_entries)
       )
 
       self._logger.info(print_text)
