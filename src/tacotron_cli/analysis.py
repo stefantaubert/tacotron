@@ -14,7 +14,7 @@ from tacotron.analysis import (emb_plot_2d, emb_plot_3d, embeddings_to_csv, get_
 from tacotron.checkpoint_handling import (get_hparams, get_iteration, get_learning_rate,
                                           get_speaker_embedding_weights, get_speaker_mapping,
                                           get_stress_mapping, get_symbol_embedding_weights,
-                                          get_symbol_mapping)
+                                          get_symbol_mapping, get_tone_mapping)
 from tacotron.utils import get_symbol_printable, set_torch_thread_to_max
 from tacotron_cli.argparse_helper import parse_existing_file, parse_path
 from tacotron_cli.helper import add_device_argument
@@ -57,6 +57,13 @@ def analyze_ns(ns: Namespace) -> bool:
         f"Stresses: {' '.join(stress_mapping.keys())} (#{len(stress_mapping)})")
   else:
     logger.info("Stresses: No stress embedding is contained.")
+
+  if hparams.use_tone_embedding:
+    tone_mapping = get_tone_mapping(checkpoint)
+    logger.info(
+        f"Tones: {' '.join(tone_mapping.keys())} (#{len(tone_mapping)})")
+  else:
+    logger.info("Tones: No tone embedding is contained.")
 
   if hparams.use_speaker_embedding:
     speaker_mapping = get_speaker_mapping(checkpoint)

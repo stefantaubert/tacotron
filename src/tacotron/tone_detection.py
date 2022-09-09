@@ -1,6 +1,4 @@
-
-import re
-from typing import Optional, Tuple
+from typing import Tuple
 
 TONE_1 = "¹"
 TONE_2 = "²"

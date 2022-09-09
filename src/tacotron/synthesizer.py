@@ -9,9 +9,10 @@ from torch import IntTensor, LongTensor  # pylint: disable=no-name-in-module
 
 from tacotron.audio_utils import mel_to_numpy
 from tacotron.checkpoint_handling import (CheckpointDict, get_hparams, get_speaker_mapping,
-                                          get_stress_mapping, get_symbol_mapping)
+                                          get_stress_mapping, get_symbol_mapping, get_tone_mapping)
 from tacotron.dataloader import (get_speaker_mappings_count, get_stress_mappings_count,
-                                 get_symbol_mappings_count, split_stresses)
+                                 get_symbol_mappings_count, get_tone_mappings_count, split_stresses,
+                                 split_tones)
 from tacotron.globals import NOT_INFERABLE_SYMBOL_MARKER
 from tacotron.model import Tacotron2
 from tacotron.training import load_model
@@ -66,6 +67,12 @@ class Synthesizer():
       self.stress_mapping = get_stress_mapping(checkpoint)
       n_stresses = get_stress_mappings_count(self.stress_mapping)
 
+    self.tone_mapping = None
+    n_tones = None
+    if hparams.use_tone_embedding:
+      self.tone_mapping = get_tone_mapping(checkpoint)
+      n_tones = get_tone_mappings_count(self.tone_mapping)
+
     self.speaker_mapping = None
     n_speakers = None
     if hparams.use_speaker_embedding:
@@ -78,6 +85,7 @@ class Synthesizer():
         n_speakers=n_speakers,
         n_stresses=n_stresses,
         n_symbols=n_symbols,
+        n_tones=n_tones,
     )
 
     self.device = device
@@ -94,7 +102,6 @@ class Synthesizer():
   def infer(self, symbols: Tuple[str], speaker: Optional[Speaker], max_decoder_steps: int, seed: int) -> InferenceResultV2:
     marker = NOT_INFERABLE_SYMBOL_MARKER
     if self.hparams.use_stress_embedding:
-
       symbols_wo_stress, stresses = split_stresses(
           symbols, self.hparams.symbols_are_ipa)
 
@@ -119,6 +126,33 @@ class Synthesizer():
           f"{symbol}{stress}" if is_mappable
           else marker * (console_out_len(symbol) + console_out_len(stress))
           for symbol, stress, is_mappable in zip(symbols_wo_stress, stresses, mappable_entries)
+      )
+
+      self._logger.info(print_text)
+    elif self.hparams.use_tone_embedding:
+      symbols_wo_tone, tones = split_tones(symbols)
+
+      mappable_entries = tuple(
+          symbol in self.symbol_mapping and tone in self.tone_mapping
+          for symbol, tone in zip(symbols_wo_tone, tones)
+      )
+
+      mapped_symbols = (
+          self.symbol_mapping[symbol]
+          for symbol, is_mappable in zip(symbols_wo_tone, mappable_entries)
+          if is_mappable
+      )
+
+      mapped_tones = (
+          self.stress_mapping[tone]
+          for tone, is_mappable in zip(tones, mappable_entries)
+          if is_mappable
+      )
+
+      print_text = ' '.join(
+          f"{symbol}{tone}" if is_mappable
+          else marker * (console_out_len(symbol) + console_out_len(tone))
+          for symbol, tone, is_mappable in zip(symbols_wo_tone, tones, mappable_entries)
       )
 
       self._logger.info(print_text)
@@ -147,6 +181,11 @@ class Synthesizer():
       stress_tensor = LongTensor([list(mapped_stresses)])
       stress_tensor = try_copy_to(stress_tensor, self.device)
 
+    tone_tensor = None
+    if self.hparams.use_tone_embedding:
+      tone_tensor = LongTensor([list(mapped_tones)])
+      tone_tensor = try_copy_to(tone_tensor, self.device)
+
     speaker_tensor = None
     if self.hparams.use_speaker_embedding:
       assert speaker is not None
@@ -165,6 +204,7 @@ class Synthesizer():
           symbols=symbol_tensor,
           speakers=speaker_tensor,
           stresses=stress_tensor,
+          tones=tone_tensor,
           max_decoder_steps=max_decoder_steps,
       )
 
@@ -213,6 +253,33 @@ class Synthesizer():
           else marker * (console_out_len(symbol) + console_out_len(stress))
           for symbol, stress, is_mappable in zip(symbols, stresses, mappable_entries)
       )
+    elif self.hparams.use_tone_embedding:
+      symbols_wo_tone, tones = split_tones(symbols)
+
+      mappable_entries = tuple(
+          symbol in self.symbol_mapping and tone in self.tone_mapping
+          for symbol, tone in zip(symbols_wo_tone, tones)
+      )
+
+      mapped_symbols = (
+          self.symbol_mapping[symbol]
+          for symbol, is_mappable in zip(symbols_wo_tone, mappable_entries)
+          if is_mappable
+      )
+
+      mapped_tones = (
+          self.stress_mapping[tone]
+          for tone, is_mappable in zip(tones, mappable_entries)
+          if is_mappable
+      )
+
+      print_text = ' '.join(
+          f"{symbol}{tone}" if is_mappable
+          else marker * (console_out_len(symbol) + console_out_len(tone))
+          for symbol, tone, is_mappable in zip(symbols_wo_tone, tones, mappable_entries)
+      )
+
+      self._logger.info(print_text)
     else:
       mapped_symbols = (
           self.symbol_mapping[symbol]
@@ -244,6 +311,11 @@ class Synthesizer():
       stress_tensor = LongTensor([list(mapped_stresses)])
       stress_tensor = try_copy_to(stress_tensor, self.device)
 
+    tone_tensor = None
+    if self.hparams.use_tone_embedding:
+      tone_tensor = LongTensor([list(mapped_tones)])
+      tone_tensor = try_copy_to(tone_tensor, self.device)
+
     speaker_tensor = None
     if self.hparams.use_speaker_embedding:
       assert speaker is not None
@@ -262,6 +334,7 @@ class Synthesizer():
           symbols=symbol_tensor,
           speakers=speaker_tensor,
           stresses=stress_tensor,
+          tones=tone_tensor,
           max_decoder_steps=max_decoder_steps,
       )
 

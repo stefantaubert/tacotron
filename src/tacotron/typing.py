@@ -8,12 +8,15 @@ EntryId = int
 Symbol = str
 Symbols = Tuple[Symbol, ...]
 Stress = str
+Tone = str
 Stresses = Tuple[Stress, ...]
+Tones = Tuple[Tone, ...]
 Speaker = str
 SpeakerId = str
 SpeakerMapping = OrderedDictType[Speaker, int]
 SymbolMapping = OrderedDictType[Symbol, int]
 StressMapping = OrderedDictType[Stress, int]
+ToneMapping = OrderedDictType[Tone, int]
 
 SymbolToSymbolMapping = Dict[Symbol, Symbol]
 

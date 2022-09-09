@@ -34,6 +34,7 @@ class ModelHParams():
 
   # TODO rename to: train_stress_separately: bool = True
   use_stress_embedding: bool = True
+  use_tone_embedding: bool = False
   # use_stress_one_hot: bool = True
   symbols_are_ipa: bool = True
 

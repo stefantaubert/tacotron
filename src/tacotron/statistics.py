@@ -28,6 +28,14 @@ def get_checkpoint_statistics(checkpoint: CheckpointDict):
   else:
     logger.info("Use no stress embedding.")
 
+  if hparams.use_tone_embedding:
+    assert has_tone_mapping(checkpoint)
+    tone_mapping = get_tone_mapping(checkpoint)
+    logger.info(
+        f"Tones: {' '.join(tone_mapping.keys())} (#{len(tone_mapping)})")
+  else:
+    logger.info("Use no tone embedding.")
+
   if hparams.use_speaker_embedding:
     assert has_speaker_mapping(checkpoint)
     speaker_mapping = get_speaker_mapping(checkpoint)
