@@ -672,7 +672,8 @@ def load_scheduler(optimizer: Adam, hparams: OptimizerHParams, checkpoint: Optio
     scheduler = ExponentialLR(
         optimizer=optimizer,
         gamma=scheduler_state["gamma"],
-        last_epoch=scheduler_state["last_epoch"],
+        # -1 because there is probably a bug in scheduler: it adjusts the learning rate when starting training if its scheduler_state[last_epoch]
+        last_epoch=-1,
         verbose=scheduler_state["verbose"],
     )
     scheduler.load_state_dict(scheduler_state)
