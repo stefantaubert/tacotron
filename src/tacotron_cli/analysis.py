@@ -79,27 +79,42 @@ def analyze_ns(ns: Namespace) -> bool:
   symbols_csv.to_csv(ns.output_directory / "symbol-embeddings.csv",
                      header=None, index=True, sep="\t")
 
-  if hparams.use_speaker_embedding:
-    speaker_emb = get_speaker_embedding_weights(checkpoint)
-    speaker_emb = speaker_emb.cpu().numpy()
-    speakers_csv = embeddings_to_csv(
-        speaker_emb, ["PADDING"] + list(speaker_mapping.keys()))
-    speakers_csv.to_csv(ns.output_directory / "speaker-embeddings.csv",
-                        header=None, index=True, sep="\t")
-
   sims = get_similarities(symbol_emb)
   df = sims_to_csv_v2(sims, symbols)
-  df.to_csv(ns.output_directory / "similarities.csv",
+  df.to_csv(ns.output_directory / "symbol-embeddings-similarities.csv",
             header=None, index=True, sep="\t")
   emb_normed = norm2emb(symbol_emb)
 
   fig_2d = emb_plot_2d(emb_normed, symbols)
   plt.plot(fig_2d, filename=str(
-      ns.output_directory / "2d.html"), auto_open=False)
+      ns.output_directory / "symbol-embeddings-2d.html"), auto_open=False)
 
   fig_3d = emb_plot_3d(emb_normed, symbols)
   plt.plot(fig_3d, filename=str(
-      ns.output_directory / "3d.html"), auto_open=False)
+      ns.output_directory / "symbol-embeddings-3d.html"), auto_open=False)
+
+  if hparams.use_speaker_embedding:
+    speaker_emb = get_speaker_embedding_weights(checkpoint)
+    speaker_emb = speaker_emb.cpu().numpy()
+    speakers = ["PADDING"] + list(speaker_mapping.keys())
+    speakers_csv = embeddings_to_csv(
+        speaker_emb, speakers)
+    speakers_csv.to_csv(ns.output_directory / "speaker-embeddings.csv",
+                        header=None, index=True, sep="\t")
+
+    sims = get_similarities(speaker_emb)
+    df = sims_to_csv_v2(sims, speakers)
+    df.to_csv(ns.output_directory / "speaker-embeddings-similarities.csv",
+              header=None, index=True, sep="\t")
+    emb_normed = norm2emb(speaker_emb)
+
+    fig_2d = emb_plot_2d(emb_normed, speakers)
+    plt.plot(fig_2d, filename=str(
+        ns.output_directory / "speaker-embeddings-2d.html"), auto_open=False)
+
+    fig_3d = emb_plot_3d(emb_normed, speakers)
+    plt.plot(fig_3d, filename=str(
+        ns.output_directory / "speaker-embeddings-3d.html"), auto_open=False)
 
   logger.info(f"Saved analysis to: {ns.output_directory.absolute()}")
   return True
