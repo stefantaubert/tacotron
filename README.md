@@ -6,7 +6,7 @@
 [![PyPI](https://img.shields.io/pypi/wheel/tacotron-cli.svg)](https://pypi.python.org/pypi/tacotron-cli)
 [![PyPI](https://img.shields.io/pypi/implementation/tacotron-cli.svg)](https://pypi.python.org/pypi/tacotron-cli)
 [![PyPI](https://img.shields.io/github/commits-since/stefantaubert/tacotron/latest/master.svg)](https://pypi.python.org/pypi/tacotron-cli)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7044285.svg)](https://doi.org/10.5281/zenodo.7044285)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7118557.svg)](https://doi.org/10.5281/zenodo.7118557)
 
 Command-line interface (CLI) to train Tacotron 2 using .wav <=> .TextGrid pairs.
 
