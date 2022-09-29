@@ -185,6 +185,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
 
   logger.info(
       f"Symbols: {' '.join(get_symbol_printable(symbol) for symbol in symbol_mapping.keys())} (#{len(symbol_mapping)}, dim: {hparams.symbols_embedding_dim})")
+      
   if hparams.use_stress_embedding:
     logger.info(
         f"Stresses: {' '.join(stress_mapping.keys())} (#{len(stress_mapping)})")
