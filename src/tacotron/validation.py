@@ -318,10 +318,11 @@ def validate(checkpoint: CheckpointDict, data: Entries, custom_hparams: Optional
 
       timepoint = datetime.datetime.now()
       inference_result = synth.infer(
-          symbols=entry.symbols,
-          speaker=entry.speaker_name,
-          max_decoder_steps=max_decoder_steps,
-          seed=rep_seed,
+        symbols=entry.symbols,
+        speaker=entry.speaker_name,
+        max_decoder_steps=max_decoder_steps,
+        seed=rep_seed,
+        include_stats=not fast,
       )
 
       val_entry = ValidationEntry()

@@ -65,6 +65,19 @@ def split_stresses(symbols: Symbols, is_ipa: bool) -> Tuple[Symbols, Stresses]:
   return tuple(res_symbols), tuple(stresses)
 
 
+def split_stresses_and_tones(symbols: Symbols, is_ipa: bool) -> Tuple[Symbols, Stresses, Tones]:
+  res_symbols = []
+  stresses = []
+  tones = []
+  for symbol in symbols:
+    symbol_core, stress = split_stress(symbol, is_ipa)
+    symbol_core, tone = split_phoneme_and_tone(symbol_core)
+    res_symbols.append(symbol_core)
+    stresses.append(stress)
+    tones.append(tone)
+  return tuple(res_symbols), tuple(stresses), tuple(tones)
+
+
 def create_speaker_mapping(valset: Entries, trainset: Entries) -> SpeakerMapping:
   all_valspeakers = (entry.speaker_name for entry in valset)
   all_trainspeakers = (entry.speaker_name for entry in trainset)
@@ -118,6 +131,44 @@ def create_symbol_and_stress_mapping(valset: Entries, trainset: Entries, symbols
   ))
 
   return symbol_mapping, stress_mapping
+
+
+def create_symbol_stress_and_tone_mapping(valset: Entries, trainset: Entries) -> Tuple[SymbolMapping, StressMapping, ToneMapping]:
+  all_valsymbols = (entry.symbols for entry in valset)
+  all_trainsymbols = (entry.symbols for entry in trainset)
+  all_symbols = chain(all_valsymbols, all_trainsymbols)
+  all_symbols_stress_tone_splitted = (
+      split_stresses_and_tones(symbols, is_ipa=True)
+      for symbols in all_symbols
+  )
+
+  all_symbols, all_stresses, all_tones = zip(*all_symbols_stress_tone_splitted)
+
+  unique_symbols = {symbol for symbols in all_symbols for symbol in symbols}
+  symbol_mapping = OrderedDict((
+      (symbol, symbol_nr)
+      for symbol_nr, symbol in enumerate(sorted(unique_symbols), start=PADDING_SHIFT)
+  ))
+
+  unique_stresses = {
+      stress for stresses in all_stresses for stress in stresses}
+  stress_mapping = OrderedDict((
+      (stress, stress_nr)
+      for stress_nr, stress in enumerate(sorted(unique_stresses), start=PADDING_SHIFT)
+  ))
+
+  unique_tones = {
+    tone
+    for tones in all_tones
+    for tone in tones
+  }
+
+  tone_mapping = OrderedDict((
+      (tone, tone_nr)
+      for tone_nr, tone in enumerate(sorted(unique_tones), start=PADDING_SHIFT)
+  ))
+
+  return symbol_mapping, stress_mapping, tone_mapping
 
 
 def split_tones(symbols: Symbols) -> Tuple[Symbols, Tones]:

@@ -233,7 +233,7 @@ def synthesize_ns(ns: Namespace) -> bool:
 
         logger.debug(f"Synthesizing line {line_nr}...")
 
-        inf_sent_output = synth.infer_v2(
+        inf_sent_output = synth.infer(
             symbols=utterance,
             speaker=speaker,
             include_stats=ns.include_stats,

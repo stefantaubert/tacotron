@@ -20,10 +20,10 @@ from tacotron.checkpoint_handling import (CheckpointDict, create, get_hparams, g
                                           get_symbol_mapping, get_tone_mapping)
 from tacotron.dataloader import (SymbolsMelCollate, create_speaker_mapping,
                                  create_symbol_and_stress_mapping, create_symbol_and_tone_mapping,
-                                 create_symbol_mapping, get_speaker_mappings_count,
-                                 get_stress_mappings_count, get_symbol_mappings_count,
-                                 get_tone_mappings_count, parse_batch, prepare_trainloader,
-                                 prepare_valloader)
+                                 create_symbol_mapping, create_symbol_stress_and_tone_mapping,
+                                 get_speaker_mappings_count, get_stress_mappings_count,
+                                 get_symbol_mappings_count, get_tone_mappings_count, parse_batch,
+                                 prepare_trainloader, prepare_valloader)
 from tacotron.hparams import ExperimentHParams, HParams, OptimizerHParams
 from tacotron.logger import Tacotron2Logger
 from tacotron.model import SPEAKER_EMBEDDING_LAYER_NAME, SYMBOL_EMBEDDING_LAYER_NAME, Tacotron2
@@ -134,8 +134,20 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
   n_tones = None
   stress_mapping = None
   tone_mapping = None
-  if hparams.use_stress_embedding:
-    assert not hparams.use_tone_embedding
+  if hparams.use_stress_embedding and hparams.use_tone_embedding:
+    if not hparams.symbols_are_ipa:
+      logger.error("If use_tone_embedding is True symbols_are_ipa needs to be True, too!")
+      return False
+    if checkpoint is None:
+      symbol_mapping, stress_mapping, tone_mapping = create_symbol_stress_and_tone_mapping(
+          valset, trainset)
+    else:
+      symbol_mapping = get_symbol_mapping(checkpoint)
+      stress_mapping = get_stress_mapping(checkpoint)
+      tone_mapping = get_tone_mapping(checkpoint)
+    n_stresses = get_stress_mappings_count(stress_mapping)
+    n_tones = get_tone_mappings_count(tone_mapping)
+  elif hparams.use_stress_embedding:
     if checkpoint is None:
       symbol_mapping, stress_mapping = create_symbol_and_stress_mapping(
           valset, trainset, hparams.symbols_are_ipa)
@@ -144,8 +156,9 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
       stress_mapping = get_stress_mapping(checkpoint)
     n_stresses = get_stress_mappings_count(stress_mapping)
   elif hparams.use_tone_embedding:
-    assert not hparams.use_stress_embedding
-    assert hparams.symbols_are_ipa
+    if not hparams.symbols_are_ipa:
+      logger.error("If use_tone_embedding is True symbols_are_ipa needs to be True, too!")
+      return False
     if checkpoint is None:
       symbol_mapping, tone_mapping = create_symbol_and_tone_mapping(
           valset, trainset)
