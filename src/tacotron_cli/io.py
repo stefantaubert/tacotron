@@ -128,13 +128,18 @@ def try_load_checkpoint(path: Path, device: torch.device, logger: Logger) -> Che
   try:
     logger.debug("Loading checkpoint...")
     checkpoint_dict = load_checkpoint(path, device)
+  except RuntimeError as ex:
+    logger.debug(ex)
+    logger.error("Checkpoint couldn't be loaded!")
+    return None
   except Exception as ex:
     try:
       checkpoint_dict = load_obj(path)
       save_checkpoint(checkpoint_dict, path)
       logger.debug("Converted to torch file!")
-    except Exception as ex:
+    except Exception as ex2:
       logger.debug(ex)
+      logger.debug(ex2)
       logger.error("Checkpoint couldn't be loaded!")
       return None
   return checkpoint_dict
