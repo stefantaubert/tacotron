@@ -39,6 +39,17 @@ formatter = logging.Formatter(
 )
 
 
+def cut_string(s: str, cut: Set[str]) -> Tuple[str, str]:
+  cut_str = ""
+  rest_str = ""
+  for character in s:
+    if character in cut:
+      cut_str += character
+    else:
+      rest_str += character
+  return rest_str, cut_str
+
+
 def get_default_logger():
   return logging.getLogger("default")
 
