@@ -35,14 +35,18 @@ class ModelHParams():
   # TODO rename to: train_stress_separately: bool = True
   use_stress_embedding: bool = True
   use_tone_embedding: bool = False
+  use_duration_embedding: bool = False
   # use_stress_one_hot: bool = True
   symbols_are_ipa: bool = True
 
   # None for 1-hot encoding
   stress_embedding_dim: Optional[int] = None
-  
+
   # None for 1-hot encoding
   tone_embedding_dim: Optional[int] = None
+
+  # None for 1-hot encoding
+  duration_embedding_dim: Optional[int] = None
 
   # Encoder parameters
   encoder_kernel_size: int = 5

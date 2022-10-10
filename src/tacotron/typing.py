@@ -8,15 +8,20 @@ EntryId = int
 Symbol = str
 Symbols = Tuple[Symbol, ...]
 Stress = str
-Tone = str
 Stresses = Tuple[Stress, ...]
+Tone = str
 Tones = Tuple[Tone, ...]
+Duration = str
+Durations = Tuple[Duration, ...]
 Speaker = str
-SpeakerId = str
-SpeakerMapping = OrderedDictType[Speaker, int]
-SymbolMapping = OrderedDictType[Symbol, int]
-StressMapping = OrderedDictType[Stress, int]
-ToneMapping = OrderedDictType[Tone, int]
+SpeakerId = int
+MappingId = int
+Mapping = OrderedDictType[str, MappingId]
+SpeakerMapping = OrderedDictType[Speaker, MappingId]
+SymbolMapping = OrderedDictType[Symbol, MappingId]
+StressMapping = OrderedDictType[Stress, MappingId]
+ToneMapping = OrderedDictType[Tone, MappingId]
+DurationMapping = OrderedDictType[Duration, MappingId]
 
 SymbolToSymbolMapping = Dict[Symbol, Symbol]
 

@@ -11,259 +11,63 @@ from torch import FloatTensor, IntTensor, LongTensor, Tensor  # pylint: disable=
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
+from tacotron.frontend.main import get_mapped_indices
 from tacotron.hparams import HParams
 from tacotron.model import ForwardXIn
-from tacotron.stress_detection import StressType, split_stress_arpa, split_stress_ipa
 from tacotron.taco_stft import TacotronSTFT
-from tacotron.tone_detection import split_phoneme_and_tone
-from tacotron.typing import (Entries, Entry, Speaker, SpeakerId, SpeakerMapping, Stress, Stresses,
-                             StressMapping, Symbol, SymbolMapping, Symbols, ToneMapping, Tones)
-
-PADDING_SHIFT = 1
-
-STRESS_LABELS: OrderedDictType[StressType, Stress] = OrderedDict((
-    (StressType.UNSTRESSED, "0"),
-    (StressType.PRIMARY, "1"),
-    (StressType.SECONDARY, "2"),
-    #(StressType.NOT_APPLICABLE, "N/A"),
-    (StressType.NOT_APPLICABLE, "-"),
-))
-
-
-def get_symbol_mappings_count(symbol_mapping: SymbolMapping) -> int:
-  return len(symbol_mapping) + PADDING_SHIFT
-
-
-def get_stress_mappings_count(stress_mapping: StressMapping) -> int:
-  return len(stress_mapping) + PADDING_SHIFT
-
-
-def get_tone_mappings_count(tone_mapping: ToneMapping) -> int:
-  return len(tone_mapping) + PADDING_SHIFT
-
-
-def get_speaker_mappings_count(speaker_mapping: SpeakerMapping) -> int:
-  return len(speaker_mapping) + PADDING_SHIFT
-
-
-def split_stress(symbol: Symbol, is_ipa: bool) -> Tuple[Symbol, Stress]:
-  method = split_stress_arpa
-  if is_ipa:
-    method = split_stress_ipa
-  new_symbol, stress_type = method(symbol)
-  stress = STRESS_LABELS[stress_type]
-  return new_symbol, stress
-
-
-def split_stresses(symbols: Symbols, is_ipa: bool) -> Tuple[Symbols, Stresses]:
-  res_symbols = []
-  stresses = []
-  for symbol in symbols:
-    symbol_core, stress = split_stress(symbol, is_ipa)
-    res_symbols.append(symbol_core)
-    stresses.append(stress)
-  return tuple(res_symbols), tuple(stresses)
-
-
-def split_stresses_and_tones(symbols: Symbols, is_ipa: bool) -> Tuple[Symbols, Stresses, Tones]:
-  res_symbols = []
-  stresses = []
-  tones = []
-  for symbol in symbols:
-    symbol_core, stress = split_stress(symbol, is_ipa)
-    symbol_core, tone = split_phoneme_and_tone(symbol_core)
-    res_symbols.append(symbol_core)
-    stresses.append(stress)
-    tones.append(tone)
-  return tuple(res_symbols), tuple(stresses), tuple(tones)
-
-
-def create_speaker_mapping(valset: Entries, trainset: Entries) -> SpeakerMapping:
-  all_valspeakers = (entry.speaker_name for entry in valset)
-  all_trainspeakers = (entry.speaker_name for entry in trainset)
-  all_speakers = chain(all_valspeakers, all_trainspeakers)
-  unique_speakers = set(all_speakers)
-
-  speaker_ids = OrderedDict((
-      (speaker, speaker_nr)
-      for speaker_nr, speaker in enumerate(sorted(unique_speakers), start=PADDING_SHIFT)
-  ))
-
-  return speaker_ids
-
-
-def create_symbol_mapping(valset: Entries, trainset: Entries) -> SymbolMapping:
-  all_valsymbols = (entry.symbols for entry in valset)
-  all_trainsymbols = (entry.symbols for entry in trainset)
-  all_symbols = chain(all_valsymbols, all_trainsymbols)
-  unique_symbols = {symbol for symbols in all_symbols for symbol in symbols}
-
-  symbol_mapping = OrderedDict((
-      (symbol, symbol_nr)
-      for symbol_nr, symbol in enumerate(sorted(unique_symbols), start=PADDING_SHIFT)
-  ))
-
-  return symbol_mapping
-
-
-def create_symbol_and_stress_mapping(valset: Entries, trainset: Entries, symbols_are_ipa: bool) -> Tuple[SymbolMapping, StressMapping]:
-  all_valsymbols = (entry.symbols for entry in valset)
-  all_trainsymbols = (entry.symbols for entry in trainset)
-  all_symbols = chain(all_valsymbols, all_trainsymbols)
-  all_symbols_stress_splitted = (
-      split_stresses(symbols, symbols_are_ipa)
-      for symbols in all_symbols
-  )
-
-  all_symbols, all_stresses = zip(*all_symbols_stress_splitted)
-
-  unique_symbols = {symbol for symbols in all_symbols for symbol in symbols}
-  symbol_mapping = OrderedDict((
-      (symbol, symbol_nr)
-      for symbol_nr, symbol in enumerate(sorted(unique_symbols), start=PADDING_SHIFT)
-  ))
-
-  unique_stresses = {
-      stress for stresses in all_stresses for stress in stresses}
-  stress_mapping = OrderedDict((
-      (stress, stress_nr)
-      for stress_nr, stress in enumerate(sorted(unique_stresses), start=PADDING_SHIFT)
-  ))
-
-  return symbol_mapping, stress_mapping
-
-
-def create_symbol_stress_and_tone_mapping(valset: Entries, trainset: Entries) -> Tuple[SymbolMapping, StressMapping, ToneMapping]:
-  all_valsymbols = (entry.symbols for entry in valset)
-  all_trainsymbols = (entry.symbols for entry in trainset)
-  all_symbols = chain(all_valsymbols, all_trainsymbols)
-  all_symbols_stress_tone_splitted = (
-      split_stresses_and_tones(symbols, is_ipa=True)
-      for symbols in all_symbols
-  )
-
-  all_symbols, all_stresses, all_tones = zip(*all_symbols_stress_tone_splitted)
-
-  unique_symbols = {symbol for symbols in all_symbols for symbol in symbols}
-  symbol_mapping = OrderedDict((
-      (symbol, symbol_nr)
-      for symbol_nr, symbol in enumerate(sorted(unique_symbols), start=PADDING_SHIFT)
-  ))
-
-  unique_stresses = {
-      stress for stresses in all_stresses for stress in stresses}
-  stress_mapping = OrderedDict((
-      (stress, stress_nr)
-      for stress_nr, stress in enumerate(sorted(unique_stresses), start=PADDING_SHIFT)
-  ))
-
-  unique_tones = {
-    tone
-    for tones in all_tones
-    for tone in tones
-  }
-
-  tone_mapping = OrderedDict((
-      (tone, tone_nr)
-      for tone_nr, tone in enumerate(sorted(unique_tones), start=PADDING_SHIFT)
-  ))
-
-  return symbol_mapping, stress_mapping, tone_mapping
-
-
-def split_tones(symbols: Symbols) -> Tuple[Symbols, Tones]:
-  res_symbols = []
-  tones = []
-  for symbol in symbols:
-    symbol_core, tone = split_phoneme_and_tone(symbol)
-    res_symbols.append(symbol_core)
-    tones.append(tone)
-  return tuple(res_symbols), tuple(tones)
-
-
-def create_symbol_and_tone_mapping(valset: Entries, trainset: Entries) -> Tuple[SymbolMapping, StressMapping]:
-  all_valsymbols = (entry.symbols for entry in valset)
-  all_trainsymbols = (entry.symbols for entry in trainset)
-  all_symbols = chain(all_valsymbols, all_trainsymbols)
-  all_symbols_tones_splitted = (
-      split_tones(symbols)
-      for symbols in all_symbols
-  )
-
-  all_symbols, all_tones = zip(*all_symbols_tones_splitted)
-
-  unique_symbols = {symbol for symbols in all_symbols for symbol in symbols}
-  symbol_mapping = OrderedDict((
-      (symbol, symbol_nr)
-      for symbol_nr, symbol in enumerate(sorted(unique_symbols), start=PADDING_SHIFT)
-  ))
-
-  unique_tones = {
-    tone
-    for tones in all_tones
-    for tone in tones
-  }
-
-  tone_mapping = OrderedDict((
-      (tone, tone_nr)
-      for tone_nr, tone in enumerate(sorted(unique_tones), start=PADDING_SHIFT)
-  ))
-
-  return symbol_mapping, tone_mapping
-
+from tacotron.typing import (DurationMapping, Entries, Entry, Speaker, SpeakerId, SpeakerMapping,
+                             Stress, Stresses, StressMapping, Symbol, SymbolMapping, Symbols,
+                             ToneMapping, Tones)
 
 LoaderEntry = Tuple[IntTensor, Tensor,
                     Optional[SpeakerId], Optional[IntTensor]]
 
 
 class SymbolsMelLoader(Dataset):
-  def __init__(self, data: Entries, hparams: HParams, symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], tone_mapping: Optional[ToneMapping], speaker_mapping: Optional[SpeakerMapping], device: torch.device, logger: Logger):
+  def __init__(self, data: Entries, hparams: HParams, symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], tone_mapping: Optional[ToneMapping], duration_mapping: Optional[DurationMapping], speaker_mapping: Optional[SpeakerMapping], device: torch.device, logger: Logger):
     super().__init__()
 
     # random.seed(hparams.seed)
     # random.shuffle(data)
     self.use_saved_mels = hparams.use_saved_mels
+    self.use_cache: bool = hparams.cache_mels
+
     if not hparams.use_saved_mels:
       self.mel_parser = TacotronSTFT(hparams, device, logger)
 
     self.data: Dict[int, Tuple[IntTensor, Path,
-                               Optional[SpeakerId], Optional[IntTensor]]] = {}
+                               Optional[SpeakerId], Optional[IntTensor], Optional[IntTensor], Optional[IntTensor]]] = {}
 
     # for i, entry, symbols in enumerate(zip(data.items(True), )
 
     entry: Entry
-    for i, entry in enumerate(tqdm(data, desc="Reading files")):
-      symbols = entry.symbols
+    for i, entry in enumerate(tqdm(data, desc="Reading files", unit=" file(s)")):
+      symbol_ids, stress_ids, tone_ids, duration_ids, speaker_id = get_mapped_indices(
+        entry.symbols, entry.speaker_name, symbol_mapping, stress_mapping, tone_mapping, duration_mapping, speaker_mapping, hparams)
 
       stress_tensor = None
       if hparams.use_stress_embedding:
-        assert stress_mapping is not None
-        symbols, stresses = split_stresses(
-            symbols, hparams.symbols_are_ipa)
-        stress_ids = (stress_mapping[stress] for stress in stresses)
-        stress_tensor = IntTensor(list(stress_ids))
+        assert stress_ids is not None
+        stress_tensor = IntTensor(stress_ids)
 
+      tone_tensor = None
       if hparams.use_tone_embedding:
-        assert tone_mapping is not None
-        symbols, tones = split_tones(symbols)
-        tone_ids = (tone_mapping[tone] for tone in tones)
-        tone_tensor = IntTensor(list(tone_ids))
+        assert tone_ids is not None
+        tone_tensor = IntTensor(tone_ids)
 
-      symbol_ids = (symbol_mapping[symbol] for symbol in symbols)
-      symbols_tensor = IntTensor(list(symbol_ids))
+      duration_tensor = None
+      if hparams.use_duration_embedding:
+        assert duration_ids is not None
+        duration_tensor = IntTensor(duration_ids)
 
-      speaker_id = None
-      if hparams.use_speaker_embedding:
-        assert speaker_mapping is not None
-        speaker_id = speaker_mapping[entry.speaker_name]
+      symbols_tensor = IntTensor(symbol_ids)
 
       if hparams.use_saved_mels:
         raise NotImplementedError()
         # self.data[i] = (
         #   symbols_tensor, entry.mel_absolute_path, speaker_id, stress_tensor)
-      else:
-        self.data[i] = (
-            symbols_tensor, entry.wav_absolute_path, speaker_id, stress_tensor, tone_tensor)
+      self.data[i] = (
+          symbols_tensor, entry.wav_absolute_path, speaker_id, stress_tensor, tone_tensor, duration_tensor)
 
     if hparams.use_saved_mels and hparams.cache_mels:
       logger.info("Loading mels into memory...")
@@ -272,12 +76,11 @@ class SymbolsMelLoader(Dataset):
       for i, vals in tqdm(self.data.items()):
         mel_tensor = torch.load(vals[1], map_location='cpu')
         self.cache[i] = mel_tensor
-    self.use_cache: bool = hparams.cache_mels
 
   def __getitem__(self, index: int) -> LoaderEntry:
     # return self.cache[index]
     # debug_logger.debug(f"getitem called {index}")
-    symbols_tensor, path, speaker_id, stress_tensor, tone_tensor = self.data[index]
+    symbols_tensor, path, speaker_id, stress_tensor, tone_tensor, duration_tensor = self.data[index]
     if self.use_saved_mels:
       if self.use_cache:
         mel_tensor = self.cache[index].clone().detach()
@@ -294,33 +97,40 @@ class SymbolsMelLoader(Dataset):
     tone_tensor_cloned = None
     if tone_tensor is not None:
       tone_tensor_cloned = tone_tensor.clone().detach()
+
+    duration_tensor_cloned = None
+    if duration_tensor is not None:
+      duration_tensor_cloned = duration_tensor.clone().detach()
+
     # debug_logger.debug(f"getitem finished {index}")
 
-    return symbols_tensor_cloned, mel_tensor, speaker_id, stress_tensor_cloned, tone_tensor_cloned
+    return symbols_tensor_cloned, mel_tensor, speaker_id, stress_tensor_cloned, tone_tensor_cloned, duration_tensor_cloned
 
   def __len__(self):
     return len(self.data)
 
 
 Batch = Tuple[LongTensor, LongTensor, LongTensor, FloatTensor,
-              FloatTensor, LongTensor, Optional[LongTensor], Optional[LongTensor], Optional[LongTensor]]
+              FloatTensor, LongTensor, Optional[LongTensor], Optional[LongTensor], Optional[LongTensor], Optional[LongTensor]]
 
 
 class SymbolsMelCollate():
   """ Zero-pads model inputs and targets based on number of frames per step
   """
 
-  def __init__(self, n_frames_per_step: int, use_stress: bool, use_tones, use_speakers: bool):
-    self.n_frames_per_step = n_frames_per_step
-    self.use_stress = use_stress
-    self.use_tones = use_tones
-    self.use_speakers = use_speakers
+  def __init__(self, hparams: HParams):
+    self.n_frames_per_step = hparams.n_frames_per_step
+    self.use_stress = hparams.use_stress_embedding
+    self.use_tones = hparams.use_tone_embedding
+    self.use_durations = hparams.use_duration_embedding
+    self.use_speakers = hparams.use_speaker_embedding
 
   def __call__(self, batch: List[LoaderEntry]) -> Batch:
     # batches need to be sorted descending for encoder part: nn.utils.rnn.pack_padded_sequence
     batch.sort(key=lambda x: x[0].size(0), reverse=True)
 
-    symbol_tensors, mel_tensors, speaker_ids, stress_tensors, tone_tensors = zip(*batch)
+    symbol_tensors, mel_tensors, speaker_ids, stress_tensors, tone_tensors, duration_tensors = zip(
+      *batch)
 
     symbol_lens = [tensor.size(0) for tensor in symbol_tensors]
     symbol_lens_tensor = IntTensor(symbol_lens)
@@ -353,6 +163,16 @@ class SymbolsMelCollate():
       tones_padded_tensor.zero_()
       for i, tensor in enumerate(tone_tensors):
         tones_padded_tensor[i, :tensor.size(0)] = tensor
+
+    # pad durations
+    durations_padded_tensor = None
+    if self.use_durations:
+      # needs to be long for one-hot later
+      durations_padded_tensor = LongTensor(
+          len(duration_tensors), max_symbol_len)
+      durations_padded_tensor.zero_()
+      for i, tensor in enumerate(duration_tensors):
+        durations_padded_tensor[i, :tensor.size(0)] = tensor
 
     # pad speakers
     speakers_padded_tensor = None
@@ -387,6 +207,7 @@ class SymbolsMelCollate():
     gate_padded_tensor.zero_()
     stop_token = 1
     for i, tensor in enumerate(mel_tensors):
+      # TODO assert tensor.size(1) > 1
       # the last frame is set to the stop token
       gate_padded_tensor[i, tensor.size(1) - 1] = stop_token
       # pad the stop token
@@ -400,25 +221,26 @@ class SymbolsMelCollate():
         mel_lens_tensor,
         speakers_padded_tensor,
         stresses_padded_tensor,
-        tones_padded_tensor
+        tones_padded_tensor,
+        durations_padded_tensor,
     )
 
 
 def parse_batch(batch: Batch) -> Tuple[ForwardXIn, Tuple[FloatTensor, FloatTensor]]:
-  symbols_padded, input_lengths, mel_padded, gate_padded, output_lengths, speaker_ids, stress_ids, tone_ids = batch
+  symbols_padded, input_lengths, mel_padded, gate_padded, output_lengths, speaker_ids, stress_ids, tone_ids, duration_ids = batch
 
   x = (symbols_padded, input_lengths,
-       mel_padded, output_lengths, speaker_ids, stress_ids, tone_ids)
+       mel_padded, output_lengths, speaker_ids, stress_ids, tone_ids, duration_ids)
   y = (mel_padded, gate_padded)
   return x, y
 
 
-def prepare_valloader(hparams: HParams, collate_fn: SymbolsMelCollate, valset: Entries, symbols_dict: Dict[Symbol, int], stress_dict: Optional[Dict[str, int]], tone_dict: Optional[Dict[str, int]], speakers_dict: Optional[Dict[Speaker, SpeakerId]], device: torch.device, logger: Logger) -> DataLoader:
+def prepare_valloader(hparams: HParams, collate_fn: SymbolsMelCollate, valset: Entries, symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], tone_mapping: Optional[ToneMapping], duration_mapping: Optional[DurationMapping], speaker_mapping: Optional[SpeakerMapping], device: torch.device, logger: Logger) -> DataLoader:
   # logger.info(
   #   f"Duration valset {valset.total_duration_s / 60:.2f}m / {valset.total_duration_s / 60 / 60:.2f}h")
 
-  val = SymbolsMelLoader(valset, hparams, symbols_dict,
-                         stress_dict, tone_dict, speakers_dict, device, logger)
+  val = SymbolsMelLoader(valset, hparams, symbol_mapping,
+                         stress_mapping, tone_mapping, duration_mapping, speaker_mapping, device, logger)
 
   device_is_cuda = device.type == "cuda"
 
@@ -436,13 +258,13 @@ def prepare_valloader(hparams: HParams, collate_fn: SymbolsMelCollate, valset: E
   return val_loader
 
 
-def prepare_trainloader(hparams: HParams, collate_fn: SymbolsMelCollate, trainset: Entries, symbols_dict: Dict[Symbol, int], stress_dict: Optional[Dict[str, int]], tone_dict: Optional[Dict[str, int]], speakers_dict: Optional[Dict[Speaker, SpeakerId]], device: torch.device, logger: Logger) -> DataLoader:
+def prepare_trainloader(hparams: HParams, collate_fn: SymbolsMelCollate, trainset: Entries, symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], tone_mapping: Optional[ToneMapping], duration_mapping: Optional[DurationMapping], speaker_mapping: Optional[SpeakerMapping], device: torch.device, logger: Logger) -> DataLoader:
   # # Get data, data loaders and collate function ready
   # logger.info(
   #   f"Duration trainset {trainset.total_duration_s / 60:.2f}m / {trainset.total_duration_s / 60 / 60:.2f}h")
 
-  trn = SymbolsMelLoader(trainset, hparams, symbols_dict,
-                         stress_dict, tone_dict, speakers_dict, device, logger)
+  trn = SymbolsMelLoader(trainset, hparams, symbol_mapping,
+                         stress_mapping, tone_mapping, duration_mapping, speaker_mapping, device, logger)
 
   # https://discuss.pytorch.org/t/when-to-set-pin-memory-to-true/19723/7
   # https://developer.nvidia.com/blog/how-optimize-data-transfers-cuda-cc/

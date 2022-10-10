@@ -1,4 +1,4 @@
-from tacotron.tone_detection import split_phoneme_and_tone
+from tacotron.frontend.tone_detection import split_phoneme_and_tone
 
 
 def test_vowel_toned__returns_vowel_tone():

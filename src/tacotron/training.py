@@ -13,21 +13,20 @@ from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from tacotron.checkpoint_handling import (CheckpointDict, create, get_hparams, get_iteration,
-                                          get_model_state, get_optimizer_state, get_scheduler_state,
-                                          get_speaker_embedding_weights, get_speaker_mapping,
-                                          get_stress_mapping, get_symbol_embedding_weights,
-                                          get_symbol_mapping, get_tone_mapping)
-from tacotron.dataloader import (SymbolsMelCollate, create_speaker_mapping,
-                                 create_symbol_and_stress_mapping, create_symbol_and_tone_mapping,
-                                 create_symbol_mapping, create_symbol_stress_and_tone_mapping,
-                                 get_speaker_mappings_count, get_stress_mappings_count,
-                                 get_symbol_mappings_count, get_tone_mappings_count, parse_batch,
-                                 prepare_trainloader, prepare_valloader)
+from tacotron.checkpoint_handling import (CheckpointDict, create, get_duration_mapping, get_hparams,
+                                          get_iteration, get_model_state, get_optimizer_state,
+                                          get_scheduler_state, get_speaker_embedding_weights,
+                                          get_speaker_mapping, get_stress_mapping,
+                                          get_symbol_embedding_weights, get_symbol_mapping,
+                                          get_tone_mapping)
+from tacotron.dataloader import (SymbolsMelCollate, parse_batch, prepare_trainloader,
+                                 prepare_valloader)
+from tacotron.frontend.main import create_mappings, get_mappings_count
 from tacotron.hparams import ExperimentHParams, HParams, OptimizerHParams
 from tacotron.logger import Tacotron2Logger
 from tacotron.model import SPEAKER_EMBEDDING_LAYER_NAME, SYMBOL_EMBEDDING_LAYER_NAME, Tacotron2
-from tacotron.typing import Entries, SymbolToSymbolMapping
+from tacotron.typing import (DurationMapping, Entries, Mapping, SpeakerMapping, StressMapping,
+                             SymbolMapping, SymbolToSymbolMapping, ToneMapping)
 from tacotron.utils import (SaveIterationSettings, check_save_it, copy_state_dict,
                             get_continue_batch_iteration, get_continue_epoch, get_last_iteration,
                             get_next_save_it, get_symbol_printable, init_cuddn,
@@ -116,6 +115,35 @@ def log_symbol_weights(model: Tacotron2, logger: Logger) -> None:
   logger.info(str(model.state_dict()[SYMBOL_EMBEDDING_LAYER_NAME]))
 
 
+def get_mappings_from_checkpoint(checkpoint: CheckpointDict, hparams: HParams) -> Tuple[SymbolMapping, Optional[StressMapping], Optional[ToneMapping], Optional[DurationMapping], Optional[SpeakerMapping]]:
+
+  stress_mapping = None
+  if hparams.use_stress_embedding:
+    stress_mapping = get_stress_mapping(checkpoint)
+
+  tone_mapping = None
+  if hparams.use_tone_embedding:
+    tone_mapping = get_tone_mapping(checkpoint)
+
+  duration_mapping = None
+  if hparams.use_duration_embedding:
+    duration_mapping = get_duration_mapping(checkpoint)
+
+  symbol_mapping = get_symbol_mapping(checkpoint)
+
+  speaker_mapping = None
+  if hparams.use_speaker_embedding:
+    speaker_mapping = get_speaker_mapping(checkpoint)
+
+  return symbol_mapping, stress_mapping, tone_mapping, duration_mapping, speaker_mapping
+
+
+def try_get_mappings_count(mapping: Optional[Mapping]) -> int:
+  if mapping is None:
+    return None
+  return get_mappings_count(mapping)
+
+
 def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, trainset: Entries, valset: Entries, save_callback: Callable[[CheckpointDict], None], checkpoint: Optional[CheckpointDict], pretrained_model: Optional[CheckpointDict], warm_start: bool, map_symbol_weights: bool, custom_symbol_weights_map: Optional[SymbolToSymbolMapping], map_speaker_weights: bool, map_from_speaker_name: Optional[str], device: torch.device, logger: Logger, checkpoint_logger: Logger) -> bool:
   complete_start = time.time()
 
@@ -130,62 +158,16 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
   init_global_seeds(hparams.seed)
   init_torch(hparams)
 
-  n_stresses = None
-  n_tones = None
-  stress_mapping = None
-  tone_mapping = None
-  if hparams.use_stress_embedding and hparams.use_tone_embedding:
-    if not hparams.symbols_are_ipa:
-      logger.error("If use_tone_embedding is True symbols_are_ipa needs to be True, too!")
-      return False
-    if checkpoint is None:
-      symbol_mapping, stress_mapping, tone_mapping = create_symbol_stress_and_tone_mapping(
-          valset, trainset)
-    else:
-      symbol_mapping = get_symbol_mapping(checkpoint)
-      stress_mapping = get_stress_mapping(checkpoint)
-      tone_mapping = get_tone_mapping(checkpoint)
-    n_stresses = get_stress_mappings_count(stress_mapping)
-    n_tones = get_tone_mappings_count(tone_mapping)
-  elif hparams.use_stress_embedding:
-    if checkpoint is None:
-      symbol_mapping, stress_mapping = create_symbol_and_stress_mapping(
-          valset, trainset, hparams.symbols_are_ipa)
-    else:
-      symbol_mapping = get_symbol_mapping(checkpoint)
-      stress_mapping = get_stress_mapping(checkpoint)
-    n_stresses = get_stress_mappings_count(stress_mapping)
-  elif hparams.use_tone_embedding:
-    if not hparams.symbols_are_ipa:
-      logger.error("If use_tone_embedding is True symbols_are_ipa needs to be True, too!")
-      return False
-    if checkpoint is None:
-      symbol_mapping, tone_mapping = create_symbol_and_tone_mapping(
-          valset, trainset)
-    else:
-      symbol_mapping = get_symbol_mapping(checkpoint)
-      tone_mapping = get_tone_mapping(checkpoint)
-    n_tones = get_tone_mappings_count(tone_mapping)
+  if checkpoint is None:
+    symbol_mapping, stress_mapping, tone_mapping, duration_mapping, speaker_mapping = create_mappings(
+      valset, trainset, hparams, logger)
   else:
-    if checkpoint is None:
-      symbol_mapping = create_symbol_mapping(valset, trainset)
-    else:
-      symbol_mapping = get_symbol_mapping(checkpoint)
-
-  n_symbols = get_symbol_mappings_count(symbol_mapping)
-
-  n_speakers = None
-  speaker_mapping = None
-  if hparams.use_speaker_embedding:
-    if checkpoint is None:
-      speaker_mapping = create_speaker_mapping(valset, trainset)
-    else:
-      speaker_mapping = get_speaker_mapping(checkpoint)
-    n_speakers = get_speaker_mappings_count(speaker_mapping)
+    symbol_mapping, stress_mapping, tone_mapping, duration_mapping, speaker_mapping = get_mappings_from_checkpoint(
+      checkpoint, hparams)
 
   logger.info(
       f"Symbols: {' '.join(get_symbol_printable(symbol) for symbol in symbol_mapping.keys())} (#{len(symbol_mapping)}, dim: {hparams.symbols_embedding_dim})")
-      
+
   if hparams.use_stress_embedding:
     logger.info(
         f"Stresses: {' '.join(stress_mapping.keys())} (#{len(stress_mapping)})")
@@ -201,6 +183,12 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
   else:
     logger.info("Use no tone embedding.")
 
+  if hparams.use_duration_embedding:
+    logger.info(
+        f"Durations: {' '.join(duration_mapping.keys())} (#{len(duration_mapping)})")
+  else:
+    logger.info("Use no duration embedding.")
+
   if hparams.use_speaker_embedding:
     logger.info(
         f"Speakers: {', '.join(sorted(speaker_mapping.keys()))} (#{len(speaker_mapping)}, dim: {hparams.speakers_embedding_dim})")
@@ -210,10 +198,11 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
   model = load_model(
       hparams=hparams,
       checkpoint=checkpoint,
-      n_symbols=n_symbols,
-      n_stresses=n_stresses,
-      n_speakers=n_speakers,
-      n_tones=n_tones,
+      n_symbols=try_get_mappings_count(symbol_mapping),
+      n_stresses=try_get_mappings_count(stress_mapping),
+      n_speakers=try_get_mappings_count(speaker_mapping),
+      n_tones=try_get_mappings_count(tone_mapping),
+      n_durations=try_get_mappings_count(duration_mapping),
   )
 
   model = cast(Tacotron2, try_copy_to(model, device))
@@ -267,10 +256,14 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
             "Mapping symbol weights: Stress embedding dimensions do not match!")
         return False
 
-      pre_hparams = get_hparams(pretrained_model)
       if pre_hparams.tone_embedding_dim != hparams.tone_embedding_dim:
         logger.error(
             "Mapping symbol weights: Tone embedding dimensions do not match!")
+        return False
+
+      if pre_hparams.duration_embedding_dim != hparams.duration_embedding_dim:
+        logger.error(
+            "Mapping symbol weights: Duration embedding dimensions do not match!")
         return False
 
       pre_stress_mapping = get_stress_mapping(pretrained_model)
@@ -283,6 +276,12 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
       if pre_tone_mapping.keys() != tone_mapping.keys():
         logger.error(
             f"Mapping symbol weights: Tone mappings are not equal! '{' '.join(pre_tone_mapping.keys())}' vs. '{' '.join(tone_mapping.keys())}'")
+        return False
+
+      pre_duration_mapping = get_duration_mapping(pretrained_model)
+      if pre_duration_mapping.keys() != duration_mapping.keys():
+        logger.error(
+            f"Mapping symbol weights: Duration mappings are not equal! '{' '.join(pre_duration_mapping.keys())}' vs. '{' '.join(duration_mapping.keys())}'")
         return False
 
       pre_symbol_weights = get_symbol_embedding_weights(pretrained_model)
@@ -395,17 +394,12 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
 
   # log_symbol_weights(model, logger)
 
-  collate_fn = SymbolsMelCollate(
-    n_frames_per_step=hparams.n_frames_per_step,
-    use_stress=hparams.use_stress_embedding,
-    use_tones=hparams.use_tone_embedding,
-    use_speakers=hparams.use_speaker_embedding,
-  )
+  collate_fn = SymbolsMelCollate(hparams)
 
   val_loader = prepare_valloader(hparams, collate_fn, valset,
-                                 symbol_mapping, stress_mapping, tone_mapping, speaker_mapping, device, logger)
+                                 symbol_mapping, stress_mapping, tone_mapping, duration_mapping, speaker_mapping, device, logger)
   train_loader = prepare_trainloader(
-      hparams, collate_fn, trainset, symbol_mapping, stress_mapping, tone_mapping, speaker_mapping, device, logger)
+      hparams, collate_fn, trainset, symbol_mapping, stress_mapping, tone_mapping, duration_mapping, speaker_mapping, device, logger)
 
   batch_iterations = len(train_loader)
   enough_traindata = batch_iterations > 0
@@ -648,8 +642,8 @@ def set_lr(optimizer: Optimizer, lr: float) -> None:
     g['lr'] = lr
 
 
-def load_model(hparams: HParams, checkpoint: Optional[CheckpointDict], n_symbols: int, n_stresses: Optional[int], n_speakers: Optional[int], n_tones: Optional[int]) -> Tacotron2:
-  model = Tacotron2(hparams, n_symbols, n_stresses, n_speakers, n_tones)
+def load_model(hparams: HParams, checkpoint: Optional[CheckpointDict], n_symbols: int, n_stresses: Optional[int], n_speakers: Optional[int], n_tones: Optional[int], n_durations: Optional[int]) -> Tacotron2:
+  model = Tacotron2(hparams, n_symbols, n_stresses, n_speakers, n_tones, n_durations)
   if checkpoint is not None:
     model_state = get_model_state(checkpoint)
     model.load_state_dict(model_state)

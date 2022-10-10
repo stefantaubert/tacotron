@@ -21,7 +21,7 @@ from torch import IntTensor, Tensor, nn
 from torch.nn import Module
 
 from tacotron.globals import SPACE_DISPLAYABLE
-from tacotron.typing import Symbol
+from tacotron.typing import Stress, Symbol, Tone
 
 _T = TypeVar('_T')
 PYTORCH_EXT = ".pt"

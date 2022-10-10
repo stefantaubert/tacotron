@@ -10,7 +10,8 @@ from torch.optim.lr_scheduler import ExponentialLR
 
 from tacotron.hparams import HParams
 from tacotron.model import SPEAKER_EMBEDDING_LAYER_NAME, SYMBOL_EMBEDDING_LAYER_NAME, Tacotron2
-from tacotron.typing import SpeakerMapping, StressMapping, SymbolMapping, ToneMapping
+from tacotron.typing import (DurationMapping, SpeakerMapping, StressMapping, SymbolMapping,
+                             ToneMapping)
 from tacotron.utils import get_dataclass_from_dict
 
 CheckpointDict = OrderedDictType[str, Any]
@@ -30,6 +31,8 @@ KEY_SPEAKER_MAPPING = "speaker_mapping"
 KEY_STRESS_MAPPING = "stress_mapping"
 # optional
 KEY_TONE_MAPPING = "tone_mapping"
+# optional
+KEY_DURATION_MAPPING = "duration_mapping"
 
 
 def create(model: Tacotron2, optimizer: Adam, hparams: HParams, iteration: int, learning_rate: float, scheduler: Optional[ExponentialLR], symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], tone_mapping: Optional[ToneMapping], speaker_mapping: Optional[SpeakerMapping]) -> CheckpointDict:
@@ -99,6 +102,10 @@ def has_tone_mapping(checkpoint: CheckpointDict) -> bool:
   return KEY_TONE_MAPPING in checkpoint
 
 
+def has_duration_mapping(checkpoint: CheckpointDict) -> bool:
+  return KEY_DURATION_MAPPING in checkpoint
+
+
 def get_stress_mapping(checkpoint: CheckpointDict) -> StressMapping:
   assert has_stress_mapping(checkpoint)
   result = checkpoint[KEY_STRESS_MAPPING]
@@ -108,6 +115,12 @@ def get_stress_mapping(checkpoint: CheckpointDict) -> StressMapping:
 def get_tone_mapping(checkpoint: CheckpointDict) -> ToneMapping:
   assert has_tone_mapping(checkpoint)
   result = checkpoint[KEY_TONE_MAPPING]
+  return result
+
+
+def get_duration_mapping(checkpoint: CheckpointDict) -> DurationMapping:
+  assert has_duration_mapping(checkpoint)
+  result = checkpoint[KEY_DURATION_MAPPING]
   return result
 
 

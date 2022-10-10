@@ -562,11 +562,11 @@ class Decoder(nn.Module):
 
 
 ForwardXIn = Tuple[IntTensor, IntTensor, FloatTensor,
-                   IntTensor, Optional[IntTensor], Optional[LongTensor], Optional[LongTensor]]
+                   IntTensor, Optional[IntTensor], Optional[LongTensor], Optional[LongTensor], Optional[LongTensor]]
 
 
 class Tacotron2(nn.Module):
-  def __init__(self, hparams: HParams, n_symbols: int, n_stresses: Optional[int], n_speakers: Optional[int], n_tones: Optional[int]):
+  def __init__(self, hparams: HParams, n_symbols: int, n_stresses: Optional[int], n_speakers: Optional[int], n_tones: Optional[int], n_durations: Optional[int]):
     super().__init__()
     self.use_speaker_embedding = hparams.use_speaker_embedding
     self.use_stress_embedding = hparams.use_stress_embedding

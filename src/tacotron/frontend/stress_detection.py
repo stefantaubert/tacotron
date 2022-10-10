@@ -1,16 +1,16 @@
 from enum import IntEnum
 from typing import Tuple
 
-from tacotron.arpa_symbols import STRESS_NONE as ARPA_STRESS_NONE
-from tacotron.arpa_symbols import STRESS_PRIMARY as ARPA_STRESS_PRIMARY
-from tacotron.arpa_symbols import STRESS_SECONDARY as ARPA_STRESS_SECONDARY
-from tacotron.arpa_symbols import VOWELS as ARPA_VOWELS
-from tacotron.arpa_symbols import \
+from tacotron.frontend.arpa_symbols import STRESS_NONE as ARPA_STRESS_NONE
+from tacotron.frontend.arpa_symbols import STRESS_PRIMARY as ARPA_STRESS_PRIMARY
+from tacotron.frontend.arpa_symbols import STRESS_SECONDARY as ARPA_STRESS_SECONDARY
+from tacotron.frontend.arpa_symbols import VOWELS as ARPA_VOWELS
+from tacotron.frontend.arpa_symbols import \
   VOWELS_WITH_NUMBERED_STRESSES as ARPA_VOWELS_WITH_NUMBERED_STRESSES
-from tacotron.ipa_symbols import APPENDIX, ENG_DIPHTHONGS, SCHWAS
-from tacotron.ipa_symbols import STRESS_PRIMARY as IPA_STRESS_PRIMARY
-from tacotron.ipa_symbols import STRESS_SECONDARY as IPA_STRESS_SECONDARY
-from tacotron.ipa_symbols import VOWELS as IPA_VOWELS
+from tacotron.frontend.ipa_symbols import APPENDIX, ENG_DIPHTHONGS, SCHWAS
+from tacotron.frontend.ipa_symbols import STRESS_PRIMARY as IPA_STRESS_PRIMARY
+from tacotron.frontend.ipa_symbols import STRESS_SECONDARY as IPA_STRESS_SECONDARY
+from tacotron.frontend.ipa_symbols import VOWELS as IPA_VOWELS
 from tacotron.typing import Symbol
 
 
@@ -39,6 +39,14 @@ IPA_STRESSABLE = {
 }
 
 IPA_APPENDIX = "".join(APPENDIX)
+
+
+def split_stress_ipa_arpa(symbol: Symbol, is_ipa: bool) -> Tuple[Symbol, StressType]:
+  method = split_stress_arpa
+  if is_ipa:
+    method = split_stress_ipa
+  new_symbol, stress_type = method(symbol)
+  return new_symbol, stress_type
 
 
 def split_stress_arpa(symbol: Symbol) -> Tuple[Symbol, StressType]:
