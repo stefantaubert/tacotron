@@ -165,7 +165,7 @@ def synthesize_ns(ns: Namespace) -> bool:
                          for _ in paragraph.keys())
   count_utterances_zfill = len(str(count_utterances))
   utterance_nr = 1
-  unknown_symbols = set()
+  unmapable_symbols = set()
   with tqdm(total=len(line_nrs_to_infer), unit=" lines", ncols=100, desc="Inference") as progress_bar:
     for paragraph_nr, utterances in paragraphs.items():
       if ns.paragraph_directories:
@@ -245,7 +245,7 @@ def synthesize_ns(ns: Namespace) -> bool:
         paragraph_folder.mkdir(parents=True, exist_ok=True)
         np.save(utterance_mel_path, inf_sent_output.mel_outputs_postnet)
 
-        unknown_symbols |= inf_sent_output.unknown_symbols
+        unmapable_symbols |= inf_sent_output.unmapable_symbols
 
         if ns.include_stats:
           log_lines = []
@@ -256,11 +256,13 @@ def synthesize_ns(ns: Namespace) -> bool:
               f"Inference duration: {inf_sent_output.inference_duration_s}")
           log_lines.append(
               f"Sampling rate: {inf_sent_output.sampling_rate}")
-          if len(unknown_symbols) > 0:
+          if len(inf_sent_output.unmapable_symbols) > 0:
             log_lines.append(
-                f"Unknown symbols: {' '.join(inf_sent_output.unknown_symbols)}")
+                f"Unknown symbols: {' '.join(sorted(inf_sent_output.unmapable_symbols))}")
           else:
-            log_lines.append("No unknown symbols.")
+            log_lines.append("All symbols were known.")
+
+          # TODO unmapable tones etc logging
 
           logger.debug(f"Saving {log_out}...")
           log_out.write_text("\n".join(log_lines), encoding="UTF-8")
@@ -291,8 +293,8 @@ def synthesize_ns(ns: Namespace) -> bool:
         progress_bar.update()
         utterance_nr += 1
 
-  if len(unknown_symbols) > 0:
+  if len(unmapable_symbols) > 0:
     logger.warning(
-        f"Unknown symbols: {' '.join(sorted(unknown_symbols))} (#{len(unknown_symbols)})")
-  logger.info(f"Done. Written output to: {output_directory.absolute()}")
+        f"Unknown symbols: {' '.join(sorted(unmapable_symbols))} (#{len(unmapable_symbols)})")
+  logger.info(f"Done. Written output to: '{output_directory.absolute()}'")
   return True

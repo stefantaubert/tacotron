@@ -9,7 +9,7 @@ from logging import Logger, getLogger
 from math import floor, sqrt
 from multiprocessing import cpu_count
 from pathlib import Path
-from typing import Dict, Generator, Iterable, List, Optional, Set, Tuple, Type, TypeVar, Union
+from typing import Any, Dict, Generator, Iterable, List, Optional, Set, Tuple, Type, TypeVar, Union
 
 import matplotlib.ticker as ticker
 import numpy as np
@@ -37,6 +37,18 @@ formatter = logging.Formatter(
     '[%(asctime)s.%(msecs)03d] (%(levelname)s) %(message)s',
     datefmt='%Y/%m/%d %H:%M:%S'
 )
+
+
+def get_items_by_index(it: Iterable[Any], indices: Set[Any]) -> Generator[Any, None, None]:
+  for i, item in enumerate(it):
+    if i not in indices:
+      yield item
+
+
+def find_indices(it: Iterable[Any], find: Set[Any]) -> Generator[int, None, None]:
+  for i, item in enumerate(it):
+    if item in find:
+      yield i
 
 
 def cut_string(s: str, cut: Set[str]) -> Tuple[str, str]:

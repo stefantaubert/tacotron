@@ -11,15 +11,13 @@ from tacotron.audio_utils import mel_to_numpy
 from tacotron.checkpoint_handling import (CheckpointDict, get_duration_mapping, get_hparams,
                                           get_speaker_mapping, get_stress_mapping,
                                           get_symbol_mapping, get_tone_mapping)
-from tacotron.dataloader import (get_speaker_mappings_count, get_stress_mappings_count,
-                                 get_symbol_mappings_count, get_tone_mappings_count, split_stresses,
-                                 split_tones)
-from tacotron.frontend.main import get_mappings_count
+from tacotron.frontend.main import get_map_keys, get_mapped_indices, get_mappings_count
 from tacotron.globals import NOT_INFERABLE_SYMBOL_MARKER
 from tacotron.model import Tacotron2
 from tacotron.training import load_model, try_get_mappings_count
-from tacotron.typing import Speaker, Symbol, SymbolMapping, Symbols
-from tacotron.utils import console_out_len, init_global_seeds, overwrite_custom_hparams, try_copy_to
+from tacotron.typing import Duration, Speaker, Stress, Symbol, SymbolMapping, Symbols, Tone
+from tacotron.utils import (console_out_len, find_indices, get_items_by_index, init_global_seeds,
+                            overwrite_custom_hparams, try_copy_to)
 
 
 @dataclass
@@ -31,7 +29,10 @@ class InferenceResult():
   mel_outputs: Optional[np.ndarray]
   gate_outputs: Optional[np.ndarray]
   alignments: Optional[np.ndarray]
-  unknown_symbols: Set[Symbol]
+  unmapable_symbols: Set[Symbol]
+  unmapable_stresses: Optional[Set[Stress]]
+  unmapable_tones: Optional[Set[Tone]]
+  unmapable_durations: Optional[Set[Duration]]
 
 
 def get_symbols_noninferable_marked(symbols: Iterable[Symbol], symbol_mapping: SymbolMapping) -> Generator[Symbol, None, None]:
@@ -92,140 +93,101 @@ class Synthesizer():
     return self.hparams.sampling_rate
 
   def infer(self, symbols: Symbols, speaker: Speaker, max_decoder_steps: int, seed: int, include_stats: bool) -> InferenceResult:
-    marker = NOT_INFERABLE_SYMBOL_MARKER
+    core_symbols, stresses, tones, durations = get_map_keys(symbols, self.hparams)
 
-    if self.hparams.use_stress_embedding and self.hparams.use_tone_embedding:
-      symbols, stresses = split_stresses(
-          symbols, self.hparams.symbols_are_ipa)
-      symbols, tones = split_tones(symbols)
+    speaker_id = None
+    if self.hparams.use_speaker_embedding:
+      speaker_id = self.speaker_mapping.get(speaker)
 
-      mappable_entries = tuple(
-          symbol in self.symbol_mapping and
-          stress in self.stress_mapping and
-          tone in self.tone_mapping
-          for symbol, stress, tone in zip(symbols, stresses, tones)
-      )
+    unmapable = set()
+    indices = set(range(len(symbols)))
 
-      mapped_symbols = (
-          self.symbol_mapping[symbol]
-          for symbol, is_mappable in zip(symbols, mappable_entries)
-          if is_mappable
-      )
+    stress_ids = None
+    unmapable_stresses = None
+    if self.hparams.use_stress_embedding:
+      assert stresses is not None
+      stress_ids = list(get_mapped_indices(stresses, self.stress_mapping))
+      unmapable_indices = set(find_indices(stress_ids, {None}))
+      if len(unmapable_indices) > 0:
+        unmapable_stresses = set(get_items_by_index(stresses, unmapable_indices))
+        self._logger.warn(f"Unknown stress(es): {' '.join(sorted(unmapable_stresses))}")
+        unmapable |= unmapable_indices
 
-      mapped_stresses = (
-          self.stress_mapping[stress]
-          for stress, is_mappable in zip(stresses, mappable_entries)
-          if is_mappable
-      )
+    tone_ids = None
+    unmapable_tones = None
+    if self.hparams.use_tone_embedding:
+      assert tones is not None
+      tone_ids = list(get_mapped_indices(tones, self.tone_mapping))
+      unmapable_indices = set(find_indices(tone_ids, {None}))
+      if len(unmapable_indices) > 0:
+        unmapable_tones = set(get_items_by_index(tones, unmapable_indices))
+        self._logger.warn(f"Unknown tone(s): {' '.join(sorted(unmapable_tones))}")
+        unmapable |= unmapable_indices
 
-      mapped_tones = (
-          self.tone_mapping[tone]
-          for tone, is_mappable in zip(tones, mappable_entries)
-          if is_mappable
-      )
+    duration_ids = None
+    unmapable_durations = None
+    if self.hparams.use_duration_embedding:
+      assert durations is not None
+      duration_ids = list(get_mapped_indices(durations, self.duration_mapping))
+      unmapable_indices = set(find_indices(duration_ids, {None}))
+      if len(unmapable_indices) > 0:
+        unmapable_durations = set(get_items_by_index(durations, unmapable_indices))
+        self._logger.warn(f"Unknown duration(s): {' '.join(sorted(unmapable_durations))}")
+        unmapable |= unmapable_indices
 
-      print_text = ' '.join(
-          f"{symbol};{stress};{tone}" if is_mappable
-          else marker * (console_out_len(symbol) + console_out_len(stress) + console_out_len(tone))
-          for symbol, stress, tone, is_mappable in zip(symbols, stresses, tones, mappable_entries)
-      )
-    elif self.hparams.use_stress_embedding:
+    symbol_ids = list(get_mapped_indices(core_symbols, self.symbol_mapping))
+    unmapable_indices = set(find_indices(symbol_ids, {None}))
+    unmapable_symbols = None
+    if len(unmapable_indices) > 0:
+      unmapable_symbols = set(get_items_by_index(core_symbols, unmapable_indices))
+      self._logger.warn(f"Unknown symbol(s): {' '.join(sorted(unmapable_symbols))}")
+      unmapable |= unmapable_indices
 
-      symbols, stresses = split_stresses(
-          symbols, self.hparams.symbols_are_ipa)
+    mapable = indices - unmapable
 
-      mappable_entries = tuple(
-          symbol in self.symbol_mapping and stress in self.stress_mapping
-          for symbol, stress in zip(symbols, stresses)
-      )
-
-      mapped_symbols = (
-          self.symbol_mapping[symbol]
-          for symbol, is_mappable in zip(symbols, mappable_entries)
-          if is_mappable
-      )
-
-      mapped_stresses = (
-          self.stress_mapping[stress]
-          for stress, is_mappable in zip(stresses, mappable_entries)
-          if is_mappable
-      )
-
-      print_text = ' '.join(
-          f"{symbol};{stress}" if is_mappable
-          else marker * (console_out_len(symbol) + console_out_len(stress))
-          for symbol, stress, is_mappable in zip(symbols, stresses, mappable_entries)
-      )
-    elif self.hparams.use_tone_embedding:
-      symbols, tones = split_tones(symbols)
-
-      mappable_entries = tuple(
-          symbol in self.symbol_mapping and tone in self.tone_mapping
-          for symbol, tone in zip(symbols, tones)
-      )
-
-      mapped_symbols = (
-          self.symbol_mapping[symbol]
-          for symbol, is_mappable in zip(symbols, mappable_entries)
-          if is_mappable
-      )
-
-      mapped_tones = (
-          self.tone_mapping[tone]
-          for tone, is_mappable in zip(tones, mappable_entries)
-          if is_mappable
-      )
-
-      print_text = ' '.join(
-          f"{symbol};{tone}" if is_mappable
-          else marker * (console_out_len(symbol) + console_out_len(tone))
-          for symbol, tone, is_mappable in zip(symbols, tones, mappable_entries)
-      )
-    else:
-      mapped_symbols = (
-          self.symbol_mapping[symbol]
-          for symbol in symbols
-          if symbol in self.symbol_mapping
-      )
-
-      print_text = ' '.join(
-          f"{symbol}" if symbol in self.symbol_mapping
-          else marker * console_out_len(symbol)
-          for symbol in symbols
-      )
-
-    self._logger.info(print_text)
-
-    non_mappable_symbols = set(
-        symbol for symbol in symbols if symbol not in self.symbol_mapping)
-    if len(non_mappable_symbols) > 0:
-      self._logger.warn(
-          f"Unknown symbols: {' '.join(sorted(non_mappable_symbols))}")
+    print_text_parts = []
+    for i, orig_symbol in enumerate(symbols):
+      is_mappable = i in mapable
+      tmp = orig_symbol
+      parts = []
+      if self.hparams.use_stress_embedding:
+        parts.append(stresses[i])
+      if self.hparams.use_tone_embedding:
+        parts.append(tones[i])
+      if self.hparams.use_duration_embedding:
+        parts.append(durations[i])
+      if len(parts) > 0:
+        tmp += f"({';'.join(parts)})"
+      if is_mappable:
+        tmp = f"[{tmp}]"
+      print_text_parts.append(tmp)
+    self._logger.info(' '.join(print_text_parts))
 
     init_global_seeds(seed)
 
-    symbol_tensor = IntTensor([list(mapped_symbols)])
+    symbol_tensor = IntTensor([list(get_items_by_index(symbol_ids, mapable))])
     symbol_tensor = try_copy_to(symbol_tensor, self.device)
 
     stress_tensor = None
     if self.hparams.use_stress_embedding:
-      stress_tensor = LongTensor([list(mapped_stresses)])
+      stress_tensor = LongTensor([list(get_items_by_index(stress_ids, mapable))])
       stress_tensor = try_copy_to(stress_tensor, self.device)
 
     tone_tensor = None
     if self.hparams.use_tone_embedding:
-      tone_tensor = LongTensor([list(mapped_tones)])
+      tone_tensor = LongTensor([list(get_items_by_index(tone_ids, mapable))])
       tone_tensor = try_copy_to(tone_tensor, self.device)
+
+    duration_tensor = None
+    if self.hparams.use_duration_embedding:
+      duration_tensor = LongTensor([list(get_items_by_index(duration_ids, mapable))])
+      duration_tensor = try_copy_to(duration_tensor, self.device)
 
     speaker_tensor = None
     if self.hparams.use_speaker_embedding:
-      assert speaker is not None
-      assert speaker in self.speaker_mapping
-      mapped_speaker = self.speaker_mapping[speaker]
-
       speaker_tensor = IntTensor(
           symbol_tensor.size(0), symbol_tensor.size(1))
-      torch.nn.init.constant_(speaker_tensor, mapped_speaker)
+      torch.nn.init.constant_(speaker_tensor, speaker_id)
       speaker_tensor = try_copy_to(speaker_tensor, self.device)
 
     start = time.perf_counter()
@@ -233,9 +195,10 @@ class Synthesizer():
     with torch.no_grad():
       mel_outputs, mel_outputs_postnet, gate_outputs, alignments, reached_max_decoder_steps = self.model.inference(
           symbols=symbol_tensor,
-          speakers=speaker_tensor,
           stresses=stress_tensor,
           tones=tone_tensor,
+          durations=duration_tensor,
+          speakers=speaker_tensor,
           max_decoder_steps=max_decoder_steps,
       )
 
@@ -250,7 +213,10 @@ class Synthesizer():
         mel_outputs=None,
         gate_outputs=None,
         alignments=None,
-        unknown_symbols=non_mappable_symbols,
+        unmapable_symbols=unmapable_symbols,
+        unmapable_tones=unmapable_tones,
+        unmapable_durations=unmapable_durations,
+        unmapable_stresses=unmapable_stresses,
     )
 
     if include_stats:

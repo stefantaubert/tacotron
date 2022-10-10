@@ -11,7 +11,7 @@ from torch import FloatTensor, IntTensor, LongTensor, Tensor  # pylint: disable=
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
-from tacotron.frontend.main import get_mapped_indices
+from tacotron.frontend.main import get_mapped_indices, get_map_keys
 from tacotron.hparams import HParams
 from tacotron.model import ForwardXIn
 from tacotron.taco_stft import TacotronSTFT
@@ -42,24 +42,34 @@ class SymbolsMelLoader(Dataset):
 
     entry: Entry
     for i, entry in enumerate(tqdm(data, desc="Reading files", unit=" file(s)")):
-      symbol_ids, stress_ids, tone_ids, duration_ids, speaker_id = get_mapped_indices(
-        entry.symbols, entry.speaker_name, symbol_mapping, stress_mapping, tone_mapping, duration_mapping, speaker_mapping, hparams)
+      symbols, stresses, tones, durations = get_map_keys(entry.symbols, hparams)
+
+      if hparams.use_speaker_embedding:
+        speaker_id = speaker_mapping.get(entry.speaker_name)
 
       stress_tensor = None
       if hparams.use_stress_embedding:
-        assert stress_ids is not None
+        assert stresses is not None
+        stress_ids = list(get_mapped_indices(stresses, stress_mapping))
+        assert None not in stress_ids
         stress_tensor = IntTensor(stress_ids)
 
       tone_tensor = None
       if hparams.use_tone_embedding:
-        assert tone_ids is not None
+        assert tones is not None
+        tone_ids = list(get_mapped_indices(tones, tone_mapping))
+        assert None not in tone_ids
         tone_tensor = IntTensor(tone_ids)
 
       duration_tensor = None
       if hparams.use_duration_embedding:
-        assert duration_ids is not None
+        assert durations is not None
+        duration_ids = list(get_mapped_indices(durations, duration_mapping))
+        assert None not in duration_ids
         duration_tensor = IntTensor(duration_ids)
 
+      symbol_ids = list(get_mapped_indices(symbols, duration_mapping))
+      assert None not in symbol_ids
       symbols_tensor = IntTensor(symbol_ids)
 
       if hparams.use_saved_mels:

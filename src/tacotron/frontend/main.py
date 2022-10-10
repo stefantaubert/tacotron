@@ -17,9 +17,10 @@ from tacotron.frontend.stress_detection import (StressType, split_stress_arpa, s
 from tacotron.hparams import HParams
 from tacotron.model import ForwardXIn
 from tacotron.taco_stft import TacotronSTFT
-from tacotron.typing import (Duration, DurationMapping, Entries, Entry, Mapping, MappingId, Speaker,
-                             SpeakerId, SpeakerMapping, Stress, Stresses, StressMapping, Symbol,
-                             SymbolMapping, Symbols, Tone, ToneMapping, Tones)
+from tacotron.typing import (Duration, DurationMapping, Durations, Entries, Entry, Mapping,
+                             MappingId, Speaker, SpeakerId, SpeakerMapping, Stress, Stresses,
+                             StressMapping, Symbol, SymbolMapping, Symbols, Tone, ToneMapping,
+                             Tones)
 from tacotron.utils import cut_string
 
 PADDING_SHIFT = 1
@@ -37,37 +38,31 @@ def get_mappings_count(mapping: Mapping) -> int:
   return len(mapping) + PADDING_SHIFT
 
 
-def get_mapped_indices(symbols: Symbols, speaker: Speaker, symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], tone_mapping: Optional[ToneMapping], duration_mapping: Optional[DurationMapping], speaker_mapping: Optional[SpeakerMapping], hparams: HParams) -> Tuple[List[MappingId], Optional[List[MappingId]], Optional[List[MappingId]], Optional[List[MappingId]], Optional[MappingId]]:
-  stress_ids = None
+def get_mapped_indices(it: Iterable[str], mapping: Mapping) -> Generator[Optional[MappingId], None, None]:
+  result = (mapping.get(entry, None) for entry in it)
+  return result
+
+
+def get_map_keys(symbols: Symbols, hparams: HParams) -> Tuple[Symbols, Optional[Stresses], Optional[Tones], Optional[Durations]]:
+  # Order: stresses -> tones -> durations
+  stresses = None
   if hparams.use_stress_embedding:
-    assert stress_mapping is not None
     symbols, stresses = split_stresses(
         symbols, hparams.symbols_are_ipa)
-    stress_ids = [stress_mapping[stress] for stress in stresses]
 
-  tone_ids = None
+  tones = None
   if hparams.use_tone_embedding:
-    assert tone_mapping is not None
     symbols, tones = split_tones(symbols)
-    tone_ids = [tone_mapping[tone] for tone in tones]
 
-  duration_ids = None
+  durations = None
   if hparams.use_duration_embedding:
-    assert duration_mapping is not None
     symbols, durations = split_durations(symbols)
-    duration_ids = [duration_mapping[duration] for duration in durations]
 
-  symbol_ids = [symbol_mapping[symbol] for symbol in symbols]
-
-  speaker_id = None
-  if hparams.use_speaker_embedding:
-    assert speaker_mapping is not None
-    speaker_id = speaker_mapping[speaker]
-
-  return symbol_ids, stress_ids, tone_ids, duration_ids, speaker_id
+  return symbols, stresses, tones, durations
 
 
 def create_mappings(valset: Entries, trainset: Entries, hparams: HParams, logger: Logger) -> Tuple[SymbolMapping, Optional[StressMapping], Optional[ToneMapping], Optional[DurationMapping], Optional[SpeakerMapping]]:
+  # Order: stresses -> tones -> durations
   unique_symbols = set(get_symbols_iterator(valset, trainset))
 
   stress_mapping = None
