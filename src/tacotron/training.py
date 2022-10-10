@@ -4,7 +4,7 @@ from typing import Callable, Dict, List, Optional, Tuple, cast
 
 import numpy as np
 import torch
-from torch import FloatTensor, nn
+from torch import FloatTensor, nn  # pylint: disable=no-name-in-module
 from torch.backends import cudnn
 from torch.nn.utils.clip_grad import clip_grad_norm_
 from torch.optim.adam import Adam
@@ -198,11 +198,11 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
   model = load_model(
       hparams=hparams,
       checkpoint=checkpoint,
-      n_symbols=try_get_mappings_count(symbol_mapping),
+      n_symbols=get_mappings_count(symbol_mapping),
       n_stresses=try_get_mappings_count(stress_mapping),
-      n_speakers=try_get_mappings_count(speaker_mapping),
       n_tones=try_get_mappings_count(tone_mapping),
       n_durations=try_get_mappings_count(duration_mapping),
+      n_speakers=try_get_mappings_count(speaker_mapping),
   )
 
   model = cast(Tacotron2, try_copy_to(model, device))

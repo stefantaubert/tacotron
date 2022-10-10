@@ -217,7 +217,7 @@ class Encoder(nn.Module):
     - Bidirectional LSTM
   """
 
-  def __init__(self, hparams: HParams, stress_embedding_dim: Optional[int], tone_embedding_dim: Optional[int]):
+  def __init__(self, hparams: HParams, stress_embedding_dim: Optional[int], tone_embedding_dim: Optional[int], duration_embedding_dim: Optional[int]):
     super().__init__()
 
     encoder_embedding_dim = hparams.symbols_embedding_dim
@@ -227,6 +227,9 @@ class Encoder(nn.Module):
 
     if hparams.use_tone_embedding:
       encoder_embedding_dim += tone_embedding_dim
+
+    if hparams.use_duration_embedding:
+      encoder_embedding_dim += duration_embedding_dim
 
     convolutions = []
     for _ in range(hparams.encoder_n_convolutions):
@@ -284,7 +287,7 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-  def __init__(self, hparams: HParams, stress_embedding_dim: Optional[int], tone_embedding_dim: Optional[int]):
+  def __init__(self, hparams: HParams, stress_embedding_dim: Optional[int], tone_embedding_dim: Optional[int], duration_embedding_dim: Optional[int]):
     super().__init__()
     self.n_mel_channels = hparams.n_mel_channels
     self.n_frames_per_step = hparams.n_frames_per_step
@@ -303,6 +306,9 @@ class Decoder(nn.Module):
 
     if hparams.use_tone_embedding:
       encoder_embedding_dim += tone_embedding_dim
+
+    if hparams.use_duration_embedding:
+      encoder_embedding_dim += duration_embedding_dim
 
     lstm_hidden_size = ceil(encoder_embedding_dim / 2)
     lstm_out_dim = lstm_hidden_size * 2
@@ -571,6 +577,7 @@ class Tacotron2(nn.Module):
     self.use_speaker_embedding = hparams.use_speaker_embedding
     self.use_stress_embedding = hparams.use_stress_embedding
     self.use_tone_embedding = hparams.use_tone_embedding
+    self.use_duration_embedding = hparams.use_duration_embedding
 
     self.mask_padding = hparams.mask_padding
     self.n_mel_channels = hparams.n_mel_channels
@@ -581,7 +588,7 @@ class Tacotron2(nn.Module):
     # rename will destroy all previous trained models
     self.symbol_embeddings = weights_to_embedding(symbol_emb_weights)
 
-    if self.use_speaker_embedding:
+    if hparams.use_speaker_embedding:
       assert n_speakers is not None
       speaker_emb_weights = get_xavier_weights(
           n_speakers, hparams.speakers_embedding_dim)
@@ -589,21 +596,28 @@ class Tacotron2(nn.Module):
           speaker_emb_weights)
 
     self.stress_embedding_dim = None
-    if self.use_stress_embedding:
+    if hparams.use_stress_embedding:
       assert n_stresses is not None
       self.stress_embedding_dim = n_stresses
 
     self.tone_embedding_dim = None
-    if self.use_tone_embedding:
+    if hparams.use_tone_embedding:
       assert n_tones is not None
       self.tone_embedding_dim = n_tones
 
-    self.encoder = Encoder(hparams, self.stress_embedding_dim, self.tone_embedding_dim)
-    self.decoder = Decoder(hparams, self.stress_embedding_dim, self.tone_embedding_dim)
+    self.duration_embedding_dim = None
+    if hparams.use_duration_embedding:
+      assert n_durations is not None
+      self.duration_embedding_dim = n_durations
+
+    self.encoder = Encoder(hparams, hparams.stress_embedding_dim,
+                           hparams.tone_embedding_dim, hparams.duration_embedding_dim)
+    self.decoder = Decoder(hparams, hparams.stress_embedding_dim,
+                           hparams.tone_embedding_dim, hparams.duration_embedding_dim)
     self.postnet = Postnet(hparams)
 
   def forward(self, inputs: ForwardXIn) -> Tuple[FloatTensor, FloatTensor, FloatTensor, FloatTensor]:
-    symbols, symbol_lengths, mels, output_lengths, speakers, stresses, tones = inputs
+    symbols, symbol_lengths, mels, output_lengths, speakers, stresses, tones, durations = inputs
     symbol_lengths, output_lengths = symbol_lengths.data, output_lengths.data
 
     # symbol_inputs: [70, 174] -> [batch_size, maximum count of symbols]
@@ -631,6 +645,16 @@ class Tacotron2(nn.Module):
       assert not tones_one_hot_tensor.requires_grad
       embedded_inputs = torch.cat(
           (embedded_inputs, tones_one_hot_tensor), -1)
+
+    if self.use_duration_embedding:
+      assert durations is not None
+      # Note: num_classes need to be defined because otherwise the dimension is not always the same since not all batches contain all durations
+      durations_one_hot_tensor: LongTensor = F.one_hot(
+          durations, num_classes=self.duration_embedding_dim)
+      durations_one_hot_tensor = durations_one_hot_tensor.type(torch.float32)
+      assert not durations_one_hot_tensor.requires_grad
+      embedded_inputs = torch.cat(
+          (embedded_inputs, durations_one_hot_tensor), -1)
 
     # swap last two dims
     embedded_inputs = embedded_inputs.transpose(1, 2)
@@ -670,7 +694,7 @@ class Tacotron2(nn.Module):
 
     return mel_outputs, mel_outputs_postnet, gate_outputs, alignments
 
-  def inference(self, symbols: IntTensor, stresses: Optional[LongTensor], tones: Optional[LongTensor], speakers: Optional[IntTensor], max_decoder_steps: int) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+  def inference(self, symbols: IntTensor, stresses: Optional[LongTensor], tones: Optional[LongTensor], durations: Optional[LongTensor], speakers: Optional[IntTensor], max_decoder_steps: int) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
     embedded_inputs: FloatTensor = self.symbol_embeddings(input=symbols)
     assert embedded_inputs.dtype == torch.float32
 
@@ -698,6 +722,15 @@ class Tacotron2(nn.Module):
       tone_embeddings = tone_embeddings.type(torch.float32)
       embedded_inputs = torch.cat(
           (embedded_inputs, tone_embeddings), -1)
+
+    if self.use_duration_embedding:
+      assert durations is not None
+      # Note: num_classes need to be defined because otherwise the dimension is not always the same since not all batches contain all durations
+      duration_embeddings: LongTensor = F.one_hot(
+          durations, num_classes=self.duration_embedding_dim)
+      duration_embeddings = duration_embeddings.type(torch.float32)
+      embedded_inputs = torch.cat(
+          (embedded_inputs, duration_embeddings), -1)
 
     # swap last two dims
     embedded_inputs = embedded_inputs.transpose(1, 2)

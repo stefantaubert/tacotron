@@ -8,14 +8,16 @@ import torch
 from torch import IntTensor, LongTensor  # pylint: disable=no-name-in-module
 
 from tacotron.audio_utils import mel_to_numpy
-from tacotron.checkpoint_handling import (CheckpointDict, get_hparams, get_speaker_mapping,
-                                          get_stress_mapping, get_symbol_mapping, get_tone_mapping)
+from tacotron.checkpoint_handling import (CheckpointDict, get_duration_mapping, get_hparams,
+                                          get_speaker_mapping, get_stress_mapping,
+                                          get_symbol_mapping, get_tone_mapping)
 from tacotron.dataloader import (get_speaker_mappings_count, get_stress_mappings_count,
                                  get_symbol_mappings_count, get_tone_mappings_count, split_stresses,
                                  split_tones)
+from tacotron.frontend.main import get_mappings_count
 from tacotron.globals import NOT_INFERABLE_SYMBOL_MARKER
 from tacotron.model import Tacotron2
-from tacotron.training import load_model
+from tacotron.training import load_model, try_get_mappings_count
 from tacotron.typing import Speaker, Symbol, SymbolMapping, Symbols
 from tacotron.utils import console_out_len, init_global_seeds, overwrite_custom_hparams, try_copy_to
 
@@ -43,46 +45,47 @@ class Synthesizer():
   def __init__(self, checkpoint: CheckpointDict, custom_hparams: Optional[Dict[str, str]], device: torch.device, logger: logging.Logger):
     super().__init__()
     self._logger = logger
+    self.device = device
 
     hparams = get_hparams(checkpoint)
     hparams = overwrite_custom_hparams(hparams, custom_hparams)
+    self.hparams = hparams
 
-    self.symbol_mapping = get_symbol_mapping(checkpoint)
-    n_symbols = get_symbol_mappings_count(self.symbol_mapping)
+    symbol_mapping = get_symbol_mapping(checkpoint)
+    self.symbol_mapping = symbol_mapping
 
-    self.stress_mapping = None
-    n_stresses = None
+    stress_mapping = None
     if hparams.use_stress_embedding:
-      self.stress_mapping = get_stress_mapping(checkpoint)
-      n_stresses = get_stress_mappings_count(self.stress_mapping)
+      stress_mapping = get_stress_mapping(checkpoint)
+    self.stress_mapping = stress_mapping
 
-    self.tone_mapping = None
-    n_tones = None
+    tone_mapping = None
     if hparams.use_tone_embedding:
-      self.tone_mapping = get_tone_mapping(checkpoint)
-      n_tones = get_tone_mappings_count(self.tone_mapping)
+      tone_mapping = get_tone_mapping(checkpoint)
+    self.tone_mapping = tone_mapping
 
-    self.speaker_mapping = None
-    n_speakers = None
+    duration_mapping = None
+    if hparams.use_duration_embedding:
+      duration_mapping = get_duration_mapping(checkpoint)
+    self.duration_mapping = duration_mapping
+
+    speaker_mapping = None
     if hparams.use_speaker_embedding:
-      self.speaker_mapping = get_speaker_mapping(checkpoint)
-      n_speakers = get_speaker_mappings_count(self.speaker_mapping)
+      speaker_mapping = get_speaker_mapping(checkpoint)
+    self.speaker_mapping = speaker_mapping
 
     model = load_model(
         hparams=hparams,
         checkpoint=checkpoint,
-        n_speakers=n_speakers,
-        n_stresses=n_stresses,
-        n_symbols=n_symbols,
-        n_tones=n_tones,
+        n_symbols=get_mappings_count(symbol_mapping),
+        n_stresses=try_get_mappings_count(stress_mapping),
+        n_tones=try_get_mappings_count(tone_mapping),
+        n_durations=try_get_mappings_count(duration_mapping),
+        n_speakers=try_get_mappings_count(speaker_mapping),
     )
-
-    self.device = device
 
     model = cast(Tacotron2, try_copy_to(model, device))
     model = model.eval()
-
-    self.hparams = hparams
     self.model = model
 
   def get_sampling_rate(self) -> int:

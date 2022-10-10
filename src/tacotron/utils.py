@@ -17,7 +17,7 @@ import torch
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 from scipy.spatial.distance import cosine
-from torch import IntTensor, Tensor, nn
+from torch import IntTensor, Tensor, nn  # pylint: disable=no-name-in-module
 from torch.nn import Module
 
 from tacotron.globals import SPACE_DISPLAYABLE
