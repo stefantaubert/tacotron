@@ -595,25 +595,28 @@ class Tacotron2(nn.Module):
       self.speakers_embeddings = weights_to_embedding(
           speaker_emb_weights)
 
-    self.stress_embedding_dim = None
+    stress_embedding_dim = None
     if hparams.use_stress_embedding:
       assert n_stresses is not None
-      self.stress_embedding_dim = n_stresses
+      stress_embedding_dim = n_stresses
+    self.stress_embedding_dim = stress_embedding_dim
 
-    self.tone_embedding_dim = None
+    tone_embedding_dim = None
     if hparams.use_tone_embedding:
       assert n_tones is not None
-      self.tone_embedding_dim = n_tones
+      tone_embedding_dim = n_tones
+    self.tone_embedding_dim = tone_embedding_dim
 
-    self.duration_embedding_dim = None
+    duration_embedding_dim = None
     if hparams.use_duration_embedding:
       assert n_durations is not None
-      self.duration_embedding_dim = n_durations
+      duration_embedding_dim = n_durations
+    self.duration_embedding_dim = duration_embedding_dim
 
-    self.encoder = Encoder(hparams, hparams.stress_embedding_dim,
-                           hparams.tone_embedding_dim, hparams.duration_embedding_dim)
-    self.decoder = Decoder(hparams, hparams.stress_embedding_dim,
-                           hparams.tone_embedding_dim, hparams.duration_embedding_dim)
+    self.encoder = Encoder(hparams, stress_embedding_dim,
+                           tone_embedding_dim, duration_embedding_dim)
+    self.decoder = Decoder(hparams, stress_embedding_dim,
+                           tone_embedding_dim, duration_embedding_dim)
     self.postnet = Postnet(hparams)
 
   def forward(self, inputs: ForwardXIn) -> Tuple[FloatTensor, FloatTensor, FloatTensor, FloatTensor]:
