@@ -175,25 +175,25 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
       logger.error("Not all stress marks exist in the data!")
       return False
   else:
-    logger.info("Use no stress embedding.")
+    logger.info("Stresses: Use no stress embedding.")
 
   if hparams.use_tone_embedding:
     logger.info(
         f"Tones: {' '.join(tone_mapping.keys())} (#{len(tone_mapping)})")
   else:
-    logger.info("Use no tone embedding.")
+    logger.info("Tones: Use no tone embedding.")
 
   if hparams.use_duration_embedding:
     logger.info(
         f"Durations: {' '.join(duration_mapping.keys())} (#{len(duration_mapping)})")
   else:
-    logger.info("Use no duration embedding.")
+    logger.info("Durations: Use no duration embedding.")
 
   if hparams.use_speaker_embedding:
     logger.info(
         f"Speakers: {', '.join(sorted(speaker_mapping.keys()))} (#{len(speaker_mapping)}, dim: {hparams.speakers_embedding_dim})")
   else:
-    logger.info("Use no speaker embedding.")
+    logger.info("Speakers: Use no speaker embedding.")
 
   model = load_model(
       hparams=hparams,
@@ -241,7 +241,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
       if not success:
         return False
     else:
-      logger.info("Didn't used warm start.")
+      logger.info("Warm start: Didn't used warm start.")
 
     if map_symbol_weights:
       logger.info("Mapping symbol weights...")
@@ -345,7 +345,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
         logger.info(f"Mapped all {len(symbol_mapping)} symbols!")
       logger.info("Mapped symbol embeddings.")
     else:
-      logger.info("Didn't mapped symbol embeddings.")
+      logger.info("Map symbol embeddings: Didn't mapped symbol embeddings.")
 
     if map_speaker_weights:
       logger.info("Mapping speaker weights...")
@@ -390,7 +390,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
             f"Mapped '{map_from_speaker_name}' ({from_id}) to '{to_speaker}' ({to_id}).")
       logger.info("Mapped speaker embeddings.")
     else:
-      logger.info("Didn't mapped speaker embeddings.")
+      logger.info("Map speaker embeddings: Didn't mapped speaker embeddings.")
 
   # log_symbol_weights(model, logger)
 

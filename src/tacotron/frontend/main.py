@@ -25,12 +25,14 @@ from tacotron.utils import cut_string
 
 PADDING_SHIFT = 1
 
+NA_LABEL = "-" # "N/A"
+
 STRESS_LABELS: OrderedDictType[StressType, Stress] = OrderedDict((
     (StressType.UNSTRESSED, "0"),
     (StressType.PRIMARY, "1"),
     (StressType.SECONDARY, "2"),
     #(StressType.NOT_APPLICABLE, "N/A"),
-    (StressType.NOT_APPLICABLE, "-"),
+    (StressType.NOT_APPLICABLE, NA_LABEL),
 ))
 
 
@@ -96,12 +98,17 @@ def split_stress(symbol: Symbol, is_ipa: bool) -> Tuple[Symbol, Stress]:
 
 
 def split_tone(symbol: Symbol) -> Tuple[Symbol, Tone]:
-  return cut_string(symbol, TONE_MARKERS)
+  core_symb, tone = cut_string(symbol, TONE_MARKERS)
+  if tone == "":
+    tone = NA_LABEL
+  return core_symb, tone
 
 
 def split_duration(symbol: Symbol) -> Tuple[Symbol, Duration]:
-  return cut_string(symbol, DURATION_MARKERS)
-
+  core_symb, duration = cut_string(symbol, DURATION_MARKERS)
+  if duration == "":
+    duration = NA_LABEL
+  return core_symb, duration
 
 def split_stresses(symbols: Iterable[Symbol], is_ipa: bool) -> Tuple[Symbols, Stresses]:
   res_symbols = []

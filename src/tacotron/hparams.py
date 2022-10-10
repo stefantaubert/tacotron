@@ -32,10 +32,13 @@ class ModelHParams():
   use_speaker_embedding: bool = True
   speakers_embedding_dim: Optional[int] = 128  # 16
 
-  # TODO rename to: train_stress_separately: bool = True
+  # TODO rename to: train_stresses_separately: bool = True
   use_stress_embedding: bool = True
+  # TODO rename to: train_tones_separately: bool = True
   use_tone_embedding: bool = False
+  # TODO rename to: train_durations_separately: bool = True
   use_duration_embedding: bool = False
+  # TODO support embedding of stress
   # use_stress_one_hot: bool = True
   symbols_are_ipa: bool = True
 

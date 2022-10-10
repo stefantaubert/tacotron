@@ -68,7 +68,7 @@ class SymbolsMelLoader(Dataset):
         assert None not in duration_ids
         duration_tensor = IntTensor(duration_ids)
 
-      symbol_ids = list(get_mapped_indices(symbols, duration_mapping))
+      symbol_ids = list(get_mapped_indices(symbols, symbol_mapping))
       assert None not in symbol_ids
       symbols_tensor = IntTensor(symbol_ids)
 
