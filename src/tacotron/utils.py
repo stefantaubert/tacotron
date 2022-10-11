@@ -41,7 +41,7 @@ formatter = logging.Formatter(
 
 def get_items_by_index(it: Iterable[Any], indices: Set[Any]) -> Generator[Any, None, None]:
   for i, item in enumerate(it):
-    if i not in indices:
+    if i in indices:
       yield item
 
 
