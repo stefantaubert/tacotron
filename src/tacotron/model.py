@@ -582,6 +582,33 @@ ForwardXIn = Tuple[IntTensor, IntTensor, FloatTensor,
                    IntTensor, Optional[IntTensor], Optional[LongTensor], Optional[LongTensor], Optional[LongTensor]]
 
 
+def get_vector(tensor: IntTensor, use_embedding: bool, embedding: Optional[nn.Embedding], n_classes: Optional[int]) -> FloatTensor:
+  assert tensor is not None
+  if use_embedding:
+    assert embedding is not None
+    # shape: [70, 174, 512] -> [batch_size, maximum count of symbols, symbols_emb_dim]
+    result: FloatTensor = embedding(input=tensor)
+    assert result.dtype == torch.float32
+    # only in not eval grad
+    # assert result.requires_grad
+
+    if torch.isnan(result).any():
+      # embedding_inputs can be nan if training was not good
+      msg = "Embedding returned nan!"
+      logger = getLogger(__name__)
+      logger.error(msg)
+      raise Exception(msg)
+  else:
+    assert n_classes is not None
+    assert n_classes > 0
+    # Note: num_classes need to be defined because otherwise the dimension is not always the same since not all batches contain always all labels
+    result: LongTensor = F.one_hot(tensor, num_classes=n_classes)
+    result = result.type(torch.float32)
+    # both in eval and train no grad
+    assert not result.requires_grad
+  return result
+
+
 class Tacotron2(nn.Module):
   def __init__(self, hparams: HParams, n_symbols: int, n_stresses: Optional[int], n_speakers: Optional[int], n_tones: Optional[int], n_durations: Optional[int]):
     super().__init__()
@@ -599,6 +626,8 @@ class Tacotron2(nn.Module):
     self.mask_padding = hparams.mask_padding
     self.n_mel_channels = hparams.n_mel_channels
 
+    self.symbol_embeddings = None
+    self.n_symbols = None
     if hparams.train_symbol_with_embedding:
       # +1 because of padding
       symbol_emb_weights = get_uniform_weights(
@@ -610,36 +639,52 @@ class Tacotron2(nn.Module):
 
     if hparams.use_speaker_embedding:
       assert n_speakers is not None
+      self.speakers_embeddings = None
+      self.n_speakers = None
       if hparams.train_speaker_with_embedding:
-        speaker_emb_weights = get_xavier_weights(
-            n_speakers, hparams.speakers_embedding_dim)
-        self.speakers_embeddings = weights_to_embedding(
-            speaker_emb_weights)
+        assert hparams.speakers_embedding_dim is not None
+        weights = get_xavier_weights(n_speakers, hparams.speakers_embedding_dim)
+        self.speakers_embeddings = weights_to_embedding(weights)
       else:
         self.n_speakers = n_speakers
 
-    stress_embedding_dim = None
     if hparams.use_stress_embedding:
       assert n_stresses is not None
-      stress_embedding_dim = n_stresses
-    self.stress_embedding_dim = stress_embedding_dim
+      self.stress_embedding = None
+      self.stress_embedding_dim = None
+      if hparams.train_stress_with_embedding:
+        assert hparams.stress_embedding_dim is not None
+        weights = get_xavier_weights(n_stresses, hparams.stress_embedding_dim)
+        self.stress_embedding = weights_to_embedding(weights)
+      else:
+        self.stress_embedding_dim = n_stresses
 
-    tone_embedding_dim = None
     if hparams.use_tone_embedding:
       assert n_tones is not None
-      tone_embedding_dim = n_tones
-    self.tone_embedding_dim = tone_embedding_dim
+      self.tone_embedding = None
+      self.tone_embedding_dim = None
+      if hparams.train_tone_with_embedding:
+        assert hparams.tone_embedding_dim is not None
+        weights = get_xavier_weights(n_tones, hparams.tone_embedding_dim)
+        self.tone_embedding = weights_to_embedding(weights)
+      else:
+        self.tone_embedding_dim = n_tones
 
-    duration_embedding_dim = None
     if hparams.use_duration_embedding:
       assert n_durations is not None
-      duration_embedding_dim = n_durations
-    self.duration_embedding_dim = duration_embedding_dim
+      self.duration_embedding = None
+      self.duration_embedding_dim = None
+      if hparams.train_duration_with_embedding:
+        assert hparams.duration_embedding_dim is not None
+        weights = get_xavier_weights(n_durations, hparams.duration_embedding_dim)
+        self.duration_embedding = weights_to_embedding(weights)
+      else:
+        self.duration_embedding_dim = n_durations
 
-    self.encoder = Encoder(hparams, n_symbols, stress_embedding_dim,
-                           tone_embedding_dim, duration_embedding_dim)
-    self.decoder = Decoder(hparams, n_symbols, stress_embedding_dim,
-                           tone_embedding_dim, duration_embedding_dim, n_speakers)
+    self.encoder = Encoder(hparams, n_symbols, n_stresses,
+                           n_tones, n_durations)
+    self.decoder = Decoder(hparams, n_symbols, n_stresses,
+                           n_tones, n_durations, n_speakers)
     self.postnet = Postnet(hparams)
 
   def forward(self, inputs: ForwardXIn) -> Tuple[FloatTensor, FloatTensor, FloatTensor, FloatTensor]:
@@ -647,49 +692,26 @@ class Tacotron2(nn.Module):
     symbol_lengths, output_lengths = symbol_lengths.data, output_lengths.data
 
     # symbol_inputs: [70, 174] -> [batch_size, maximum count of symbols]
+    symbol_vector = get_vector(symbols, self.train_symbol_with_embedding,
+                               self.symbol_embeddings, self.n_symbols)
 
-    if self.train_symbol_with_embedding:
-      # shape: [70, 174, 512] -> [batch_size, maximum count of symbols, symbols_emb_dim]
-      symbols_embedding_inputs: FloatTensor = self.symbol_embeddings(input=symbols)
-      assert symbols_embedding_inputs.dtype == torch.float32
-      assert symbols_embedding_inputs.requires_grad
-      embedded_inputs = symbols_embedding_inputs
-    else:
-      symbols_one_hot_tensor: LongTensor = F.one_hot(symbols,
-                                                     num_classes=self.n_symbols)
-      symbols_one_hot_tensor = symbols_one_hot_tensor.type(torch.float32)
-      assert not symbols_one_hot_tensor.requires_grad
-      embedded_inputs = symbols_one_hot_tensor
+    embedded_inputs = symbol_vector
 
     if self.use_stress_embedding:
-      assert stresses is not None
-      # Note: num_classes need to be defined because otherwise the dimension is not always the same since not all batches contain all stresses
-      stress_one_hot_tensor: LongTensor = F.one_hot(
-          stresses, num_classes=self.stress_embedding_dim)  # _, -, 0, 1, 2
-      stress_one_hot_tensor = stress_one_hot_tensor.type(torch.float32)
-      assert not stress_one_hot_tensor.requires_grad
-      embedded_inputs = torch.cat(
-          (embedded_inputs, stress_one_hot_tensor), -1)
+      stress_vector = get_vector(stresses, self.train_stress_with_embedding,
+                                 self.stress_embedding, self.stress_embedding_dim)
+      # concatenate embeddings (-1 means last dimension)
+      embedded_inputs = torch.cat((embedded_inputs, stress_vector), -1)
 
     if self.use_tone_embedding:
-      assert tones is not None
-      # Note: num_classes need to be defined because otherwise the dimension is not always the same since not all batches contain all tones
-      tones_one_hot_tensor: LongTensor = F.one_hot(
-          tones, num_classes=self.tone_embedding_dim)
-      tones_one_hot_tensor = tones_one_hot_tensor.type(torch.float32)
-      assert not tones_one_hot_tensor.requires_grad
-      embedded_inputs = torch.cat(
-          (embedded_inputs, tones_one_hot_tensor), -1)
+      tone_vector = get_vector(tones, self.train_tone_with_embedding,
+                               self.tone_embedding, self.tone_embedding_dim)
+      embedded_inputs = torch.cat((embedded_inputs, tone_vector), -1)
 
     if self.use_duration_embedding:
-      assert durations is not None
-      # Note: num_classes need to be defined because otherwise the dimension is not always the same since not all batches contain all durations
-      durations_one_hot_tensor: LongTensor = F.one_hot(
-          durations, num_classes=self.duration_embedding_dim)
-      durations_one_hot_tensor = durations_one_hot_tensor.type(torch.float32)
-      assert not durations_one_hot_tensor.requires_grad
-      embedded_inputs = torch.cat(
-          (embedded_inputs, durations_one_hot_tensor), -1)
+      duration_vector = get_vector(durations, self.train_duration_with_embedding,
+                                   self.duration_embedding, self.duration_embedding_dim)
+      embedded_inputs = torch.cat((embedded_inputs, duration_vector), -1)
 
     # swap last two dims
     embedded_inputs = embedded_inputs.transpose(1, 2)
@@ -702,18 +724,8 @@ class Tacotron2(nn.Module):
     merged_outputs = encoder_outputs
 
     if self.use_speaker_embedding:
-      assert speakers is not None
-      if self.train_speaker_with_embedding:
-        speakers_vector: FloatTensor = self.speakers_embeddings(
-            input=speakers)
-        assert speakers_vector.dtype == torch.float32
-        assert speakers_vector.requires_grad
-      else:
-        speakers_vector: LongTensor = F.one_hot(speakers,
-                                                num_classes=self.n_speakers)
-        speakers_vector = speakers_vector.type(torch.float32)
-        assert not speakers_vector.requires_grad
-      # concatenate symbol and speaker embeddings (-1 means last dimension)
+      speakers_vector = get_vector(speakers, self.train_speaker_with_embedding,
+                                   self.speakers_embeddings, self.n_speakers)
       merged_outputs = torch.cat((merged_outputs, speakers_vector), -1)
 
     mel_outputs, gate_outputs, alignments = self.decoder(
@@ -737,50 +749,25 @@ class Tacotron2(nn.Module):
     return mel_outputs, mel_outputs_postnet, gate_outputs, alignments
 
   def inference(self, symbols: IntTensor, stresses: Optional[LongTensor], tones: Optional[LongTensor], durations: Optional[LongTensor], speakers: Optional[IntTensor], max_decoder_steps: int) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
-    if self.train_symbol_with_embedding:
-      # shape: [70, 174, 512] -> [batch_size, maximum count of symbols, symbols_emb_dim]
-      symbols_embedding_inputs: FloatTensor = self.symbol_embeddings(input=symbols)
-      assert symbols_embedding_inputs.dtype == torch.float32
+    symbol_vector = get_vector(symbols, self.train_symbol_with_embedding,
+                               self.symbol_embeddings, self.n_symbols)
 
-      if torch.isnan(symbols_embedding_inputs).any():
-        # embedding_inputs can be nan if training was not good
-        msg = "Symbol embeddings returned nan!"
-        logger = getLogger(__name__)
-        logger.error(msg)
-        raise Exception(msg)
-      embedded_inputs = symbols_embedding_inputs
-    else:
-      symbols_one_hot_tensor: LongTensor = F.one_hot(symbols,
-                                                     num_classes=self.n_symbols)
-      symbols_one_hot_tensor = symbols_one_hot_tensor.type(torch.float32)
-      embedded_inputs = symbols_one_hot_tensor
+    embedded_inputs = symbol_vector
 
     if self.use_stress_embedding:
-      assert stresses is not None
-      # Note: num_classes need to be defined because otherwise the dimension is not always the same since not all batches contain all stresses
-      stress_embeddings: LongTensor = F.one_hot(
-          stresses, num_classes=self.stress_embedding_dim)  # _, -, 0, 1, 2
-      stress_embeddings = stress_embeddings.type(torch.float32)
-      embedded_inputs = torch.cat(
-          (embedded_inputs, stress_embeddings), -1)
+      stress_vector = get_vector(stresses, self.train_stress_with_embedding,
+                                 self.stress_embedding, self.stress_embedding_dim)
+      embedded_inputs = torch.cat((embedded_inputs, stress_vector), -1)
 
     if self.use_tone_embedding:
-      assert tones is not None
-      # Note: num_classes need to be defined because otherwise the dimension is not always the same since not all batches contain all tones
-      tone_embeddings: LongTensor = F.one_hot(
-          tones, num_classes=self.tone_embedding_dim)
-      tone_embeddings = tone_embeddings.type(torch.float32)
-      embedded_inputs = torch.cat(
-          (embedded_inputs, tone_embeddings), -1)
+      tone_vector = get_vector(tones, self.train_tone_with_embedding,
+                               self.tone_embedding, self.tone_embedding_dim)
+      embedded_inputs = torch.cat((embedded_inputs, tone_vector), -1)
 
     if self.use_duration_embedding:
-      assert durations is not None
-      # Note: num_classes need to be defined because otherwise the dimension is not always the same since not all batches contain all durations
-      duration_embeddings: LongTensor = F.one_hot(
-          durations, num_classes=self.duration_embedding_dim)
-      duration_embeddings = duration_embeddings.type(torch.float32)
-      embedded_inputs = torch.cat(
-          (embedded_inputs, duration_embeddings), -1)
+      duration_vector = get_vector(durations, self.train_duration_with_embedding,
+                                   self.duration_embedding, self.duration_embedding_dim)
+      embedded_inputs = torch.cat((embedded_inputs, duration_vector), -1)
 
     # swap last two dims
     embedded_inputs = embedded_inputs.transpose(1, 2)
@@ -790,16 +777,8 @@ class Tacotron2(nn.Module):
     merged_outputs = encoder_outputs
 
     if self.use_speaker_embedding:
-      assert speakers is not None
-      if self.train_speaker_with_embedding:
-        speakers_vector: FloatTensor = self.speakers_embeddings(
-            input=speakers)
-        assert speakers_vector.dtype == torch.float32
-      else:
-        speakers_vector: LongTensor = F.one_hot(speakers,
-                                                num_classes=self.n_speakers)
-        speakers_vector = speakers_vector.type(torch.float32)
-      # concatenate symbol and speaker embeddings (-1 means last dimension)
+      speakers_vector = get_vector(speakers, self.train_speaker_with_embedding,
+                                   self.speakers_embeddings, self.n_speakers)
       merged_outputs = torch.cat((merged_outputs, speakers_vector), -1)
 
     decoder_outputs, reached_max_decoder_steps = self.decoder.inference(
