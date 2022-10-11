@@ -220,7 +220,7 @@ class Encoder(nn.Module):
   def __init__(self, hparams: HParams, n_symbols: int, n_stresses: Optional[int], n_tones: Optional[int], n_durations: Optional[int]):
     super().__init__()
 
-    if hparams.train_symbols_with_embedding:
+    if hparams.train_symbol_with_embedding:
       encoder_embedding_dim = hparams.symbols_embedding_dim
     else:
       encoder_embedding_dim = n_symbols
@@ -302,7 +302,7 @@ class Decoder(nn.Module):
 
     self.prenet = Prenet(hparams)
 
-    if hparams.train_symbols_with_embedding:
+    if hparams.train_symbol_with_embedding:
       encoder_embedding_dim = hparams.symbols_embedding_dim
     else:
       encoder_embedding_dim = n_symbols
@@ -322,7 +322,7 @@ class Decoder(nn.Module):
     merged_dimensions = lstm_out_dim
 
     if hparams.use_speaker_embedding:
-      if hparams.train_speakers_with_embedding:
+      if hparams.train_speaker_with_embedding:
         merged_dimensions += hparams.speakers_embedding_dim
       else:
         merged_dimensions += n_speakers
@@ -585,8 +585,12 @@ ForwardXIn = Tuple[IntTensor, IntTensor, FloatTensor,
 class Tacotron2(nn.Module):
   def __init__(self, hparams: HParams, n_symbols: int, n_stresses: Optional[int], n_speakers: Optional[int], n_tones: Optional[int], n_durations: Optional[int]):
     super().__init__()
-    self.train_symbols_with_embedding = hparams.train_symbols_with_embedding
-    self.train_speakers_with_embedding = hparams.train_speakers_with_embedding
+    self.train_symbol_with_embedding = hparams.train_symbol_with_embedding
+    self.train_speaker_with_embedding = hparams.train_speaker_with_embedding
+    self.train_stress_with_embedding = hparams.train_stress_with_embedding
+    self.train_tone_with_embedding = hparams.train_tone_with_embedding
+    self.train_duration_with_embedding = hparams.train_duration_with_embedding
+
     self.use_speaker_embedding = hparams.use_speaker_embedding
     self.use_stress_embedding = hparams.use_stress_embedding
     self.use_tone_embedding = hparams.use_tone_embedding
@@ -595,7 +599,7 @@ class Tacotron2(nn.Module):
     self.mask_padding = hparams.mask_padding
     self.n_mel_channels = hparams.n_mel_channels
 
-    if hparams.train_symbols_with_embedding:
+    if hparams.train_symbol_with_embedding:
       # +1 because of padding
       symbol_emb_weights = get_uniform_weights(
           n_symbols, hparams.symbols_embedding_dim)
@@ -606,7 +610,7 @@ class Tacotron2(nn.Module):
 
     if hparams.use_speaker_embedding:
       assert n_speakers is not None
-      if hparams.train_speakers_with_embedding:
+      if hparams.train_speaker_with_embedding:
         speaker_emb_weights = get_xavier_weights(
             n_speakers, hparams.speakers_embedding_dim)
         self.speakers_embeddings = weights_to_embedding(
@@ -644,7 +648,7 @@ class Tacotron2(nn.Module):
 
     # symbol_inputs: [70, 174] -> [batch_size, maximum count of symbols]
 
-    if self.train_symbols_with_embedding:
+    if self.train_symbol_with_embedding:
       # shape: [70, 174, 512] -> [batch_size, maximum count of symbols, symbols_emb_dim]
       symbols_embedding_inputs: FloatTensor = self.symbol_embeddings(input=symbols)
       assert symbols_embedding_inputs.dtype == torch.float32
@@ -699,7 +703,7 @@ class Tacotron2(nn.Module):
 
     if self.use_speaker_embedding:
       assert speakers is not None
-      if self.train_speakers_with_embedding:
+      if self.train_speaker_with_embedding:
         speakers_vector: FloatTensor = self.speakers_embeddings(
             input=speakers)
         assert speakers_vector.dtype == torch.float32
@@ -733,7 +737,7 @@ class Tacotron2(nn.Module):
     return mel_outputs, mel_outputs_postnet, gate_outputs, alignments
 
   def inference(self, symbols: IntTensor, stresses: Optional[LongTensor], tones: Optional[LongTensor], durations: Optional[LongTensor], speakers: Optional[IntTensor], max_decoder_steps: int) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
-    if self.train_symbols_with_embedding:
+    if self.train_symbol_with_embedding:
       # shape: [70, 174, 512] -> [batch_size, maximum count of symbols, symbols_emb_dim]
       symbols_embedding_inputs: FloatTensor = self.symbol_embeddings(input=symbols)
       assert symbols_embedding_inputs.dtype == torch.float32
@@ -787,7 +791,7 @@ class Tacotron2(nn.Module):
 
     if self.use_speaker_embedding:
       assert speakers is not None
-      if self.train_speakers_with_embedding:
+      if self.train_speaker_with_embedding:
         speakers_vector: FloatTensor = self.speakers_embeddings(
             input=speakers)
         assert speakers_vector.dtype == torch.float32

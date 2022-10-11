@@ -29,33 +29,32 @@ class DataHParams():
 class ModelHParams():
   symbols_embedding_dim: Optional[int] = 512
   # otherwise as one-hot
-  train_symbols_with_embedding: bool = True
+  train_symbol_with_embedding: bool = True
 
   # means train speaker separately
   use_speaker_embedding: bool = True
-
   speakers_embedding_dim: Optional[int] = 128  # 16
-  train_speakers_with_embedding: bool = True
+  train_speaker_with_embedding: bool = True
 
   # TODO rename to: train_stresses_separately: bool = True
   use_stress_embedding: bool = True
-  # TODO rename to: train_tones_separately: bool = True
+  # otherwise as one-hot
   train_stress_with_embedding: bool = False
-  use_tone_embedding: bool = False
-  # TODO rename to: train_durations_separately: bool = True
-  use_duration_embedding: bool = False
-  # TODO support embedding of stress
-  # use_stress_one_hot: bool = True
-  symbols_are_ipa: bool = True
-
-  # None for 1-hot encoding
   stress_embedding_dim: Optional[int] = None
 
-  # None for 1-hot encoding
+  # TODO rename to: train_tones_separately: bool = True
+  use_tone_embedding: bool = False
+  # otherwise as one-hot
+  train_tone_with_embedding: bool = False
   tone_embedding_dim: Optional[int] = None
 
-  # None for 1-hot encoding
+  # TODO rename to: train_durations_separately: bool = True
+  use_duration_embedding: bool = False
+  # otherwise as one-hot
+  train_duration_with_embedding: bool = False
   duration_embedding_dim: Optional[int] = None
+
+  symbols_are_ipa: bool = True
 
   # Encoder parameters
   encoder_kernel_size: int = 5
