@@ -165,33 +165,41 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
     symbol_mapping, stress_mapping, tone_mapping, duration_mapping, speaker_mapping = get_mappings_from_checkpoint(
       checkpoint, hparams)
 
+  train_style = f"dim: {hparams.symbols_embedding_dim}" if hparams.train_symbol_with_embedding else "1-hot"
   logger.info(
-      f"Symbols: {' '.join(get_symbol_printable(symbol) for symbol in symbol_mapping.keys())} (#{len(symbol_mapping)}, dim: {hparams.symbols_embedding_dim})")
+      f"Symbols: {' '.join(get_symbol_printable(symbol) for symbol in symbol_mapping.keys())} (#{len(symbol_mapping)}, {train_style})")
 
   if hparams.use_stress_embedding:
+    train_style = f"dim: {hparams.stress_embedding_dim}" if hparams.train_stress_with_embedding else "1-hot"
     logger.info(
-        f"Stresses: {' '.join(stress_mapping.keys())} (#{len(stress_mapping)})")
+        f"Stresses: {' '.join(stress_mapping.keys())} (#{len(stress_mapping)}, {train_style}))")
     if len(stress_mapping) != 4:
-      logger.error("Not all stress marks exist in the data!")
-      return False
+      logger.warning("Not all stress marks exist in the data!")
   else:
     logger.info("Stresses: Use no stress embedding.")
 
   if hparams.use_tone_embedding:
+    train_style = f"dim: {hparams.tone_embedding_dim}" if hparams.train_tone_with_embedding else "1-hot"
     logger.info(
-        f"Tones: {' '.join(tone_mapping.keys())} (#{len(tone_mapping)})")
+        f"Tones: {' '.join(tone_mapping.keys())} (#{len(tone_mapping)}, {train_style})")
+    if len(tone_mapping) != 5:
+      logger.warning("Not all tone marks exist in the data!")
   else:
     logger.info("Tones: Use no tone embedding.")
 
   if hparams.use_duration_embedding:
+    train_style = f"dim: {hparams.duration_embedding_dim}" if hparams.train_duration_with_embedding else "1-hot"
     logger.info(
-        f"Durations: {' '.join(duration_mapping.keys())} (#{len(duration_mapping)})")
+        f"Durations: {' '.join(duration_mapping.keys())} (#{len(duration_mapping)}, {train_style})")
+    if len(duration_mapping) != 3:
+      logger.warning("Not all duration marks exist in the data!")
   else:
     logger.info("Durations: Use no duration embedding.")
 
   if hparams.use_speaker_embedding:
+    train_style = f"dim: {hparams.speakers_embedding_dim}" if hparams.train_speaker_with_embedding else "1-hot"
     logger.info(
-        f"Speakers: {', '.join(sorted(speaker_mapping.keys()))} (#{len(speaker_mapping)}, dim: {hparams.speakers_embedding_dim})")
+        f"Speakers: {', '.join(sorted(speaker_mapping.keys()))} (#{len(speaker_mapping)}, dim: {hparams.speakers_embedding_dim}, {train_style})")
   else:
     logger.info("Speakers: Use no speaker embedding.")
 
