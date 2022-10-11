@@ -290,7 +290,7 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-  def __init__(self, hparams: HParams, n_symbols: int, n_stresses: Optional[int], n_tones: Optional[int], n_durations: Optional[int]):
+  def __init__(self, hparams: HParams, n_symbols: int, n_stresses: Optional[int], n_tones: Optional[int], n_durations: Optional[int], n_speakers: Optional[int]):
     super().__init__()
     self.n_mel_channels = hparams.n_mel_channels
     self.n_frames_per_step = hparams.n_frames_per_step
@@ -319,36 +319,41 @@ class Decoder(nn.Module):
     lstm_hidden_size = ceil(encoder_embedding_dim / 2)
     lstm_out_dim = lstm_hidden_size * 2
 
-    self.merged_dimensions = lstm_out_dim
+    merged_dimensions = lstm_out_dim
 
     if hparams.use_speaker_embedding:
-      self.merged_dimensions += hparams.speakers_embedding_dim
+      if hparams.train_speakers_with_embedding:
+        merged_dimensions += hparams.speakers_embedding_dim
+      else:
+        merged_dimensions += n_speakers
 
     self.attention_rnn = nn.LSTMCell(
-        input_size=hparams.prenet_dim + self.merged_dimensions,
+        input_size=hparams.prenet_dim + merged_dimensions,
         hidden_size=hparams.attention_rnn_dim
     )
 
-    self.attention_layer = Attention(hparams, self.merged_dimensions)
+    self.attention_layer = Attention(hparams, merged_dimensions)
 
     # Deep Voice 2: "one site-speciﬁc embedding as the initial decoder GRU hidden state" -> is in Tacotron 2 now a LSTM
     self.decoder_rnn = nn.LSTMCell(
-        input_size=hparams.attention_rnn_dim + self.merged_dimensions,
+        input_size=hparams.attention_rnn_dim + merged_dimensions,
         hidden_size=hparams.decoder_rnn_dim,
         bias=True
     )
 
     self.linear_projection = LinearNorm(
-        in_dim=hparams.decoder_rnn_dim + self.merged_dimensions,
+        in_dim=hparams.decoder_rnn_dim + merged_dimensions,
         out_dim=hparams.n_mel_channels * hparams.n_frames_per_step
     )
 
     self.gate_layer = LinearNorm(
-        in_dim=hparams.decoder_rnn_dim + self.merged_dimensions,
+        in_dim=hparams.decoder_rnn_dim + merged_dimensions,
         out_dim=1,
         bias=True,
         w_init_gain='sigmoid'
     )
+
+    self.merged_dimensions = merged_dimensions
 
   def get_go_frame(self, memory):
     """ Gets all zeros frames to use as first decoder input
@@ -581,6 +586,7 @@ class Tacotron2(nn.Module):
   def __init__(self, hparams: HParams, n_symbols: int, n_stresses: Optional[int], n_speakers: Optional[int], n_tones: Optional[int], n_durations: Optional[int]):
     super().__init__()
     self.train_symbols_with_embedding = hparams.train_symbols_with_embedding
+    self.train_speakers_with_embedding = hparams.train_speakers_with_embedding
     self.use_speaker_embedding = hparams.use_speaker_embedding
     self.use_stress_embedding = hparams.use_stress_embedding
     self.use_tone_embedding = hparams.use_tone_embedding
@@ -600,10 +606,13 @@ class Tacotron2(nn.Module):
 
     if hparams.use_speaker_embedding:
       assert n_speakers is not None
-      speaker_emb_weights = get_xavier_weights(
-          n_speakers, hparams.speakers_embedding_dim)
-      self.speakers_embeddings = weights_to_embedding(
-          speaker_emb_weights)
+      if hparams.train_speakers_with_embedding:
+        speaker_emb_weights = get_xavier_weights(
+            n_speakers, hparams.speakers_embedding_dim)
+        self.speakers_embeddings = weights_to_embedding(
+            speaker_emb_weights)
+      else:
+        self.n_speakers = n_speakers
 
     stress_embedding_dim = None
     if hparams.use_stress_embedding:
@@ -626,7 +635,7 @@ class Tacotron2(nn.Module):
     self.encoder = Encoder(hparams, n_symbols, stress_embedding_dim,
                            tone_embedding_dim, duration_embedding_dim)
     self.decoder = Decoder(hparams, n_symbols, stress_embedding_dim,
-                           tone_embedding_dim, duration_embedding_dim)
+                           tone_embedding_dim, duration_embedding_dim, n_speakers)
     self.postnet = Postnet(hparams)
 
   def forward(self, inputs: ForwardXIn) -> Tuple[FloatTensor, FloatTensor, FloatTensor, FloatTensor]:
@@ -690,11 +699,18 @@ class Tacotron2(nn.Module):
 
     if self.use_speaker_embedding:
       assert speakers is not None
-      embedded_speakers: FloatTensor = self.speakers_embeddings(
-          input=speakers)
-      assert embedded_speakers.dtype == torch.float32
+      if self.train_speakers_with_embedding:
+        speakers_vector: FloatTensor = self.speakers_embeddings(
+            input=speakers)
+        assert speakers_vector.dtype == torch.float32
+        assert speakers_vector.requires_grad
+      else:
+        speakers_vector: LongTensor = F.one_hot(speakers,
+                                                num_classes=self.n_speakers)
+        speakers_vector = speakers_vector.type(torch.float32)
+        assert not speakers_vector.requires_grad
       # concatenate symbol and speaker embeddings (-1 means last dimension)
-      merged_outputs = torch.cat((merged_outputs, embedded_speakers), -1)
+      merged_outputs = torch.cat((merged_outputs, speakers_vector), -1)
 
     mel_outputs, gate_outputs, alignments = self.decoder(
         memory=merged_outputs,
@@ -771,11 +787,16 @@ class Tacotron2(nn.Module):
 
     if self.use_speaker_embedding:
       assert speakers is not None
-      embedded_speakers: FloatTensor = self.speakers_embeddings(
-          input=speakers)
-      assert embedded_speakers.dtype == torch.float32
+      if self.train_speakers_with_embedding:
+        speakers_vector: FloatTensor = self.speakers_embeddings(
+            input=speakers)
+        assert speakers_vector.dtype == torch.float32
+      else:
+        speakers_vector: LongTensor = F.one_hot(speakers,
+                                                num_classes=self.n_speakers)
+        speakers_vector = speakers_vector.type(torch.float32)
       # concatenate symbol and speaker embeddings (-1 means last dimension)
-      merged_outputs = torch.cat((merged_outputs, embedded_speakers), -1)
+      merged_outputs = torch.cat((merged_outputs, speakers_vector), -1)
 
     decoder_outputs, reached_max_decoder_steps = self.decoder.inference(
         merged_outputs, max_decoder_steps)
