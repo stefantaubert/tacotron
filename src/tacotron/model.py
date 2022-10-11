@@ -217,19 +217,22 @@ class Encoder(nn.Module):
     - Bidirectional LSTM
   """
 
-  def __init__(self, hparams: HParams, stress_embedding_dim: Optional[int], tone_embedding_dim: Optional[int], duration_embedding_dim: Optional[int]):
+  def __init__(self, hparams: HParams, n_symbols: int, n_stresses: Optional[int], n_tones: Optional[int], n_durations: Optional[int]):
     super().__init__()
 
-    encoder_embedding_dim = hparams.symbols_embedding_dim
+    if hparams.train_symbols_with_embedding:
+      encoder_embedding_dim = hparams.symbols_embedding_dim
+    else:
+      encoder_embedding_dim = n_symbols
 
     if hparams.use_stress_embedding:
-      encoder_embedding_dim += stress_embedding_dim
+      encoder_embedding_dim += n_stresses
 
     if hparams.use_tone_embedding:
-      encoder_embedding_dim += tone_embedding_dim
+      encoder_embedding_dim += n_tones
 
     if hparams.use_duration_embedding:
-      encoder_embedding_dim += duration_embedding_dim
+      encoder_embedding_dim += n_durations
 
     convolutions = []
     for _ in range(hparams.encoder_n_convolutions):
@@ -287,7 +290,7 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-  def __init__(self, hparams: HParams, stress_embedding_dim: Optional[int], tone_embedding_dim: Optional[int], duration_embedding_dim: Optional[int]):
+  def __init__(self, hparams: HParams, n_symbols: int, n_stresses: Optional[int], n_tones: Optional[int], n_durations: Optional[int]):
     super().__init__()
     self.n_mel_channels = hparams.n_mel_channels
     self.n_frames_per_step = hparams.n_frames_per_step
@@ -299,16 +302,19 @@ class Decoder(nn.Module):
 
     self.prenet = Prenet(hparams)
 
-    encoder_embedding_dim = hparams.symbols_embedding_dim
+    if hparams.train_symbols_with_embedding:
+      encoder_embedding_dim = hparams.symbols_embedding_dim
+    else:
+      encoder_embedding_dim = n_symbols
 
     if hparams.use_stress_embedding:
-      encoder_embedding_dim += stress_embedding_dim
+      encoder_embedding_dim += n_stresses
 
     if hparams.use_tone_embedding:
-      encoder_embedding_dim += tone_embedding_dim
+      encoder_embedding_dim += n_tones
 
     if hparams.use_duration_embedding:
-      encoder_embedding_dim += duration_embedding_dim
+      encoder_embedding_dim += n_durations
 
     lstm_hidden_size = ceil(encoder_embedding_dim / 2)
     lstm_out_dim = lstm_hidden_size * 2
@@ -574,6 +580,7 @@ ForwardXIn = Tuple[IntTensor, IntTensor, FloatTensor,
 class Tacotron2(nn.Module):
   def __init__(self, hparams: HParams, n_symbols: int, n_stresses: Optional[int], n_speakers: Optional[int], n_tones: Optional[int], n_durations: Optional[int]):
     super().__init__()
+    self.train_symbols_with_embedding = hparams.train_symbols_with_embedding
     self.use_speaker_embedding = hparams.use_speaker_embedding
     self.use_stress_embedding = hparams.use_stress_embedding
     self.use_tone_embedding = hparams.use_tone_embedding
@@ -582,11 +589,14 @@ class Tacotron2(nn.Module):
     self.mask_padding = hparams.mask_padding
     self.n_mel_channels = hparams.n_mel_channels
 
-    # +1 because of padding
-    symbol_emb_weights = get_uniform_weights(
-        n_symbols, hparams.symbols_embedding_dim)
-    # rename will destroy all previous trained models
-    self.symbol_embeddings = weights_to_embedding(symbol_emb_weights)
+    if hparams.train_symbols_with_embedding:
+      # +1 because of padding
+      symbol_emb_weights = get_uniform_weights(
+          n_symbols, hparams.symbols_embedding_dim)
+      # rename will destroy all previous trained models
+      self.symbol_embeddings = weights_to_embedding(symbol_emb_weights)
+    else:
+      self.n_symbols = n_symbols
 
     if hparams.use_speaker_embedding:
       assert n_speakers is not None
@@ -613,9 +623,9 @@ class Tacotron2(nn.Module):
       duration_embedding_dim = n_durations
     self.duration_embedding_dim = duration_embedding_dim
 
-    self.encoder = Encoder(hparams, stress_embedding_dim,
+    self.encoder = Encoder(hparams, n_symbols, stress_embedding_dim,
                            tone_embedding_dim, duration_embedding_dim)
-    self.decoder = Decoder(hparams, stress_embedding_dim,
+    self.decoder = Decoder(hparams, n_symbols, stress_embedding_dim,
                            tone_embedding_dim, duration_embedding_dim)
     self.postnet = Postnet(hparams)
 
@@ -625,9 +635,18 @@ class Tacotron2(nn.Module):
 
     # symbol_inputs: [70, 174] -> [batch_size, maximum count of symbols]
 
-    # shape: [70, 174, 512] -> [batch_size, maximum count of symbols, symbols_emb_dim]
-    embedded_inputs: FloatTensor = self.symbol_embeddings(input=symbols)
-    assert embedded_inputs.dtype == torch.float32
+    if self.train_symbols_with_embedding:
+      # shape: [70, 174, 512] -> [batch_size, maximum count of symbols, symbols_emb_dim]
+      symbols_embedding_inputs: FloatTensor = self.symbol_embeddings(input=symbols)
+      assert symbols_embedding_inputs.dtype == torch.float32
+      assert symbols_embedding_inputs.requires_grad
+      embedded_inputs = symbols_embedding_inputs
+    else:
+      symbols_one_hot_tensor: LongTensor = F.one_hot(symbols,
+                                                     num_classes=self.n_symbols)
+      symbols_one_hot_tensor = symbols_one_hot_tensor.type(torch.float32)
+      assert not symbols_one_hot_tensor.requires_grad
+      embedded_inputs = symbols_one_hot_tensor
 
     if self.use_stress_embedding:
       assert stresses is not None
@@ -698,15 +717,23 @@ class Tacotron2(nn.Module):
     return mel_outputs, mel_outputs_postnet, gate_outputs, alignments
 
   def inference(self, symbols: IntTensor, stresses: Optional[LongTensor], tones: Optional[LongTensor], durations: Optional[LongTensor], speakers: Optional[IntTensor], max_decoder_steps: int) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
-    embedded_inputs: FloatTensor = self.symbol_embeddings(input=symbols)
-    assert embedded_inputs.dtype == torch.float32
+    if self.train_symbols_with_embedding:
+      # shape: [70, 174, 512] -> [batch_size, maximum count of symbols, symbols_emb_dim]
+      symbols_embedding_inputs: FloatTensor = self.symbol_embeddings(input=symbols)
+      assert symbols_embedding_inputs.dtype == torch.float32
 
-    if torch.isnan(embedded_inputs).any():
-      # embedding_inputs can be nan if training was not good
-      msg = "Symbol embeddings returned nan!"
-      logger = getLogger(__name__)
-      logger.error(msg)
-      raise Exception(msg)
+      if torch.isnan(symbols_embedding_inputs).any():
+        # embedding_inputs can be nan if training was not good
+        msg = "Symbol embeddings returned nan!"
+        logger = getLogger(__name__)
+        logger.error(msg)
+        raise Exception(msg)
+      embedded_inputs = symbols_embedding_inputs
+    else:
+      symbols_one_hot_tensor: LongTensor = F.one_hot(symbols,
+                                                     num_classes=self.n_symbols)
+      symbols_one_hot_tensor = symbols_one_hot_tensor.type(torch.float32)
+      embedded_inputs = symbols_one_hot_tensor
 
     if self.use_stress_embedding:
       assert stresses is not None
