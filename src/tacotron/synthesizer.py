@@ -137,7 +137,7 @@ class Synthesizer():
 
     symbol_ids = list(get_mapped_indices(core_symbols, self.symbol_mapping))
     unmapable_indices = set(find_indices(symbol_ids, {None}))
-    unmapable_symbols = None
+    unmapable_symbols = set()
     if len(unmapable_indices) > 0:
       unmapable_symbols = set(get_items_by_index(core_symbols, unmapable_indices))
       self._logger.warn(f"Unknown symbol(s): {' '.join(sorted(unmapable_symbols))}")
