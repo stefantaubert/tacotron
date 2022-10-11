@@ -576,6 +576,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
           stress_mapping=stress_mapping,
           symbol_mapping=symbol_mapping,
           tone_mapping=tone_mapping,
+          duration_mapping=duration_mapping,
           scheduler=scheduler,
         )
 

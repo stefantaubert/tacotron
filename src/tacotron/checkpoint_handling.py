@@ -35,7 +35,7 @@ KEY_TONE_MAPPING = "tone_mapping"
 KEY_DURATION_MAPPING = "duration_mapping"
 
 
-def create(model: Tacotron2, optimizer: Adam, hparams: HParams, iteration: int, learning_rate: float, scheduler: Optional[ExponentialLR], symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], tone_mapping: Optional[ToneMapping], speaker_mapping: Optional[SpeakerMapping]) -> CheckpointDict:
+def create(model: Tacotron2, optimizer: Adam, hparams: HParams, iteration: int, learning_rate: float, scheduler: Optional[ExponentialLR], symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], tone_mapping: Optional[ToneMapping], duration_mapping: Optional[DurationMapping], speaker_mapping: Optional[SpeakerMapping]) -> CheckpointDict:
   result = OrderedDict()
   result[KEY_HPARAMS] = asdict(hparams)
   result[KEY_MODEL_STATE] = model.state_dict()
@@ -51,6 +51,8 @@ def create(model: Tacotron2, optimizer: Adam, hparams: HParams, iteration: int, 
     result[KEY_STRESS_MAPPING] = stress_mapping
   if tone_mapping is not None:
     result[KEY_TONE_MAPPING] = tone_mapping
+  if duration_mapping is not None:
+    result[KEY_DURATION_MAPPING] = duration_mapping
   return result
 
 
