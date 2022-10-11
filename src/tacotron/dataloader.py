@@ -11,7 +11,7 @@ from torch import FloatTensor, IntTensor, LongTensor, Tensor  # pylint: disable=
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
-from tacotron.frontend.main import get_mapped_indices, get_map_keys
+from tacotron.frontend.main import get_map_keys, get_mapped_indices
 from tacotron.hparams import HParams
 from tacotron.model import ForwardXIn
 from tacotron.taco_stft import TacotronSTFT
@@ -148,8 +148,8 @@ class SymbolsMelCollate():
     # prepare padding
     max_symbol_len = max(symbol_lens)
 
-    # pad symbols
-    symbols_padded_tensor = IntTensor(len(symbol_tensors), max_symbol_len)
+    # pad symbols, needs to be LongTensor when 1-hot is used for training
+    symbols_padded_tensor = LongTensor(len(symbol_tensors), max_symbol_len)
     symbols_padded_tensor.zero_()
     for i, tensor in enumerate(symbol_tensors):
       symbols_padded_tensor[i, :tensor.size(0)] = tensor
@@ -187,8 +187,8 @@ class SymbolsMelCollate():
     # pad speakers
     speakers_padded_tensor = None
     if self.use_speakers:
-      speakers_padded_tensor = IntTensor(
-          len(speaker_ids), max_symbol_len)
+      # needs to be LongTensor when 1-hot is used for training
+      speakers_padded_tensor = LongTensor(len(speaker_ids), max_symbol_len)
       speakers_padded_tensor.zero_()
       for i, (symbols_len, speaker_id) in enumerate(zip(symbol_lens, speaker_ids)):
         speakers_padded_tensor[i, :symbols_len] = speaker_id

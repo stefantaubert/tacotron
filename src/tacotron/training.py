@@ -172,7 +172,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
   if hparams.use_stress_embedding:
     train_style = f"dim: {hparams.stress_embedding_dim}" if hparams.train_stress_with_embedding else "1-hot"
     logger.info(
-        f"Stresses: {' '.join(stress_mapping.keys())} (#{len(stress_mapping)}, {train_style}))")
+        f"Stresses: {' '.join(stress_mapping.keys())} (#{len(stress_mapping)}, {train_style})")
     if len(stress_mapping) != 4:
       logger.warning("Not all stress marks exist in the data!")
   else:
@@ -191,7 +191,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
     train_style = f"dim: {hparams.duration_embedding_dim}" if hparams.train_duration_with_embedding else "1-hot"
     logger.info(
         f"Durations: {' '.join(duration_mapping.keys())} (#{len(duration_mapping)}, {train_style})")
-    if len(duration_mapping) != 3:
+    if len(duration_mapping) != 4:
       logger.warning("Not all duration marks exist in the data!")
   else:
     logger.info("Durations: Use no duration embedding.")
