@@ -199,7 +199,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
   if hparams.use_speaker_embedding:
     train_style = f"dim: {hparams.speakers_embedding_dim}" if hparams.train_speaker_with_embedding else "1-hot"
     logger.info(
-        f"Speakers: {', '.join(sorted(speaker_mapping.keys()))} (#{len(speaker_mapping)}, dim: {hparams.speakers_embedding_dim}, {train_style})")
+        f"Speakers: {', '.join(sorted(speaker_mapping.keys()))} (#{len(speaker_mapping)}, {train_style})")
   else:
     logger.info("Speakers: Use no speaker embedding.")
 
