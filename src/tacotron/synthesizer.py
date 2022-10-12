@@ -164,7 +164,7 @@ class Synthesizer():
 
     init_global_seeds(seed)
 
-    symbol_tensor = IntTensor([list(get_items_by_index(symbol_ids, mapable))])
+    symbol_tensor = LongTensor([list(get_items_by_index(symbol_ids, mapable))])
     symbol_tensor = try_copy_to(symbol_tensor, self.device)
 
     stress_tensor = None
@@ -184,7 +184,7 @@ class Synthesizer():
 
     speaker_tensor = None
     if self.hparams.use_speaker_embedding:
-      speaker_tensor = IntTensor(
+      speaker_tensor = LongTensor(
           symbol_tensor.size(0), symbol_tensor.size(1))
       torch.nn.init.constant_(speaker_tensor, speaker_id)
       speaker_tensor = try_copy_to(speaker_tensor, self.device)
