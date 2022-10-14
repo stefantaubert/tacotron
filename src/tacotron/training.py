@@ -532,7 +532,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
           "Iteration duration": f"{round(batch_durations[-1], 2)}s",
           "Epoch duration AVG": f"{round(np.mean(batch_durations[-AVG_COUNT:]) * batch_iterations / 60, 2)}min",
           "Current training duration": f"{round((time.perf_counter() - train_start) / 60 / 60, 2)}h",
-          "Estimated remaining duration": f"{round(np.mean(batch_durations[-AVG_COUNT:]) * (last_iteration - iteration) / 60 / 60, 2)}h ({round(np.mean(batch_durations[-AVG_COUNT:]) * (last_iteration - iteration) / 60 / 60 / 24, 2)}days)",
+          "Estimated remaining duration": f"{round(np.mean(batch_durations[-AVG_COUNT:]) * (last_iteration - iteration) / 60 / 60, 2)}h ({round(np.mean(batch_durations[-AVG_COUNT:]) * (last_iteration - iteration) / 60 / 60 / 24, 2)} days)",
           "Estimated duration until next checkpoint": "N/A" if next_it is None else f"{round(np.mean(batch_durations[-AVG_COUNT:]) * (next_it - iteration) / 60 / 60, 2)}h",
       }
 
