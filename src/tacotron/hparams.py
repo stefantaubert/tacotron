@@ -27,14 +27,14 @@ class DataHParams():
 
 @dataclass
 class ModelHParams():
-  symbols_embedding_dim: Optional[int] = 512
   # otherwise as one-hot
   train_symbol_with_embedding: bool = True
+  symbols_embedding_dim: Optional[int] = 512
 
   # means train speaker separately
   use_speaker_embedding: bool = True
-  speakers_embedding_dim: Optional[int] = 128  # 16
   train_speaker_with_embedding: bool = True
+  speakers_embedding_dim: Optional[int] = 16
 
   # TODO rename to: train_stresses_separately: bool = True
   use_stress_embedding: bool = True
