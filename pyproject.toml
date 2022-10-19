@@ -62,6 +62,7 @@ tacotron-cli = "tacotron_cli.cli:run_prod"
 where = ["src"]
 include = [
   "tacotron",
+  "tacotron.*",
   "tacotron_cli",
   "tacotron_tests",
   "tacotron_tests.*",
