@@ -6,17 +6,20 @@
 [![PyPI](https://img.shields.io/pypi/wheel/tacotron-cli.svg)](https://pypi.python.org/pypi/tacotron-cli)
 [![PyPI](https://img.shields.io/pypi/implementation/tacotron-cli.svg)](https://pypi.python.org/pypi/tacotron-cli)
 [![PyPI](https://img.shields.io/github/commits-since/stefantaubert/tacotron/latest/master.svg)](https://pypi.python.org/pypi/tacotron-cli)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7118557.svg)](https://doi.org/10.5281/zenodo.7118557)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7225335.svg)](https://doi.org/10.5281/zenodo.7225335)
 
 Command-line interface (CLI) to train Tacotron 2 using .wav <=> .TextGrid pairs.
 
 ## Features
 
-- train phoneme stress separately
-- train single-speaker or multi-speaker
+- train phoneme stress separately (ARPAbet/IPA)
+- train phoneme tone separately (IPA)
+- train phoneme duration separately (IPA)
+- train single/multi-speaker
 - train/synthesize on CPU or GPU
 - synthesis of paragraphs
-- copy phoneme embeddings from one checkpoint to another
+- copy embeddings from one checkpoint to another
+- train using embeddings or one-hot encodings
 
 ## Installation
 
@@ -63,11 +66,14 @@ optional arguments:
 
 ## Training
 
-The dataset structure need to follow the generic format of [speech-dataset-parser](https://pypi.org/project/speech-dataset-parser/), i.e., each TextGrid need to contain a tier in which all characters/phonemes/symbols are separated into single intervals, e.g., `T|h|i|s| |i|s| |a| |t|e|x|t|.`.
+The dataset structure need to follow the generic format of [speech-dataset-parser](https://pypi.org/project/speech-dataset-parser/), i.e., each TextGrid need to contain a tier in which all phonemes are separated into single intervals, e.g., `T|h|i|s| |i|s| |a| |t|e|x|t|.`.
 
 Tips:
 
-- place stress directly to the vowel of the syllable, e.g. `b|ˈo|d|i` instead of `ˈb|o|d|i`
+- place stress directly to the vowel of the syllable, e.g. `b|ˈo|d|i` instead of `ˈb|o|d|i` (body)
+- place tone directly to the vowel of the syllable, e.g. `ʈʂʰ|w|a˥˩|n` instead of `ʈʂʰ|w|a|n˥˩` (串)
+  - tone-characters which are considered: `˥ ˦ ˧ ˨ ˩`, e.g.,  `ɑ˥˩`
+- duration-characters which are considered: `˘ ˑ ː`, e.g., `ʌː`
 - normalize the text, e.g., numbers should be written out
 - substituted space by either `SIL0`, `SIL1` or `SIL2` depending on the duration of the pause
   - use `SIL0` for no pause
@@ -90,8 +96,10 @@ Example invalid sentence: "Digestion is a vital process which involves the break
 
 ## Pretrained Models
 
-- [LJS-IPA-101500](https://tuc.cloud/index.php/s/xxFCDMgEk8dZKbp): Model trained on LJ Speech dataset with IPA transcriptions for 101500 iterations (= 500 epochs)
+- [LJS-IPA-101500](https://tuc.cloud/index.php/s/xxFCDMgEk8dZKbp): Model trained on LJ Speech dataset with IPA transcriptions for 101500 iterations (= 500 epochs) with separated learning of stress
   - Symbolset: `! " ' ( ) , - . : ; ? SIL0 SIL1 SIL2 [ ] aɪ aʊ b d d͡ʒ eɪ f h i j k l m n oʊ p s t t͡ʃ u v w z æ ð ŋ ɑ ɔ ɔɪ ɛ ɝ ɡ ɪ ɹ ʃ ʊ ʌ ʒ ˈaɪ ˈaʊ ˈeɪ ˈi ˈoʊ ˈu ˈæ ˈɑ ˈɔ ˈɔɪ ˈɛ ˈɝ ˈɪ ˈʊ ˈʌ ˌaɪ ˌaʊ ˌeɪ ˌi ˌoʊ ˌu ˌæ ˌɑ ˌɔ ˌɔɪ ˌɛ ˌɝ ˌɪ ˌʊ ˌʌ θ`
+- [LJS-IPA-102000-durations](https://tuc.cloud/index.php/s/fPMqsYENEgRkm9J): Model trained on LJ Speech dataset with IPA transcriptions for 102000 iterations (= 500 epochs) with separated learning of stress and phoneme durations
+  - Symbolset: `! " ' ( ) , - — . : ; ? SIL0 SIL1 SIL2 SIL3 [ ] aɪ aɪː aɪˑ aɪ˘ aʊ aʊː aʊˑ aʊ˘ b bː bˑ b˘ d dː dˑ d˘ d͡ʒ d͡ʒː d͡ʒˑ d͡ʒ˘ eɪ eɪː eɪˑ eɪ˘ f fː fˑ f˘ h hː hˑ i iː iˑ i˘ j jː jˑ j˘ k kː kˑ k˘ l lː lˑ l˘ m mː mˑ m˘ n nː nˑ n˘ oʊ oʊː oʊˑ oʊ˘ p pː pˑ p˘ s sː sˑ s˘ t tː tˑ t˘ t͡ʃ t͡ʃː t͡ʃˑ t͡ʃ˘ u uː uˑ u˘ v vː vˑ v˘ w wː wˑ w˘ z zː zˑ z˘ æ æː æˑ æ˘ ð ðː ðˑ ð˘ ŋ ŋː ŋˑ ŋ˘ ɑ ɑː ɑˑ ɑ˘ ɔ ɔɪ ɔɪː ɔɪ˘ ɔː ɔˑ ɔ˘ ɛ ɛː ɛˑ ɛ˘ ɝ ɝː ɝˑ ɝ˘ ɡ ɡː ɡˑ ɡ˘ ɪ ɪː ɪˑ ɪ˘ ɹ ɹː ɹˑ ɹ˘ ʃ ʃː ʃˑ ʃ˘ ʊ ʊː ʊˑ ʊ˘ ʌ ʌː ʌˑ ʌ˘ ʒ ʒː ʒˑ ʒ˘ ˈaɪ ˈaɪː ˈaɪˑ ˈaɪ˘ ˈaʊ ˈaʊː ˈaʊˑ ˈaʊ˘ ˈeɪ ˈeɪː ˈeɪˑ ˈeɪ˘ ˈi ˈiː ˈiˑ ˈi˘ ˈoʊ ˈoʊː ˈoʊˑ ˈoʊ˘ ˈu ˈuː ˈuˑ ˈu˘ ˈæ ˈæː ˈæˑ ˈæ˘ ˈɑ ˈɑː ˈɑˑ ˈɑ˘ ˈɔ ˈɔɪ ˈɔɪː ˈɔɪˑ ˈɔɪ˘ ˈɔː ˈɔˑ ˈɔ˘ ˈɛ ˈɛː ˈɛˑ ˈɛ˘ ˈɝ ˈɝː ˈɝˑ ˈɝ˘ ˈɪ ˈɪː ˈɪˑ ˈɪ˘ ˈʊ ˈʊː ˈʊˑ ˈʊ˘ ˈʌ ˈʌː ˈʌˑ ˈʌ˘ ˌaɪ ˌaɪː ˌaɪˑ ˌaɪ˘ ˌaʊ ˌaʊː ˌaʊˑ ˌaʊ˘ ˌeɪ ˌeɪː ˌeɪˑ ˌeɪ˘ ˌi ˌiː ˌiˑ ˌi˘ ˌoʊ ˌoʊː ˌoʊˑ ˌoʊ˘ ˌu ˌuː ˌuˑ ˌu˘ ˌæ ˌæː ˌæˑ ˌæ˘ ˌɑ ˌɑː ˌɑˑ ˌɑ˘ ˌɔ ˌɔɪ ˌɔɪː ˌɔɪˑ ˌɔɪ˘ ˌɔː ˌɔˑ ˌɔ˘ ˌɛ ˌɛː ˌɛˑ ˌɛ˘ ˌɝ ˌɝː ˌɝˑ ˌɝ˘ ˌɪ ˌɪː ˌɪˑ ˌɪ˘ ˌʊ ˌʊː ˌʊˑ ˌʊ˘ ˌʌ ˌʌː ˌʌˑ ˌʌ˘ θ θː θˑ θ˘`
 
 ## Audio Example
 
@@ -139,7 +147,6 @@ waveglow-cli synthesize \
 - Better logging
 - Provide more pre-trained models
 - Add audio examples
-- Add printing of statistics of a model, e.g., trained symbols, speakers, accents
 - Adding tests
 
 ## License

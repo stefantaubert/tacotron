@@ -1,6 +1,6 @@
 [project]
 name = "tacotron-cli"
-version = "0.0.2"
+version = "0.0.3"
 description = "Command-line interface (CLI) to train Tacotron 2 using .wav <=> .TextGrid pairs."
 readme = "README.md"
 requires-python = ">=3.8"
