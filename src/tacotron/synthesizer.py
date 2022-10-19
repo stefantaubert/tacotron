@@ -1,7 +1,7 @@
 import logging
 import time
 from dataclasses import dataclass
-from typing import Dict, Generator, Iterable, Optional, Set, Tuple, cast
+from typing import Dict, Generator, Iterable, Optional, Set, cast
 
 import numpy as np
 import torch

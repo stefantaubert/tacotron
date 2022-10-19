@@ -21,7 +21,7 @@ from torch import IntTensor, Tensor, nn  # pylint: disable=no-name-in-module
 from torch.nn import Module
 
 from tacotron.globals import SPACE_DISPLAYABLE
-from tacotron.typing import Stress, Symbol, Tone
+from tacotron.typing import Symbol
 
 _T = TypeVar('_T')
 PYTORCH_EXT = ".pt"

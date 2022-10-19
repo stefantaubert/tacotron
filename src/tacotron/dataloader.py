@@ -1,10 +1,6 @@
-from collections import OrderedDict
-from itertools import chain
 from logging import Logger
 from pathlib import Path
-from typing import Dict, List, Optional
-from typing import OrderedDict as OrderedDictType
-from typing import Tuple
+from typing import Dict, List, Optional, Tuple
 
 import torch
 from torch import FloatTensor, IntTensor, LongTensor, Tensor  # pylint: disable=no-name-in-module
@@ -15,9 +11,8 @@ from tacotron.frontend.main import get_map_keys, get_mapped_indices
 from tacotron.hparams import HParams
 from tacotron.model import ForwardXIn
 from tacotron.taco_stft import TacotronSTFT
-from tacotron.typing import (DurationMapping, Entries, Entry, Speaker, SpeakerId, SpeakerMapping,
-                             Stress, Stresses, StressMapping, Symbol, SymbolMapping, Symbols,
-                             ToneMapping, Tones)
+from tacotron.typing import (DurationMapping, Entries, Entry, SpeakerId, SpeakerMapping,
+                             StressMapping, SymbolMapping, ToneMapping)
 
 LoaderEntry = Tuple[IntTensor, Tensor,
                     Optional[SpeakerId], Optional[IntTensor]]
