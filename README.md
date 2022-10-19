@@ -72,7 +72,7 @@ Tips:
 
 - place stress directly to the vowel of the syllable, e.g. `b|ˈo|d|i` instead of `ˈb|o|d|i` (body)
 - place tone directly to the vowel of the syllable, e.g. `ʈʂʰ|w|a˥˩|n` instead of `ʈʂʰ|w|a|n˥˩` (串)
-  - tone-characters which are considered: `˥ ˦ ˧ ˨ ˩`, e.g.,  `ɑ˥˩`
+  - tone-characters which are considered: `˥ ˦ ˧ ˨ ˩`, e.g., `ɑ˥˩`
 - duration-characters which are considered: `˘ ˑ ː`, e.g., `ʌː`
 - normalize the text, e.g., numbers should be written out
 - substituted space by either `SIL0`, `SIL1` or `SIL2` depending on the duration of the pause
