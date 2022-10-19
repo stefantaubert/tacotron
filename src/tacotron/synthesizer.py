@@ -145,22 +145,31 @@ class Synthesizer():
 
     mapable = indices - unmapable
 
+    # print_text_parts = []
+    # for i, orig_symbol in enumerate(symbols):
+    #   is_mappable = i in mapable
+    #   tmp = orig_symbol
+    #   parts = [core_symbols[i]]
+    #   if self.hparams.use_stress_embedding:
+    #     parts.append(stresses[i])
+    #   if self.hparams.use_tone_embedding:
+    #     parts.append(tones[i])
+    #   if self.hparams.use_duration_embedding:
+    #     parts.append(durations[i])
+    #   tmp += f"({';'.join(parts)})"
+    #   if not is_mappable:
+    #     tmp = f"[{tmp}]"
+    #   print_text_parts.append(tmp)
+    # self._logger.info(' '.join(print_text_parts))
+
     print_text_parts = []
     for i, orig_symbol in enumerate(symbols):
       is_mappable = i in mapable
       tmp = orig_symbol
-      parts = [core_symbols[i]]
-      if self.hparams.use_stress_embedding:
-        parts.append(stresses[i])
-      if self.hparams.use_tone_embedding:
-        parts.append(tones[i])
-      if self.hparams.use_duration_embedding:
-        parts.append(durations[i])
-      tmp += f"({';'.join(parts)})"
       if not is_mappable:
         tmp = f"[{tmp}]"
       print_text_parts.append(tmp)
-    self._logger.info(' '.join(print_text_parts))
+    self._logger.info('|'.join(print_text_parts))
 
     init_global_seeds(seed)
 
