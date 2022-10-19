@@ -62,6 +62,7 @@ optional arguments:
 - `scipy`
 - `tqdm`
 - `ordered_set>=4.1.0`
+  `speech-dataset-parser>=0.0.1`
 - `mel-cepstral-distance>=0.0.1`
 
 ## Training
