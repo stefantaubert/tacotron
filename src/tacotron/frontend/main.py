@@ -5,8 +5,6 @@ from typing import Generator, Iterable, Optional
 from typing import OrderedDict as OrderedDictType
 from typing import Set, Tuple
 
-from torch import FloatTensor, IntTensor, LongTensor, Tensor  # pylint: disable=no-name-in-module
-
 from tacotron.frontend.ipa_symbols import DURATION_MARKERS, TONE_MARKERS
 from tacotron.frontend.stress_detection import StressType, split_stress_ipa_arpa
 from tacotron.hparams import HParams
