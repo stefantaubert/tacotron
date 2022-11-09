@@ -164,6 +164,7 @@ ENG_DIPHTHONGS = ENG_ARPA_DIPHTONGS | {
   "ʊɹ",
   # "ɝʌ",  # extra
   # "ɝi",  # extra
+  "aɪə",  # extra
 }
 
 CONSONANTS = {

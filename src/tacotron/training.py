@@ -144,6 +144,123 @@ def try_get_mappings_count(mapping: Optional[Mapping]) -> int:
   return get_mappings_count(mapping)
 
 
+def check_symbol_mappable(pretrained_model: CheckpointDict, symbol_mapping: SymbolMapping, pre_hparams: HParams, hparams: HParams, logger: Logger) -> bool:
+  if hparams.train_symbol_with_embedding:
+    if not pre_hparams.train_symbol_with_embedding:
+      logger.error(
+          "Mapping symbol: Using symbol embedding for pretrained model is also required!")
+      return False
+    if pre_hparams.symbols_embedding_dim != hparams.symbols_embedding_dim:
+      logger.error(
+          "Mapping symbol: Symbol embedding dimensions need to match with pretrained model!")
+      return False
+  else:
+    if pre_hparams.train_symbol_with_embedding:
+      logger.error(
+          "Mapping symbol: Using symbol embedding needs to be also disabled in pretrained model!")
+      return False
+
+    pre_symbol_mapping = get_symbol_mapping(pretrained_model)
+    if symbol_mapping.keys() != pre_symbol_mapping.keys():
+      logger.error(
+          f"Mapping symbol: Symbol mappings need to be equal '{' '.join(pre_symbol_mapping.keys())}' vs. '{' '.join(symbol_mapping.keys())}'!")
+      return False
+  return True
+
+
+def check_stress_mappable(pretrained_model: CheckpointDict, stress_mapping: StressMapping, pre_hparams: HParams, hparams: HParams, logger: Logger) -> bool:
+  if not hparams.use_stress_embedding:
+    if pre_hparams.use_stress_embedding:
+      logger.error(
+          "Mapping stress: Training stress needs to be also disabled in pretrained model!")
+      return False
+    return True
+
+  if hparams.train_stress_with_embedding:
+    if not pre_hparams.train_stress_with_embedding:
+      logger.error(
+          "Mapping stress: Using stress embedding for pretrained model is also required!")
+      return False
+    if pre_hparams.stress_embedding_dim != hparams.stress_embedding_dim:
+      logger.error(
+          "Mapping stress: Stress embedding dimensions need to match with pretrained model!")
+      return False
+  else:
+    if pre_hparams.train_stress_with_embedding:
+      logger.error(
+          "Mapping stress: Using stress embedding needs to be also disabled in pretrained model!")
+      return False
+
+    pre_stress_mapping = get_stress_mapping(pretrained_model)
+    if stress_mapping.keys() != pre_stress_mapping.keys():
+      logger.error(
+          f"Mapping stress: Stress mappings need to be equal '{' '.join(pre_stress_mapping.keys())}' vs. '{' '.join(stress_mapping.keys())}'!")
+      return False
+  return True
+
+
+def check_tone_mappable(pretrained_model: CheckpointDict, tone_mapping: ToneMapping, pre_hparams: HParams, hparams: HParams, logger: Logger) -> bool:
+  if not hparams.use_tone_embedding:
+    if pre_hparams.use_tone_embedding:
+      logger.error(
+          "Mapping tone: Training tone needs to be also disabled in pretrained model!")
+      return False
+    return True
+
+  if hparams.train_tone_with_embedding:
+    if not pre_hparams.train_tone_with_embedding:
+      logger.error(
+          "Mapping tone: Using tone embedding for pretrained model is also required!")
+      return False
+    if pre_hparams.tone_embedding_dim != hparams.tone_embedding_dim:
+      logger.error(
+          "Mapping tone: Tone embedding dimensions need to match with pretrained model!")
+      return False
+  else:
+    if pre_hparams.train_tone_with_embedding:
+      logger.error(
+          "Mapping tone: Using tone embedding needs to be also disabled in pretrained model!")
+      return False
+
+    pre_tone_mapping = get_tone_mapping(pretrained_model)
+    if tone_mapping.keys() != pre_tone_mapping.keys():
+      logger.error(
+          f"Mapping tone: Tone mappings need to be equal '{' '.join(pre_tone_mapping.keys())}' vs. '{' '.join(tone_mapping.keys())}'!")
+      return False
+  return True
+
+
+def check_duration_mappable(pretrained_model: CheckpointDict, duration_mapping: DurationMapping, pre_hparams: HParams, hparams: HParams, logger: Logger) -> bool:
+  if not hparams.use_duration_embedding:
+    if pre_hparams.use_duration_embedding:
+      logger.error(
+          "Mapping duration: Training duration needs to be also disabled in pretrained model!")
+      return False
+    return True
+
+  if hparams.train_duration_with_embedding:
+    if not pre_hparams.train_duration_with_embedding:
+      logger.error(
+          "Mapping duration: Using duration embedding for pretrained model is also required!")
+      return False
+    if pre_hparams.duration_embedding_dim != hparams.duration_embedding_dim:
+      logger.error(
+          "Mapping duration: Duration embedding dimensions need to match with pretrained model!")
+      return False
+  else:
+    if pre_hparams.train_duration_with_embedding:
+      logger.error(
+          "Mapping duration: Using duration embedding needs to be also disabled in pretrained model!")
+      return False
+
+    pre_duration_mapping = get_duration_mapping(pretrained_model)
+    if duration_mapping.keys() != pre_duration_mapping.keys():
+      logger.error(
+          f"Mapping duration: Duration mappings need to be equal '{' '.join(pre_duration_mapping.keys())}' vs. '{' '.join(duration_mapping.keys())}'!")
+      return False
+  return True
+
+
 def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, trainset: Entries, valset: Entries, save_callback: Callable[[CheckpointDict], None], checkpoint: Optional[CheckpointDict], pretrained_model: Optional[CheckpointDict], warm_start: bool, map_symbol_weights: bool, custom_symbol_weights_map: Optional[SymbolToSymbolMapping], map_speaker_weights: bool, map_from_speaker_name: Optional[str], device: torch.device, logger: Logger, checkpoint_logger: Logger) -> bool:
   complete_start = time.time()
 
@@ -259,37 +376,17 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
         return False
 
       pre_hparams = get_hparams(pretrained_model)
-      if pre_hparams.stress_embedding_dim != hparams.stress_embedding_dim:
-        logger.error(
-            "Mapping symbol weights: Stress embedding dimensions do not match!")
+
+      if not check_symbol_mappable(pretrained_model, symbol_mapping, pre_hparams, hparams, logger):
         return False
 
-      if pre_hparams.tone_embedding_dim != hparams.tone_embedding_dim:
-        logger.error(
-            "Mapping symbol weights: Tone embedding dimensions do not match!")
+      if not check_stress_mappable(pretrained_model, stress_mapping, pre_hparams, hparams, logger):
         return False
 
-      if pre_hparams.duration_embedding_dim != hparams.duration_embedding_dim:
-        logger.error(
-            "Mapping symbol weights: Duration embedding dimensions do not match!")
+      if not check_tone_mappable(pretrained_model, tone_mapping, pre_hparams, hparams, logger):
         return False
 
-      pre_stress_mapping = get_stress_mapping(pretrained_model)
-      if pre_stress_mapping.keys() != stress_mapping.keys():
-        logger.error(
-            f"Mapping symbol weights: Stress mappings are not equal! '{' '.join(pre_stress_mapping.keys())}' vs. '{' '.join(stress_mapping.keys())}'")
-        return False
-
-      pre_tone_mapping = get_tone_mapping(pretrained_model)
-      if pre_tone_mapping.keys() != tone_mapping.keys():
-        logger.error(
-            f"Mapping symbol weights: Tone mappings are not equal! '{' '.join(pre_tone_mapping.keys())}' vs. '{' '.join(tone_mapping.keys())}'")
-        return False
-
-      pre_duration_mapping = get_duration_mapping(pretrained_model)
-      if pre_duration_mapping.keys() != duration_mapping.keys():
-        logger.error(
-            f"Mapping symbol weights: Duration mappings are not equal! '{' '.join(pre_duration_mapping.keys())}' vs. '{' '.join(duration_mapping.keys())}'")
+      if not check_duration_mappable(pretrained_model, duration_mapping, pre_hparams, hparams, logger):
         return False
 
       pre_symbol_weights = get_symbol_embedding_weights(pretrained_model)
