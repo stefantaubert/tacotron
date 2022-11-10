@@ -166,6 +166,7 @@ def synthesize_ns(ns: Namespace) -> bool:
   count_utterances_zfill = len(str(count_utterances))
   utterance_nr = 1
   unmapable_symbols = set()
+  total_duration_s = 0
   with tqdm(total=len(line_nrs_to_infer), unit=" lines", ncols=100, desc="Inference") as progress_bar:
     for paragraph_nr, utterances in paragraphs.items():
       if ns.paragraph_directories:
@@ -241,6 +242,8 @@ def synthesize_ns(ns: Namespace) -> bool:
             seed=seed,
         )
 
+        logger.info(f"Spectrogram duration: {inf_sent_output.duration_s:.2f}s")
+        total_duration_s += inf_sent_output.duration_s
         logger.debug(f"Saving {utterance_mel_path}...")
         paragraph_folder.mkdir(parents=True, exist_ok=True)
         np.save(utterance_mel_path, inf_sent_output.mel_outputs_postnet)
@@ -256,6 +259,7 @@ def synthesize_ns(ns: Namespace) -> bool:
               f"Inference duration: {inf_sent_output.inference_duration_s}")
           log_lines.append(
               f"Sampling rate: {inf_sent_output.sampling_rate}")
+          log_lines.append(f"Spectrogram duration: {inf_sent_output.duration_s:.2f}s")
           if len(inf_sent_output.unmapable_symbols) > 0:
             log_lines.append(
                 f"Unknown symbols: {' '.join(sorted(inf_sent_output.unmapable_symbols))}")
@@ -296,5 +300,7 @@ def synthesize_ns(ns: Namespace) -> bool:
   if len(unmapable_symbols) > 0:
     logger.warning(
         f"Unknown symbols: {' '.join(sorted(unmapable_symbols))} (#{len(unmapable_symbols)})")
-  logger.info(f"Done. Written output to: '{output_directory.absolute()}'")
+  
+  logger.info(f"Done. Total spectrogram duration: {total_duration_s:.2f}s")
+  logger.info(f"Written output to: '{output_directory.absolute()}'")
   return True

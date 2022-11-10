@@ -5,6 +5,7 @@ from typing import Dict, Generator, Iterable, Optional, Set, cast
 
 import numpy as np
 import torch
+from librosa import get_duration
 from torch import IntTensor, LongTensor  # pylint: disable=no-name-in-module
 
 from tacotron.audio_utils import mel_to_numpy
@@ -33,6 +34,7 @@ class InferenceResult():
   unmapable_stresses: Optional[Set[Stress]]
   unmapable_tones: Optional[Set[Tone]]
   unmapable_durations: Optional[Set[Duration]]
+  duration_s: float
 
 
 def get_symbols_noninferable_marked(symbols: Iterable[Symbol], symbol_mapping: SymbolMapping) -> Generator[Symbol, None, None]:
@@ -213,18 +215,22 @@ class Synthesizer():
     end = time.perf_counter()
     inference_duration_s = end - start
 
+    duration_s = get_duration(S=infer_res.mel_outputs_postnet, sr=self.hparams.sampling_rate,
+                              n_fft=self.hparams.filter_length, hop_length=self.hparams.hop_length)
+
     infer_res = InferenceResult(
-        sampling_rate=self.hparams.sampling_rate,
-        reached_max_decoder_steps=reached_max_decoder_steps,
-        inference_duration_s=inference_duration_s,
-        mel_outputs_postnet=mel_to_numpy(mel_outputs_postnet),
-        mel_outputs=None,
-        gate_outputs=None,
-        alignments=None,
-        unmapable_symbols=unmapable_symbols,
-        unmapable_tones=unmapable_tones,
-        unmapable_durations=unmapable_durations,
-        unmapable_stresses=unmapable_stresses,
+      sampling_rate=self.hparams.sampling_rate,
+      reached_max_decoder_steps=reached_max_decoder_steps,
+      inference_duration_s=inference_duration_s,
+      mel_outputs_postnet=mel_to_numpy(mel_outputs_postnet),
+      mel_outputs=None,
+      gate_outputs=None,
+      alignments=None,
+      unmapable_symbols=unmapable_symbols,
+      unmapable_tones=unmapable_tones,
+      unmapable_durations=unmapable_durations,
+      unmapable_stresses=unmapable_stresses,
+      duration_s=duration_s
     )
 
     if include_stats:
