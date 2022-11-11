@@ -215,14 +215,14 @@ class Synthesizer():
     end = time.perf_counter()
     inference_duration_s = end - start
 
-    duration_s = get_duration(S=infer_res.mel_outputs_postnet, sr=self.hparams.sampling_rate,
+    mel_outputs_postnet_np = mel_to_numpy(mel_outputs_postnet)
+    duration_s = get_duration(S=mel_outputs_postnet_np,
                               n_fft=self.hparams.filter_length, hop_length=self.hparams.hop_length)
-
     infer_res = InferenceResult(
       sampling_rate=self.hparams.sampling_rate,
       reached_max_decoder_steps=reached_max_decoder_steps,
       inference_duration_s=inference_duration_s,
-      mel_outputs_postnet=mel_to_numpy(mel_outputs_postnet),
+      mel_outputs_postnet=mel_outputs_postnet_np,
       mel_outputs=None,
       gate_outputs=None,
       alignments=None,
