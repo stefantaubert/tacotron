@@ -150,21 +150,32 @@ ENG_DIPHTHONGS = ENG_ARPA_DIPHTONGS | {
   "iʌ",  # extra
   "ɪər",
   "ɪə",
-  "ɪɹ",
   "ɛər",
   "ɛɪ",  # extra
   "ɛə",
   "eə",  # extra "air"
   "eər",  # extra
   "eʊ",  # extra "boat"
-  "ɛɹ",
   "ʊər",
   "ʊə",
   "ʊu",
-  "ʊɹ",
   # "ɝʌ",  # extra
   # "ɝi",  # extra
   "aɪə",  # extra
+
+  "ər",
+  "ɔr",
+  "ɛr",
+  "ɪr",
+  "ʊr",
+  "ʌr",
+
+  "əɹ",
+  "ɔɹ",
+  "ɛɹ",
+  "ɪɹ",
+  "ʊɹ",
+  "ʌɹ",
 }
 
 CONSONANTS = {

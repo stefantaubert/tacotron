@@ -236,7 +236,7 @@ def validate(checkpoint: CheckpointDict, data: Entries, custom_hparams: Optional
     raise NotImplementedError()
     # assert entry_names is not None
     # logger.info("Finding best seeds...")
-    # validation_data = [x for x in data if x.audio_file_abs.stem in entry_names]
+    # validation_data = [x for x in data if x.wav_absolute_path.stem in entry_names]
     # if len(validation_data) != len(entry_names):
     #   logger.error("Not all entry name's were found!")
     #   assert False
@@ -254,7 +254,7 @@ def validate(checkpoint: CheckpointDict, data: Entries, custom_hparams: Optional
   #     assert False
   elif len(entry_names) > 0:
     validation_data = [
-        x for x in data if x.audio_file_abs.stem in entry_names]
+        x for x in data if x.wav_absolute_path.stem in entry_names]
     if len(validation_data) != len(entry_names):
       logger.error("Not all entry file's were found!")
       assert False
