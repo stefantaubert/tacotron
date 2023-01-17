@@ -13,7 +13,7 @@ from tacotron.utils import (get_last_checkpoint, get_pytorch_filename, parse_jso
 from tacotron_cli.argparse_helper import (get_optional, parse_existing_directory,
                                           parse_existing_file, parse_non_empty,
                                           parse_non_empty_or_whitespace, parse_path)
-from tacotron_cli.helper import add_device_argument, add_hparams_argument
+from tacotron_cli.helper import add_device_argument, add_hparams_argument, add_n_jobs_argument
 from tacotron_cli.io import save_checkpoint, try_load_checkpoint
 
 # def try_load_checkpoint(train_name: Optional[str], checkpoint: Optional[int], logger: Logger) -> Optional[CheckpointDict]:
@@ -75,6 +75,7 @@ def init_training_parser(parser: ArgumentParser) -> None:
                       help="map speaker embedding weights from checkpoint from PRE-TRAINED-MODEL")
   parser.add_argument('--map-from-speaker', type=get_optional(parse_non_empty), default=None,
                       help="if map-speaker-weights, map this speaker to all speakers in the current model")
+  add_n_jobs_argument(parser)
   # Logging
   parser.add_argument('--tl-dir', type=parse_path, metavar="TENSORBOARD-LOG", default=default_log_path,
                       help="path to folder for outputting tensorboard logs (currently not available)")
@@ -135,6 +136,7 @@ def start_training_ns(ns: Namespace) -> None:
     checkpoint_logger=checkpoint_logger,
     device=ns.device,
     checkpoint=None,
+    n_jobs=ns.n_jobs,
   )
 
   return success
@@ -153,6 +155,7 @@ def init_training_continuing_parser(parser: ArgumentParser) -> None:
                       metavar="CHECKPOINTS-FOLDER", type=parse_existing_directory, help="path to folder to write checkpoints")
   add_device_argument(parser)
   add_hparams_argument(parser)
+  add_n_jobs_argument(parser)
   # Logging
   parser.add_argument('--tl-dir', type=parse_path, metavar="TENSORBOARD-LOG", default=default_log_path,
                       help="path to folder for outputting tensorboard logs (currently not available)")
@@ -205,6 +208,7 @@ def continue_training_ns(ns: Namespace) -> bool:
     warm_start=False,
     map_speaker_weights=False,
     device=ns.device,
+    n_jobs=ns.n_jobs,
   )
 
   return success

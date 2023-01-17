@@ -261,7 +261,7 @@ def check_duration_mappable(pretrained_model: CheckpointDict, duration_mapping: 
   return True
 
 
-def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, trainset: Entries, valset: Entries, save_callback: Callable[[CheckpointDict], None], checkpoint: Optional[CheckpointDict], pretrained_model: Optional[CheckpointDict], warm_start: bool, map_symbol_weights: bool, custom_symbol_weights_map: Optional[SymbolToSymbolMapping], map_speaker_weights: bool, map_from_speaker_name: Optional[str], device: torch.device, logger: Logger, checkpoint_logger: Logger) -> bool:
+def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, trainset: Entries, valset: Entries, save_callback: Callable[[CheckpointDict], None], checkpoint: Optional[CheckpointDict], pretrained_model: Optional[CheckpointDict], warm_start: bool, map_symbol_weights: bool, custom_symbol_weights_map: Optional[SymbolToSymbolMapping], map_speaker_weights: bool, map_from_speaker_name: Optional[str], device: torch.device, n_jobs: int, logger: Logger, checkpoint_logger: Logger) -> bool:
   complete_start = time.time()
 
   if checkpoint is not None:
@@ -281,7 +281,9 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
   else:
     symbol_mapping, stress_mapping, tone_mapping, duration_mapping, speaker_mapping = get_mappings_from_checkpoint(
       checkpoint, hparams)
-
+  
+  logger.info(f"Using device: {str(device)}")
+  
   train_style = f"dim: {hparams.symbols_embedding_dim}" if hparams.train_symbol_with_embedding else "1-hot"
   logger.info(
       f"Symbols: {' '.join(get_symbol_printable(symbol) for symbol in symbol_mapping.keys())} (#{len(symbol_mapping)}, {train_style})")
@@ -502,9 +504,9 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
   collate_fn = SymbolsMelCollate(hparams)
 
   val_loader = prepare_valloader(hparams, collate_fn, valset,
-                                 symbol_mapping, stress_mapping, tone_mapping, duration_mapping, speaker_mapping, device, logger)
+                                 symbol_mapping, stress_mapping, tone_mapping, duration_mapping, speaker_mapping, device, n_jobs, logger)
   train_loader = prepare_trainloader(
-      hparams, collate_fn, trainset, symbol_mapping, stress_mapping, tone_mapping, duration_mapping, speaker_mapping, device, logger)
+      hparams, collate_fn, trainset, symbol_mapping, stress_mapping, tone_mapping, duration_mapping, speaker_mapping, device, n_jobs, logger)
 
   batch_iterations = len(train_loader)
   enough_traindata = batch_iterations > 0

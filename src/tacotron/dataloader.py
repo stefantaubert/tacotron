@@ -240,7 +240,7 @@ def parse_batch(batch: Batch) -> Tuple[ForwardXIn, Tuple[FloatTensor, FloatTenso
   return x, y
 
 
-def prepare_valloader(hparams: HParams, collate_fn: SymbolsMelCollate, valset: Entries, symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], tone_mapping: Optional[ToneMapping], duration_mapping: Optional[DurationMapping], speaker_mapping: Optional[SpeakerMapping], device: torch.device, logger: Logger) -> DataLoader:
+def prepare_valloader(hparams: HParams, collate_fn: SymbolsMelCollate, valset: Entries, symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], tone_mapping: Optional[ToneMapping], duration_mapping: Optional[DurationMapping], speaker_mapping: Optional[SpeakerMapping], device: torch.device, n_jobs: int, logger: Logger) -> DataLoader:
   # logger.info(
   #   f"Duration valset {valset.total_duration_s / 60:.2f}m / {valset.total_duration_s / 60 / 60:.2f}h")
 
@@ -251,7 +251,7 @@ def prepare_valloader(hparams: HParams, collate_fn: SymbolsMelCollate, valset: E
 
   val_loader = DataLoader(
       dataset=val,
-      num_workers=16,
+      num_workers=n_jobs,
       shuffle=False,
       sampler=None,
       batch_size=hparams.batch_size,
@@ -263,7 +263,7 @@ def prepare_valloader(hparams: HParams, collate_fn: SymbolsMelCollate, valset: E
   return val_loader
 
 
-def prepare_trainloader(hparams: HParams, collate_fn: SymbolsMelCollate, trainset: Entries, symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], tone_mapping: Optional[ToneMapping], duration_mapping: Optional[DurationMapping], speaker_mapping: Optional[SpeakerMapping], device: torch.device, logger: Logger) -> DataLoader:
+def prepare_trainloader(hparams: HParams, collate_fn: SymbolsMelCollate, trainset: Entries, symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], tone_mapping: Optional[ToneMapping], duration_mapping: Optional[DurationMapping], speaker_mapping: Optional[SpeakerMapping], device: torch.device, n_jobs: int, logger: Logger) -> DataLoader:
   # # Get data, data loaders and collate function ready
   # logger.info(
   #   f"Duration trainset {trainset.total_duration_s / 60:.2f}m / {trainset.total_duration_s / 60 / 60:.2f}h")
@@ -277,7 +277,7 @@ def prepare_trainloader(hparams: HParams, collate_fn: SymbolsMelCollate, trainse
 
   train_loader = DataLoader(
       dataset=trn,
-      num_workers=16,
+      num_workers=n_jobs,
       # shuffle for better training and to fix that the last batch is dropped
       shuffle=True,
       sampler=None,
