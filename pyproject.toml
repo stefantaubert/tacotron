@@ -3,7 +3,7 @@ name = "tacotron-cli"
 version = "0.0.4"
 description = "Command-line interface (CLI) to train Tacotron 2 using .wav <=> .TextGrid pairs."
 readme = "README.md"
-requires-python = ">=3.8, <=3.10"
+requires-python = ">=3.8, <3.11"
 license = {text = "MIT"}
 authors = [
   {name = "Stefan Taubert", email = "pypi@stefantaubert.com"}
