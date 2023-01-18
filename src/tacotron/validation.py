@@ -314,7 +314,7 @@ def validate(checkpoint: CheckpointDict, data: Entries, custom_hparams: Optional
     for entry, entry_seed in zip(tqdm(validation_data), seeds):
       rep_seed = entry_seed + repetition
       logger.info(
-          f"Current --> entry name: {entry.basename}; seed: {rep_seed}; iteration: {iteration}; rep: {rep_human_readable}/{repetitions}")
+          f"Current --> entry name: {entry.basename}; speaker: {entry.speaker_name}; seed: {rep_seed}; iteration: {iteration}; rep: {rep_human_readable}/{repetitions}")
 
       timepoint = datetime.datetime.now()
       inference_result = synth.infer(
