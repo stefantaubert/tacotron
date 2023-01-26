@@ -15,6 +15,7 @@ from tacotron_cli.argparse_helper import get_optional, parse_path
 from tacotron_cli.inference import init_synthesis_parser
 from tacotron_cli.logging_configuration import (configure_root_logger, get_file_logger,
                                                 try_init_file_logger)
+from tacotron_cli.textgrid_inference import init_grid_synthesis_parser
 from tacotron_cli.training import init_training_continuing_parser, init_training_parser
 from tacotron_cli.validation import init_validation_parser
 from tacotron_cli.weights import init_add_missing_weights_parser
@@ -43,6 +44,7 @@ def get_parsers() -> Parsers:
   yield "continue-train", "continue training from a checkpoint", init_training_continuing_parser
   yield "validate", "validate checkpoint(s)", init_validation_parser
   yield "synthesize", "synthesize lines from a file", init_synthesis_parser
+  yield "synthesize-grids", "synthesize .TextGrid files", init_grid_synthesis_parser
   yield "analyze", "analyze checkpoint", init_analysis_parser
   yield "add-missing-symbols", "copy missing symbols from one checkpoint to another", init_add_missing_weights_parser
 

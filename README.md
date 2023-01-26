@@ -223,6 +223,9 @@ Final lines of test result output:
 
 ## Changelog
 
+- v0.0.5 (unreleased)
+  - Added:
+    - Added `synthesize-grids`
 - v0.0.4 (2023-01-17)
   - Added:
     - Added `--n_jobs` argument for `train` and `continue-train`
