@@ -226,6 +226,7 @@ Final lines of test result output:
 - v0.0.5 (unreleased)
   - Added:
     - Added `synthesize-grids`
+    - Added `create-mels`
 - v0.0.4 (2023-01-17)
   - Added:
     - Added `--n_jobs` argument for `train` and `continue-train`

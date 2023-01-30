@@ -15,6 +15,7 @@ from tacotron_cli.argparse_helper import get_optional, parse_path
 from tacotron_cli.inference import init_synthesis_parser
 from tacotron_cli.logging_configuration import (configure_root_logger, get_file_logger,
                                                 try_init_file_logger)
+from tacotron_cli.mel_creation import init_mel_creation_parser
 from tacotron_cli.textgrid_inference import init_grid_synthesis_parser
 from tacotron_cli.training import init_training_continuing_parser, init_training_parser
 from tacotron_cli.validation import init_validation_parser
@@ -40,6 +41,7 @@ def formatter(prog):
 
 
 def get_parsers() -> Parsers:
+  yield "create-mels", "create mel-spectrograms from audio files", init_mel_creation_parser
   yield "train", "start training", init_training_parser
   yield "continue-train", "continue training from a checkpoint", init_training_continuing_parser
   yield "validate", "validate checkpoint(s)", init_validation_parser
