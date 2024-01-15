@@ -304,3 +304,215 @@ def synthesize_ns(ns: Namespace) -> bool:
   logger.info(f"Done. Total spectrogram duration: {total_duration_s:.2f}s")
   logger.info(f"Written output to: '{output_directory.absolute()}'")
   return True
+
+# def synthesize(checkpoint_dict: CheckpointDict, custom_speaker: Optional[str], text_content: str, custom_lines: OrderedSet[int], custom_seed: Optional[int]):
+#   logger = getLogger(__name__)
+#   set_torch_thread_to_max()
+
+#   if custom_speaker is not None:
+#     speaker_mapping = get_speaker_mapping(checkpoint_dict)
+#     if custom_speaker not in speaker_mapping:
+#       logger.error("Custom speaker was not found!")
+#       raise Exception
+
+#   try:
+#     logger.debug("Loading text.")
+#     text_content = ns.text.read_text(ns.encoding)
+#   except Exception as ex:
+#     logger.error("Text couldn't be read!")
+#     return False
+
+#   output_directory = ns.output_directory
+#   if output_directory is None:
+#     output_directory = ns.text.parent / ns.text.stem
+
+#   if output_directory.is_file():
+#     logger.error("Output directory is a file!")
+#     return False
+
+#   paragraphs = parse_paragraphs_from_text(text_content, ns.sep)
+
+#   line_nrs_to_infer = OrderedSet(
+#       line_nr for par in paragraphs.values() for line_nr in par.keys())
+#   if len(ns.custom_lines) > 0:
+#     for custom_line in ns.custom_lines:
+#       if custom_line not in line_nrs_to_infer:
+#         logger.error(f"Line {custom_line} is not inferable!")
+#         return False
+
+#     line_nrs_to_infer = ns.custom_lines
+
+#   logger.info("Inferring...")
+#   logger.info(
+#       f"Checkpoint learning rate was: {get_learning_rate(checkpoint_dict)}")
+
+#   if ns.custom_seed is not None:
+#     seed = ns.custom_seed
+#   else:
+#     seed = random.randint(1, 9999)
+#     logger.info(f"Using random seed: {seed}.")
+
+#   if ns.custom_speaker is not None:
+#     speaker = ns.custom_speaker
+#   else:
+#     speaker_mapping = get_speaker_mapping(checkpoint_dict)
+#     speaker = next(iter(speaker_mapping.keys()))
+#     logger.debug(f"Speaker: {speaker}")
+
+#   custom_hparams = split_hparams_string(ns.custom_hparams)
+
+#   synth = Synthesizer(
+#       checkpoint=checkpoint_dict,
+#       custom_hparams=custom_hparams,
+#       device=ns.device,
+#       logger=logger,
+#   )
+
+#   max_paragraph_nr = max(paragraphs.keys())
+#   max_line_nr = max(utt_nr for paragraph in paragraphs.values()
+#                     for utt_nr in paragraph.keys())
+#   zfill_paragraph = len(str(max_paragraph_nr))
+#   zfill_line_nr = len(str(max_line_nr))
+#   count_utterances = sum(1 for paragraph in paragraphs.values()
+#                          for _ in paragraph.keys())
+#   count_utterances_zfill = len(str(count_utterances))
+#   utterance_nr = 1
+#   unmapable_symbols = set()
+#   total_duration_s = 0
+#   with tqdm(total=len(line_nrs_to_infer), unit=" lines", ncols=100, desc="Inference") as progress_bar:
+#     for paragraph_nr, utterances in paragraphs.items():
+#       if ns.paragraph_directories:
+#         min_utt = min(utterances.keys())
+#         max_utt = max(utterances.keys())
+#         name = f"{paragraph_nr}".zfill(zfill_paragraph)
+#         min_utt_str = f"{min_utt}".zfill(zfill_line_nr)
+#         max_utt_str = f"{max_utt}".zfill(zfill_line_nr)
+#         paragraph_folder = output_directory / \
+#             f"{name}-{min_utt_str}-{max_utt_str}"
+#       else:
+#         paragraph_folder = output_directory
+#       for line_nr, utterance in utterances.items():
+#         if line_nr not in line_nrs_to_infer:
+#           logger.debug(f"Skipped line {line_nr}.")
+#           utterance_nr += 1
+#           continue
+
+#         line_nr_filled = f"{line_nr}".zfill(zfill_line_nr)
+#         utterance_nr_filled = f"{utterance_nr}".zfill(
+#             count_utterances_zfill)
+#         utt_path_stem = f"{ns.prepend}{line_nr_filled}-{utterance_nr_filled}{ns.append}"
+#         utterance_mel_path = paragraph_folder / f"{utt_path_stem}.npy"
+
+#         if utterance_mel_path.exists() and not ns.overwrite:
+#           logger.info(
+#               f"Line {line_nr}: Skipped inference because line is already synthesized!")
+#           continue
+
+#         if ns.include_stats:
+#           log_out = paragraph_folder / f"{utt_path_stem}.log"
+#           align_img_path = paragraph_folder / \
+#               f"{utt_path_stem}-1-alignments.png"
+#           mel_prepost_img_path = paragraph_folder / \
+#               f"{utt_path_stem}-2-prepost.png"
+#           mel_postnet_img_path = paragraph_folder / \
+#               f"{utt_path_stem}-3-postnet.png"
+#           comp_img_path = paragraph_folder / f"{utt_path_stem}.png"
+
+#           if not ns.overwrite:
+#             if log_out.exists():
+#               logger.info(
+#                   f"Line {line_nr}: Log already exists! Skipped inference.")
+#               continue
+
+#             if mel_postnet_img_path.exists():
+#               logger.info(
+#                   f"Line {line_nr}: Mel image already exists! Skipped inference.")
+#               continue
+
+#             if mel_prepost_img_path.exists():
+#               logger.info(
+#                   f"Line {line_nr}: Mel pre-postnet image already exists! Skipped inference.")
+#               continue
+
+#             if align_img_path.exists():
+#               logger.info(
+#                   f"Line {line_nr}: Alignments image already exists! Skipped inference.")
+#               continue
+
+#             if comp_img_path.exists():
+#               logger.info(
+#                   f"Line {line_nr}: Comparison image already exists! Skipped inference.")
+#               continue
+
+#         logger.debug(f"Synthesizing line {line_nr}...")
+
+#         inf_sent_output = synth.infer(
+#             symbols=utterance,
+#             speaker=speaker,
+#             include_stats=ns.include_stats,
+#             max_decoder_steps=ns.max_decoder_steps,
+#             seed=seed,
+#         )
+
+#         logger.info(f"Spectrogram duration: {inf_sent_output.duration_s:.2f}s")
+#         total_duration_s += inf_sent_output.duration_s
+#         logger.debug(f"Saving {utterance_mel_path}...")
+#         paragraph_folder.mkdir(parents=True, exist_ok=True)
+#         np.save(utterance_mel_path, inf_sent_output.mel_outputs_postnet)
+
+#         unmapable_symbols |= inf_sent_output.unmapable_symbols
+
+#         if ns.include_stats:
+#           log_lines = []
+#           log_lines.append(f"Timepoint: {datetime.datetime.now()}")
+#           log_lines.append(
+#               f"Reached max decoder steps: {inf_sent_output.reached_max_decoder_steps}")
+#           log_lines.append(
+#               f"Inference duration: {inf_sent_output.inference_duration_s}")
+#           log_lines.append(
+#               f"Sampling rate: {inf_sent_output.sampling_rate}")
+#           log_lines.append(f"Spectrogram duration: {inf_sent_output.duration_s:.2f}s")
+#           if len(inf_sent_output.unmapable_symbols) > 0:
+#             log_lines.append(
+#                 f"Unknown symbols: {' '.join(sorted(inf_sent_output.unmapable_symbols))}")
+#           else:
+#             log_lines.append("All symbols were known.")
+
+#           # TODO unmapable tones etc logging
+
+#           logger.debug(f"Saving {log_out}...")
+#           log_out.write_text("\n".join(log_lines), encoding="UTF-8")
+
+#           logger.debug(f"Saving {mel_postnet_img_path}...")
+#           _, postnet_img = plot_melspec_np(
+#               inf_sent_output.mel_outputs_postnet)
+#           imageio.imsave(mel_postnet_img_path, postnet_img)
+
+#           logger.debug(f"Saving {mel_prepost_img_path}...")
+#           _, mel_img = plot_melspec_np(inf_sent_output.mel_outputs)
+#           imageio.imsave(mel_prepost_img_path, mel_img)
+
+#           logger.debug(f"Saving {align_img_path}...")
+#           _, alignments_img = plot_alignment_np_new(
+#               inf_sent_output.alignments)
+#           imageio.imsave(align_img_path, alignments_img)
+
+#           logger.debug(f"Saving {comp_img_path}...")
+#           stack_images_vertically(
+#               list_im=[
+#                   align_img_path,
+#                   mel_prepost_img_path,
+#                   mel_postnet_img_path,
+#               ],
+#               out_path=comp_img_path,
+#           )
+#         progress_bar.update()
+#         utterance_nr += 1
+
+#   if len(unmapable_symbols) > 0:
+#     logger.warning(
+#         f"Unknown symbols: {' '.join(sorted(unmapable_symbols))} (#{len(unmapable_symbols)})")
+  
+#   logger.info(f"Done. Total spectrogram duration: {total_duration_s:.2f}s")
+#   logger.info(f"Written output to: '{output_directory.absolute()}'")
+#   return True
