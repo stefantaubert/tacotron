@@ -6,7 +6,6 @@ from typing import Any
 import torch
 
 from tacotron.checkpoint_handling import CheckpointDict
-from tacotron_cli.logging_configuration import LOGGER_NAME
 
 # def get_train_dir(base_dir: Path, train_name: str) -> Path:
 #     return base_dir / train_name
@@ -126,7 +125,7 @@ def load_checkpoint(path: Path, device: torch.device) -> CheckpointDict:
 
 
 def try_load_checkpoint(path: Path, device: torch.device) -> CheckpointDict:
-  logger = getLogger(LOGGER_NAME)
+  logger = getLogger(__name__)
   try:
     logger.debug("Loading checkpoint...")
     checkpoint_dict = load_checkpoint(path, device)

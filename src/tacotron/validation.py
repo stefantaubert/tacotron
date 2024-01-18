@@ -1,10 +1,11 @@
 import datetime
 import random
 from dataclasses import dataclass
+from logging import getLogger
 from typing import Callable, Dict, List, Optional, Set
 
-#import jiwer
-#import jiwer.transforms as tr
+# import jiwer
+# import jiwer.transforms as tr
 import numpy as np
 import pandas as pd
 import torch
@@ -30,7 +31,7 @@ class ValidationEntry():
   repetition: int = None
   repetitions: int = None
   seed: int = None
-  #train_name: str = None
+  # train_name: str = None
   iteration: int = None
   sampling_rate: int = None
   # grad_norm: float = None
@@ -124,7 +125,7 @@ def get_df(entries: ValidationEntries) -> DataFrame:
     tmp["# Symbols"] = len(entry.entry.symbols)
     tmp["Unique symbols"] = ' '.join(sorted(set(entry.entry.symbols)))
     tmp["# Unique symbols"] = len(set(entry.entry.symbols))
-    #tmp["Train name"] = entry.train_name
+    # tmp["Train name"] = entry.train_name
     # tmp["Ds-Id"] = entry.entry.ds_entry_id
     tmp["Wav path"] = str(entry.entry.wav_absolute_path)
     # tmp["Wav path original"] = str(entry.entry.wav_original_absolute_path)
@@ -218,13 +219,9 @@ class ValidationEntryOutput():
 # def wav_to_text(wav: np.ndarray) -> str:
 #   return ""
 
-from logging import getLogger
-
-from tacotron.logging import LOGGER_NAME
-
 
 def validate(checkpoint: CheckpointDict, data: Entries, custom_hparams: Optional[Dict[str, str]], entry_names: Set[str], speaker_name: Optional[str], full_run: bool, save_callback: Callable[[Entry, ValidationEntryOutput], None], max_decoder_steps: int, fast: bool, mcd_no_of_coeffs_per_frame: int, repetitions: int, seed: Optional[int], select_best_from: Optional[pd.DataFrame], device: torch.device) -> ValidationEntries:
-  logger = getLogger(LOGGER_NAME)
+  logger = getLogger(__name__)
   seeds: List[int]
   validation_data: Entries
   iteration = get_iteration(checkpoint)
@@ -306,7 +303,7 @@ def validate(checkpoint: CheckpointDict, data: Entries, custom_hparams: Optional
     # train_twogram_rarities = get_ngram_rarity(validation_data, trainset, 2)
     # train_threegram_rarities = get_ngram_rarity(validation_data, trainset, 3)
     pass
-  #asr_pipeline = asr.load('deepspeech2', lang='en')
+  # asr_pipeline = asr.load('deepspeech2', lang='en')
   # asr_pipeline.model.summary()
 
   for repetition in range(repetitions):
@@ -336,7 +333,7 @@ def validate(checkpoint: CheckpointDict, data: Entries, custom_hparams: Optional
       val_entry.seed = rep_seed
       val_entry.iteration = iteration
       val_entry.timepoint = timepoint
-      #val_entry.train_name = train_name
+      # val_entry.train_name = train_name
       val_entry.sampling_rate = synth.get_sampling_rate()
       val_entry.reached_max_decoder_steps = inference_result.reached_max_decoder_steps
       val_entry.inference_duration_s = inference_result.inference_duration_s
@@ -378,8 +375,8 @@ def validate(checkpoint: CheckpointDict, data: Entries, custom_hparams: Optional
         padded_structural_similarity = None
         aligned_structural_similarity = None
 
-        #ground_truth = ''.join(entry.symbols)
-        #hypothesis = asr_pipeline.predict([inference_result.mel_outputs_postnet])[0]
+        # ground_truth = ''.join(entry.symbols)
+        # hypothesis = asr_pipeline.predict([inference_result.mel_outputs_postnet])[0]
 
         # measures = jiwer.compute_measures(
         #     truth=ground_truth,

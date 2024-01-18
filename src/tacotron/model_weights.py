@@ -130,7 +130,7 @@
 
 
 # def map_symbols(input_model: CheckpointTacotron, target_model: CheckpointTacotron, symbols: Set[Symbol]) -> None:
-#     logger = getLogger(LOGGER_NAME)
+#     logger = getLogger(__name__)
 #     input_embedding: Tensor = input_model.model_state_dict[SYMBOL_EMBEDDING_LAYER_NAME]
 #     input_symbols = input_model.get_symbols()
 

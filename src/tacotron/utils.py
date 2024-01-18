@@ -21,7 +21,6 @@ from torch import IntTensor, Tensor, nn  # pylint: disable=no-name-in-module
 from torch.nn import Module
 
 from tacotron.globals import SPACE_DISPLAYABLE
-from tacotron.logging import LOGGER_NAME
 from tacotron.typing import Symbol
 
 _T = TypeVar('_T')
@@ -274,8 +273,8 @@ def update_state_dict(model: nn.Module, updates: Dict[str, Tensor]) -> None:
 
 
 def log_hparams(hparams: _T) -> None:
-  logger = getLogger(LOGGER_NAME)
-  
+  logger = getLogger(__name__)
+
   logger.info("=== HParams ===")
   for param, val in asdict(hparams).items():
     logger.info(f"- {param} = {val}")
@@ -283,8 +282,8 @@ def log_hparams(hparams: _T) -> None:
 
 
 # def log_dict(d: Dict) -> None:
-#   logger = getLogger(LOGGER_NAME)
-  
+#   logger = getLogger(__name__)
+
 #   for param, val in d.items():
 #     logger.info(f" {param}: {val}")
 
@@ -468,7 +467,7 @@ def is_pytorch_file(filename: str) -> None:
 #   if torch.cuda.is_available():
 #     x = x.to("cuda:0", non_blocking=True)
 #   else:
-#     logger = getLogger(LOGGER_NAME)
+#     logger = getLogger(__name__)
 #     logger.warning("No GPU found to copy data to!")
 #   return x
 
@@ -482,7 +481,7 @@ def try_copy_to(x: Union[Tensor, Module], device: torch.device) -> Union[Tensor,
   try:
     x = x.to(device, non_blocking=True)
   except Exception as ex:
-    logger = getLogger(LOGGER_NAME)
+    logger = getLogger(__name__)
     logger.debug(ex)
     logger.warning(f"Mapping to device '{device}' was not successful, therefore using CPU!")
     x = x.to("cpu", non_blocking=True)

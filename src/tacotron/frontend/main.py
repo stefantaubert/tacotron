@@ -8,7 +8,6 @@ from typing import Set, Tuple
 from tacotron.frontend.ipa_symbols import DURATION_MARKERS, TONE_MARKERS
 from tacotron.frontend.stress_detection import StressType, split_stress_ipa_arpa
 from tacotron.hparams import HParams
-from tacotron.logging import LOGGER_NAME
 from tacotron.typing import (Duration, DurationMapping, Durations, Entries, Mapping, MappingId,
                              Speaker, SpeakerMapping, Stress, Stresses, StressMapping, Symbol,
                              SymbolMapping, Symbols, Tone, ToneMapping, Tones)
@@ -55,7 +54,7 @@ def get_map_keys(symbols: Symbols, hparams: HParams) -> Tuple[Symbols, Optional[
 
 
 def create_mappings(valset: Entries, trainset: Entries, hparams: HParams) -> Tuple[SymbolMapping, Optional[StressMapping], Optional[ToneMapping], Optional[DurationMapping], Optional[SpeakerMapping]]:
-  logger = getLogger(LOGGER_NAME)
+  logger = getLogger(__name__)
   # Order: stresses -> tones -> durations
   unique_symbols = set(get_symbols_iterator(valset, trainset))
 

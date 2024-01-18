@@ -9,7 +9,6 @@ from tqdm import tqdm
 
 from tacotron.frontend.main import get_map_keys, get_mapped_indices
 from tacotron.hparams import HParams
-from tacotron.logging import LOGGER_NAME
 from tacotron.model import ForwardXIn
 from tacotron.taco_stft import TacotronSTFT
 from tacotron.typing import (DurationMapping, Entries, Entry, SpeakerId, SpeakerMapping,
@@ -22,7 +21,7 @@ LoaderEntry = Tuple[IntTensor, Tensor,
 class SymbolsMelLoader(Dataset):
   def __init__(self, data: Entries, hparams: HParams, symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], tone_mapping: Optional[ToneMapping], duration_mapping: Optional[DurationMapping], speaker_mapping: Optional[SpeakerMapping], device: torch.device):
     super().__init__()
-    logger = getLogger(LOGGER_NAME)
+    logger = getLogger(__name__)
     # random.seed(hparams.seed)
     # random.shuffle(data)
     self.use_saved_mels = hparams.use_saved_mels

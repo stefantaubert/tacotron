@@ -5,7 +5,6 @@ import torch
 from librosa.filters import mel as librosa_mel_fn
 
 from tacotron.audio_utils import FLOAT32_64_MAX_WAV, FLOAT32_64_MIN_WAV, wav_to_float32_tensor
-from tacotron.logging import LOGGER_NAME
 from tacotron.stft import STFT
 
 
@@ -109,7 +108,7 @@ class TacotronSTFT(torch.nn.Module):  # todo rename to Mel
 
     if sampling_rate != self.sampling_rate:
       msg = f"{wav_path}: The sampling rate of the file ({sampling_rate}Hz) doesn't match the target sampling rate ({self.sampling_rate}Hz)!"
-      logger = getLogger(LOGGER_NAME)
+      logger = getLogger(__name__)
       logger.exception(msg)
       raise ValueError(msg)
 

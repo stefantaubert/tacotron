@@ -24,7 +24,6 @@ from tacotron.dataloader import (SymbolsMelCollate, parse_batch, prepare_trainlo
 from tacotron.frontend.main import create_mappings, get_mappings_count
 from tacotron.hparams import ExperimentHParams, HParams, OptimizerHParams
 from tacotron.logger import Tacotron2Logger
-from tacotron.logging import LOGGER_NAME
 from tacotron.model import SPEAKER_EMBEDDING_LAYER_NAME, SYMBOL_EMBEDDING_LAYER_NAME, Tacotron2
 from tacotron.typing import (DurationMapping, Entries, Mapping, SpeakerMapping, StressMapping,
                              SymbolMapping, SymbolToSymbolMapping, ToneMapping)
@@ -64,7 +63,7 @@ class Tacotron2Loss(nn.Module):
 
 
 def validate(model: nn.Module, criterion: nn.Module, val_loader: DataLoader, iteration: int, device: torch.device, taco_logger: Tacotron2Logger) -> None:
-  logger = getLogger(LOGGER_NAME)
+  logger = getLogger(__name__)
   logger.debug("Validating...")
   avg_val_loss, res = validate_model(
       model, criterion, val_loader, device, parse_batch)
@@ -84,7 +83,7 @@ def validate(model: nn.Module, criterion: nn.Module, val_loader: DataLoader, ite
 
 def validate_model(model: nn.Module, criterion: Tacotron2Loss, val_loader: DataLoader, device: torch.device, batch_parse_method) -> Tuple[float, Tuple[float, nn.Module, Tuple, Tuple]]:
   res = []
-  logger = getLogger(LOGGER_NAME)
+  logger = getLogger(__name__)
   with torch.no_grad():
     total_val_loss = 0.0
     # val_loader count is: ceil(validation set length / batch size)
@@ -112,7 +111,7 @@ def init_torch(hparams: ExperimentHParams) -> None:
 
 
 # def log_symbol_weights(model: Tacotron2) -> None:
-#   logger = getLogger(LOGGER_NAME)
+#   logger = getLogger(__name__)
 #   logger.info(
 #       f"Symbolweights (cuda: {model.symbol_embeddings.weight.is_cuda})")
 #   logger.info(str(model.state_dict()[SYMBOL_EMBEDDING_LAYER_NAME]))
@@ -148,7 +147,7 @@ def try_get_mappings_count(mapping: Optional[Mapping]) -> int:
 
 
 def check_symbol_mappable(pretrained_model: CheckpointDict, symbol_mapping: SymbolMapping, pre_hparams: HParams, hparams: HParams) -> bool:
-  logger = getLogger(LOGGER_NAME)
+  logger = getLogger(__name__)
 
   if hparams.train_symbol_with_embedding:
     if not pre_hparams.train_symbol_with_embedding:
@@ -174,7 +173,7 @@ def check_symbol_mappable(pretrained_model: CheckpointDict, symbol_mapping: Symb
 
 
 def check_stress_mappable(pretrained_model: CheckpointDict, stress_mapping: StressMapping, pre_hparams: HParams, hparams: HParams) -> bool:
-  logger = getLogger(LOGGER_NAME)
+  logger = getLogger(__name__)
   if not hparams.use_stress_embedding:
     if pre_hparams.use_stress_embedding:
       logger.error(
@@ -206,7 +205,7 @@ def check_stress_mappable(pretrained_model: CheckpointDict, stress_mapping: Stre
 
 
 def check_tone_mappable(pretrained_model: CheckpointDict, tone_mapping: ToneMapping, pre_hparams: HParams, hparams: HParams) -> bool:
-  logger = getLogger(LOGGER_NAME)
+  logger = getLogger(__name__)
 
   if not hparams.use_tone_embedding:
     if pre_hparams.use_tone_embedding:
@@ -239,7 +238,7 @@ def check_tone_mappable(pretrained_model: CheckpointDict, tone_mapping: ToneMapp
 
 
 def check_duration_mappable(pretrained_model: CheckpointDict, duration_mapping: DurationMapping, pre_hparams: HParams, hparams: HParams) -> bool:
-  logger = getLogger(LOGGER_NAME)
+  logger = getLogger(__name__)
 
   if not hparams.use_duration_embedding:
     if pre_hparams.use_duration_embedding:
@@ -272,7 +271,7 @@ def check_duration_mappable(pretrained_model: CheckpointDict, duration_mapping: 
 
 
 def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotron2Logger, trainset: Entries, valset: Entries, save_callback: Callable[[CheckpointDict], None], checkpoint: Optional[CheckpointDict], pretrained_model: Optional[CheckpointDict], warm_start: bool, map_symbol_weights: bool, custom_symbol_weights_map: Optional[SymbolToSymbolMapping], map_speaker_weights: bool, map_from_speaker_name: Optional[str], device: torch.device, n_jobs: int, checkpoint_logger: Logger) -> bool:
-  logger = getLogger(LOGGER_NAME)
+  logger = getLogger(__name__)
 
   complete_start = time.time()
 
@@ -724,7 +723,7 @@ def start_training(custom_hparams: Optional[Dict[str, str]], taco_logger: Tacotr
 
 
 def adjust_lr(hparams: HParams, optimizer: Optimizer, epoch: int, scheduler) -> None:
-  logger = getLogger(LOGGER_NAME)
+  logger = getLogger(__name__)
 
   assert hparams.lr_decay_start_after_epoch is not None
   assert hparams.lr_decay_start_after_epoch >= 1
@@ -815,7 +814,7 @@ def load_scheduler(optimizer: Adam, hparams: OptimizerHParams, checkpoint: Optio
 
 
 def warm_start_model(model: Tacotron2, warm_model: CheckpointDict, hparams: HParams) -> bool:
-  logger = getLogger(LOGGER_NAME)
+  logger = getLogger(__name__)
 
   warm_model_hparams = get_hparams(warm_model)
 

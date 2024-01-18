@@ -169,7 +169,7 @@ def get_file_logger() -> Logger:
 
 def try_init_file_logger(path: Path, debug: bool = False) -> bool:
   if path.is_dir():
-    logger = getLogger(LOGGER_NAME)
+    logger = getLogger(__name__)
     logger.error("Logging path is a directory!")
     return False
   flogger = get_file_logger()
@@ -181,7 +181,7 @@ def try_init_file_logger(path: Path, debug: bool = False) -> bool:
     path.write_text("")
     fh = logging.FileHandler(path)
   except Exception as ex:
-    logger = getLogger(LOGGER_NAME)
+    logger = getLogger(__name__)
     logger.error("Logfile couldn't be created!")
     logger.exception(ex)
     return False

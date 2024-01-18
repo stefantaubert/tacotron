@@ -21,7 +21,6 @@ from tacotron_cli.argparse_helper import (get_optional, parse_codec, parse_exist
 from tacotron_cli.helper import (add_device_argument, add_hparams_argument,
                                  add_max_decoder_steps_argument)
 from tacotron_cli.io import try_load_checkpoint
-from tacotron_cli.logging_configuration import LOGGER_NAME
 
 Utterances = OrderedDictType[int, Symbols]
 Paragraphs = OrderedDictType[int, Utterances]
@@ -58,7 +57,7 @@ def init_grid_synthesis_parser(parser: ArgumentParser) -> None:
 
 
 def synthesize_ns(ns: Namespace) -> bool:
-  logger = getLogger(LOGGER_NAME)
+  logger = getLogger(__name__)
   set_torch_thread_to_max()
 
   checkpoint_dict = try_load_checkpoint(ns.checkpoint, ns.device)

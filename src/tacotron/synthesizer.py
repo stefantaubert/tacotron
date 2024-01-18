@@ -14,7 +14,6 @@ from tacotron.checkpoint_handling import (CheckpointDict, get_duration_mapping, 
                                           get_symbol_mapping, get_tone_mapping)
 from tacotron.frontend.main import get_map_keys, get_mapped_indices, get_mappings_count
 from tacotron.globals import NOT_INFERABLE_SYMBOL_MARKER
-from tacotron.logging import LOGGER_NAME
 from tacotron.model import Tacotron2
 from tacotron.training import load_model, try_get_mappings_count
 from tacotron.typing import Duration, Speaker, Stress, Symbol, SymbolMapping, Symbols, Tone
@@ -95,8 +94,8 @@ class Synthesizer():
     return self.hparams.sampling_rate
 
   def infer(self, symbols: Symbols, speaker: Speaker, max_decoder_steps: int, seed: int, include_stats: bool) -> InferenceResult:
-    logger = logging.getLogger(LOGGER_NAME)
-    
+    logger = logging.getLogger(__name__)
+
     core_symbols, stresses, tones, durations = get_map_keys(symbols, self.hparams)
 
     speaker_id = None

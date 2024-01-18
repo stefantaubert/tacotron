@@ -23,13 +23,13 @@
 #   def get_hparams(self, hparam_type: Type[_HParamsType]) -> _HParamsType:
 #     res, ignored = get_dataclass_from_dict(self.hparams, hparam_type)
 #     if len(ignored) > 0:
-#       logger = getLogger(LOGGER_NAME)
+#       logger = getLogger(__name__)
 #       logger.warning(
 #         f"Ignored these hparams from checkpoint because they did not exist in the current HParams: {ignored}.")
 #     return res
 
 #   def save(self, checkpoint_path: Path):
-#     logger = getLogger(LOGGER_NAME)
+#     logger = getLogger(__name__)
 #     logger.info(f"Saving model at iteration {self.iteration}...")
 #     checkpoint_dict = asdict(self)
 #     torch.save(checkpoint_dict, checkpoint_path)
@@ -38,7 +38,7 @@
 #   @classmethod
 #   def load(cls, checkpoint_path: Path):
 #     assert checkpoint_path.is_file()
-#     logger = getLogger(LOGGER_NAME)
+#     logger = getLogger(__name__)
 #     logger.info(f"Loading model '{checkpoint_path}'...")
 #     checkpoint_dict = torch.load(checkpoint_path, map_location='cpu')
 #     if "scheduler_state_dict" not in checkpoint_dict:

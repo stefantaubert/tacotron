@@ -9,7 +9,6 @@ from torch.optim.adam import Adam  # pylint: disable=no-name-in-module
 from torch.optim.lr_scheduler import ExponentialLR
 
 from tacotron.hparams import HParams
-from tacotron.logging import LOGGER_NAME
 from tacotron.model import SPEAKER_EMBEDDING_LAYER_NAME, SYMBOL_EMBEDDING_LAYER_NAME, Tacotron2
 from tacotron.typing import (DurationMapping, SpeakerMapping, StressMapping, SymbolMapping,
                              ToneMapping)
@@ -154,7 +153,7 @@ def get_hparams(checkpoint: CheckpointDict) -> HParams:
   hparams = checkpoint[KEY_HPARAMS]
   result, ignored = get_dataclass_from_dict(hparams, HParams)
   if len(ignored) > 0:
-    logger = getLogger(LOGGER_NAME)
+    logger = getLogger(__name__)
     logger.warning(
         f"Ignored these hparams from checkpoint because they did not exist in the current HParams: {', '.join(sorted(ignored))} (#{len(ignored)})")
   return result

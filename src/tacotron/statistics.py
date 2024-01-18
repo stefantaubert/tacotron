@@ -2,12 +2,11 @@
 from logging import getLogger
 
 from tacotron.checkpoint_handling import *
-from tacotron.logging import LOGGER_NAME
 from tacotron.utils import get_symbol_printable, log_hparams
 
 
 def get_checkpoint_statistics(checkpoint: CheckpointDict):
-  logger = getLogger(LOGGER_NAME)
+  logger = getLogger(__name__)
   hparams = get_hparams(checkpoint)
   log_hparams(hparams)
 

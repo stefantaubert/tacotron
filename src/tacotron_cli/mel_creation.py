@@ -12,7 +12,6 @@ from tacotron_cli.argparse_helper import (get_optional, parse_existing_directory
                                           parse_non_empty_or_whitespace, parse_non_negative_float,
                                           parse_non_negative_integer, parse_path)
 from tacotron_cli.helper import add_device_argument
-from tacotron_cli.logging_configuration import LOGGER_NAME
 from tacotron_cli.textgrid_inference import get_all_files_in_all_subfolders
 
 
@@ -41,7 +40,7 @@ def init_mel_creation_parser(parser: ArgumentParser) -> None:
 
 
 def create_mels_ns(ns: Namespace) -> None:
-  logger = getLogger(LOGGER_NAME)
+  logger = getLogger(__name__)
 
   output_directory: Path = ns.custom_output_directory
   if output_directory is None:

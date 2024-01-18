@@ -9,7 +9,6 @@ from tacotron.utils import set_torch_thread_to_max
 from tacotron_cli.argparse_helper import parse_existing_file
 from tacotron_cli.helper import add_device_argument
 from tacotron_cli.io import save_checkpoint, try_load_checkpoint
-from tacotron_cli.logging_configuration import LOGGER_NAME
 
 
 def init_add_missing_weights_parser(parser: ArgumentParser) -> None:
@@ -25,7 +24,7 @@ def init_add_missing_weights_parser(parser: ArgumentParser) -> None:
 
 
 def map_missing_symbols_ns(ns: Namespace) -> bool:
-  logger = getLogger(LOGGER_NAME)
+  logger = getLogger(__name__)
   set_torch_thread_to_max()
 
   checkpoint1_dict = try_load_checkpoint(ns.checkpoint1, ns.device)

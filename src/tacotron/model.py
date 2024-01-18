@@ -10,7 +10,6 @@ from torch.nn import functional as F
 
 from tacotron.hparams import HParams
 from tacotron.layers import ConvNorm, LinearNorm
-from tacotron.logging import LOGGER_NAME
 from tacotron.utils import (get_mask_from_lengths, get_uniform_weights, get_xavier_weights,
                             weights_to_embedding)
 
@@ -557,7 +556,7 @@ class Decoder(nn.Module):
         break
 
       if max_decoder_steps > 0 and len(mel_outputs) == max_decoder_steps:
-        logger = getLogger(LOGGER_NAME)
+        logger = getLogger(__name__)
         logger.warning("Reached max decoder steps.")
         reached_max_decoder_steps = True
         break
@@ -596,7 +595,7 @@ def get_vector(tensor: IntTensor, use_embedding: bool, embedding: Optional[nn.Em
     if torch.isnan(result).any():
       # embedding_inputs can be nan if training was not good
       msg = "Embedding returned nan!"
-      logger = getLogger(LOGGER_NAME)
+      logger = getLogger(__name__)
       logger.error(msg)
       raise Exception(msg)
   else:

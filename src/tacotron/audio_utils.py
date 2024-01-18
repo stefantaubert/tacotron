@@ -74,7 +74,7 @@ def wav_to_float32_tensor(path: str) -> Tuple[torch.Tensor, int]:
   return wav_tensor, sampling_rate
 
 
-def wav_to_float32(path: str) -> Tuple[np.float, int]:
+def wav_to_float32(path: str) -> Tuple[float, int]:
   sampling_rate, wav = read(path)
   wav = convert_wav(wav, np.float32)
   return wav, sampling_rate
