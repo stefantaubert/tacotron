@@ -16,7 +16,7 @@ from tacotron_cli.argparse_helper import (get_optional, parse_existing_directory
 from tacotron_cli.helper import add_device_argument, add_hparams_argument, add_n_jobs_argument
 from tacotron_cli.io import save_checkpoint, try_load_checkpoint
 
-# def try_load_checkpoint(train_name: Optional[str], checkpoint: Optional[int], logger: Logger) -> Optional[CheckpointDict]:
+# def try_load_checkpoint(train_name: Optional[str], checkpoint: Optional[int]) -> Optional[CheckpointDict]:
 #     result = None
 #     if train_name:
 #         train_dir = get_train_dir(base_dir, train_name)
@@ -30,7 +30,7 @@ from tacotron_cli.io import save_checkpoint, try_load_checkpoint
 def save_checkpoint_iteration(checkpoint: CheckpointDict, save_checkpoint_dir: Path) -> None:
   iteration = get_iteration(checkpoint)
   # TODO
-  #checkpoint_path = save_checkpoint_dir / f"{iteration}.pkl"
+  # checkpoint_path = save_checkpoint_dir / f"{iteration}.pkl"
   checkpoint_path = save_checkpoint_dir / get_pytorch_filename(iteration)
   save_checkpoint(checkpoint, checkpoint_path)
 
@@ -99,7 +99,7 @@ def start_training_ns(ns: Namespace) -> None:
   pre_trained_model_checkpoint = None
   weights_map = None
   if ns.pre_trained_model is not None:
-    pre_trained_model_checkpoint = try_load_checkpoint(ns.pre_trained_model, ns.device, logger)
+    pre_trained_model_checkpoint = try_load_checkpoint(ns.pre_trained_model, ns.device)
     if pre_trained_model_checkpoint is None:
       return False
 
@@ -132,7 +132,6 @@ def start_training_ns(ns: Namespace) -> None:
     map_symbol_weights=ns.map_symbol_weights,
     map_speaker_weights=ns.map_speaker_weights,
     map_from_speaker_name=ns.map_from_speaker,
-    logger=logger,
     checkpoint_logger=checkpoint_logger,
     device=ns.device,
     checkpoint=None,
@@ -185,7 +184,7 @@ def continue_training_ns(ns: Namespace) -> bool:
 
   last_checkpoint_path, _ = get_last_checkpoint(ns.checkpoints_dir)
 
-  last_checkpoint = try_load_checkpoint(last_checkpoint_path, ns.device, logger)
+  last_checkpoint = try_load_checkpoint(last_checkpoint_path, ns.device)
   if last_checkpoint is None:
     return False
 
@@ -203,7 +202,6 @@ def continue_training_ns(ns: Namespace) -> bool:
     map_from_speaker_name=None,
     map_symbol_weights=False,
     checkpoint=last_checkpoint,
-    logger=logger,
     checkpoint_logger=checkpoint_logger,
     warm_start=False,
     map_speaker_weights=False,

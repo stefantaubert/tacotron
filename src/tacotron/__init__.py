@@ -3,6 +3,7 @@ from tacotron.checkpoint_handling import (CheckpointDict, get_duration_mapping, 
                                           get_learning_rate, get_speaker_mapping,
                                           get_stress_mapping, get_symbol_mapping, get_tone_mapping)
 from tacotron.image_utils import stack_images_vertically
+from tacotron.logging import LOGGER_NAME
 from tacotron.synthesizer import Synthesizer
 from tacotron.typing import Duration, Speaker, Stress, Symbol, SymbolMapping, Symbols, Tone
 from tacotron.utils import (console_out_len, find_indices, get_items_by_index, init_global_seeds,

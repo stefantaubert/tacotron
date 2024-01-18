@@ -1,7 +1,6 @@
 import datetime
 import random
 from dataclasses import dataclass
-from logging import Logger
 from typing import Callable, Dict, List, Optional, Set
 
 #import jiwer
@@ -176,7 +175,7 @@ class ValidationEntryOutput():
 #   return rarity
 
 
-# def get_best_seeds(select_best_from: pd.DataFrame, entry_ids: OrderedSet[int], iteration: int, logger: Logger) -> List[int]:
+# def get_best_seeds(select_best_from: pd.DataFrame, entry_ids: OrderedSet[int], iteration: int) -> List[int]:
 #     df = select_best_from.loc[select_best_from['iteration'] == iteration]
 #     result = []
 #     for entry_id in entry_ids:
@@ -219,8 +218,13 @@ class ValidationEntryOutput():
 # def wav_to_text(wav: np.ndarray) -> str:
 #   return ""
 
+from logging import getLogger
 
-def validate(checkpoint: CheckpointDict, data: Entries, custom_hparams: Optional[Dict[str, str]], entry_names: Set[str], speaker_name: Optional[str], full_run: bool, save_callback: Callable[[Entry, ValidationEntryOutput], None], max_decoder_steps: int, fast: bool, mcd_no_of_coeffs_per_frame: int, repetitions: int, seed: Optional[int], select_best_from: Optional[pd.DataFrame], device: torch.device, logger: Logger) -> ValidationEntries:
+from tacotron.logging import LOGGER_NAME
+
+
+def validate(checkpoint: CheckpointDict, data: Entries, custom_hparams: Optional[Dict[str, str]], entry_names: Set[str], speaker_name: Optional[str], full_run: bool, save_callback: Callable[[Entry, ValidationEntryOutput], None], max_decoder_steps: int, fast: bool, mcd_no_of_coeffs_per_frame: int, repetitions: int, seed: Optional[int], select_best_from: Optional[pd.DataFrame], device: torch.device) -> ValidationEntries:
+  logger = getLogger(LOGGER_NAME)
   seeds: List[int]
   validation_data: Entries
   iteration = get_iteration(checkpoint)
@@ -279,13 +283,12 @@ def validate(checkpoint: CheckpointDict, data: Entries, custom_hparams: Optional
     return validation_data
 
   synth = Synthesizer(
-      checkpoint=checkpoint,
-      custom_hparams=custom_hparams,
-      device=device,
-      logger=logger,
+    checkpoint=checkpoint,
+    custom_hparams=custom_hparams,
+    device=device,
   )
 
-  taco_stft = TacotronSTFT(synth.hparams, device=device, logger=logger)
+  taco_stft = TacotronSTFT(synth.hparams, device=device)
   validation_entries = ValidationEntries()
 
   if not fast:

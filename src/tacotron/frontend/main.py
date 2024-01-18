@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from itertools import chain
-from logging import Logger
+from logging import getLogger
 from typing import Generator, Iterable, Optional
 from typing import OrderedDict as OrderedDictType
 from typing import Set, Tuple
@@ -8,6 +8,7 @@ from typing import Set, Tuple
 from tacotron.frontend.ipa_symbols import DURATION_MARKERS, TONE_MARKERS
 from tacotron.frontend.stress_detection import StressType, split_stress_ipa_arpa
 from tacotron.hparams import HParams
+from tacotron.logging import LOGGER_NAME
 from tacotron.typing import (Duration, DurationMapping, Durations, Entries, Mapping, MappingId,
                              Speaker, SpeakerMapping, Stress, Stresses, StressMapping, Symbol,
                              SymbolMapping, Symbols, Tone, ToneMapping, Tones)
@@ -21,7 +22,7 @@ STRESS_LABELS: OrderedDictType[StressType, Stress] = OrderedDict((
     (StressType.UNSTRESSED, "0"),
     (StressType.PRIMARY, "1"),
     (StressType.SECONDARY, "2"),
-    #(StressType.NOT_APPLICABLE, "N/A"),
+    # (StressType.NOT_APPLICABLE, "N/A"),
     (StressType.NOT_APPLICABLE, NA_LABEL),
 ))
 
@@ -53,7 +54,8 @@ def get_map_keys(symbols: Symbols, hparams: HParams) -> Tuple[Symbols, Optional[
   return symbols, stresses, tones, durations
 
 
-def create_mappings(valset: Entries, trainset: Entries, hparams: HParams, logger: Logger) -> Tuple[SymbolMapping, Optional[StressMapping], Optional[ToneMapping], Optional[DurationMapping], Optional[SpeakerMapping]]:
+def create_mappings(valset: Entries, trainset: Entries, hparams: HParams) -> Tuple[SymbolMapping, Optional[StressMapping], Optional[ToneMapping], Optional[DurationMapping], Optional[SpeakerMapping]]:
+  logger = getLogger(LOGGER_NAME)
   # Order: stresses -> tones -> durations
   unique_symbols = set(get_symbols_iterator(valset, trainset))
 

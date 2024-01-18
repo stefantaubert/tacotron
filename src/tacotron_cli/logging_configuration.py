@@ -8,6 +8,8 @@ from typing import Dict, Generator, List, Tuple
 
 from ordered_set import OrderedSet
 
+LOGGER_NAME = "tacotron_cli"
+
 # class StoreRecordsHandler(Handler):
 # slower than other impl (maybe due to lock-things)
 #   def __init__(self, level: int = DEBUG) -> None:
@@ -167,7 +169,7 @@ def get_file_logger() -> Logger:
 
 def try_init_file_logger(path: Path, debug: bool = False) -> bool:
   if path.is_dir():
-    logger = getLogger(__name__)
+    logger = getLogger(LOGGER_NAME)
     logger.error("Logging path is a directory!")
     return False
   flogger = get_file_logger()
@@ -179,7 +181,7 @@ def try_init_file_logger(path: Path, debug: bool = False) -> bool:
     path.write_text("")
     fh = logging.FileHandler(path)
   except Exception as ex:
-    logger = getLogger(__name__)
+    logger = getLogger(LOGGER_NAME)
     logger.error("Logfile couldn't be created!")
     logger.exception(ex)
     return False

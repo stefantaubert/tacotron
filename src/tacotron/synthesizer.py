@@ -14,6 +14,7 @@ from tacotron.checkpoint_handling import (CheckpointDict, get_duration_mapping, 
                                           get_symbol_mapping, get_tone_mapping)
 from tacotron.frontend.main import get_map_keys, get_mapped_indices, get_mappings_count
 from tacotron.globals import NOT_INFERABLE_SYMBOL_MARKER
+from tacotron.logging import LOGGER_NAME
 from tacotron.model import Tacotron2
 from tacotron.training import load_model, try_get_mappings_count
 from tacotron.typing import Duration, Speaker, Stress, Symbol, SymbolMapping, Symbols, Tone
@@ -45,9 +46,8 @@ def get_symbols_noninferable_marked(symbols: Iterable[Symbol], symbol_mapping: S
 
 
 class Synthesizer():
-  def __init__(self, checkpoint: CheckpointDict, custom_hparams: Optional[Dict[str, str]], device: torch.device, logger: logging.Logger):
+  def __init__(self, checkpoint: CheckpointDict, custom_hparams: Optional[Dict[str, str]], device: torch.device):
     super().__init__()
-    self._logger = logger
     self.device = device
 
     hparams = get_hparams(checkpoint)
@@ -95,6 +95,8 @@ class Synthesizer():
     return self.hparams.sampling_rate
 
   def infer(self, symbols: Symbols, speaker: Speaker, max_decoder_steps: int, seed: int, include_stats: bool) -> InferenceResult:
+    logger = logging.getLogger(LOGGER_NAME)
+    
     core_symbols, stresses, tones, durations = get_map_keys(symbols, self.hparams)
 
     speaker_id = None
@@ -112,7 +114,7 @@ class Synthesizer():
       unmapable_indices = set(find_indices(stress_ids, {None}))
       if len(unmapable_indices) > 0:
         unmapable_stresses = set(get_items_by_index(stresses, unmapable_indices))
-        self._logger.warn(f"Unknown stress(es): {' '.join(sorted(unmapable_stresses))}")
+        logger.warning(f"Unknown stress(es): {' '.join(sorted(unmapable_stresses))}")
         unmapable |= unmapable_indices
 
     tone_ids = None
@@ -123,7 +125,7 @@ class Synthesizer():
       unmapable_indices = set(find_indices(tone_ids, {None}))
       if len(unmapable_indices) > 0:
         unmapable_tones = set(get_items_by_index(tones, unmapable_indices))
-        self._logger.warn(f"Unknown tone(s): {' '.join(sorted(unmapable_tones))}")
+        logger.warning(f"Unknown tone(s): {' '.join(sorted(unmapable_tones))}")
         unmapable |= unmapable_indices
 
     duration_ids = None
@@ -134,7 +136,7 @@ class Synthesizer():
       unmapable_indices = set(find_indices(duration_ids, {None}))
       if len(unmapable_indices) > 0:
         unmapable_durations = set(get_items_by_index(durations, unmapable_indices))
-        self._logger.warn(f"Unknown duration(s): {' '.join(sorted(unmapable_durations))}")
+        logger.warning(f"Unknown duration(s): {' '.join(sorted(unmapable_durations))}")
         unmapable |= unmapable_indices
 
     symbol_ids = list(get_mapped_indices(core_symbols, self.symbol_mapping))
@@ -142,7 +144,7 @@ class Synthesizer():
     unmapable_symbols = set()
     if len(unmapable_indices) > 0:
       unmapable_symbols = set(get_items_by_index(core_symbols, unmapable_indices))
-      self._logger.warn(f"Unknown symbol(s): {' '.join(sorted(unmapable_symbols))}")
+      logger.warning(f"Unknown symbol(s): {' '.join(sorted(unmapable_symbols))}")
       unmapable |= unmapable_indices
 
     mapable = indices - unmapable
@@ -162,7 +164,7 @@ class Synthesizer():
     #   if not is_mappable:
     #     tmp = f"[{tmp}]"
     #   print_text_parts.append(tmp)
-    # self._logger.info(' '.join(print_text_parts))
+    # logger.info(' '.join(print_text_parts))
 
     print_text_parts = []
     for i, orig_symbol in enumerate(symbols):
@@ -171,7 +173,7 @@ class Synthesizer():
       if not is_mappable:
         tmp = f"[{tmp}]"
       print_text_parts.append(tmp)
-    self._logger.info('|'.join(print_text_parts))
+    logger.debug('|'.join(print_text_parts))
 
     init_global_seeds(seed)
 

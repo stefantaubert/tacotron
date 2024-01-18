@@ -34,7 +34,7 @@
 #         return result
 
 #     # pylint: disable=arguments-differ
-#     def get_hparams(self, logger: Logger) -> HParams:
+#     def get_hparams(self) -> HParams:
 #         return super().get_hparams(logger, HParams)
 
 #     def get_symbols(self) -> SymbolIdDict:
@@ -54,7 +54,7 @@
 #         return pretrained_weights
 
 #     @classmethod
-#     def load(cls, checkpoint_path: Path, logger: Logger):
+#     def load(cls, checkpoint_path: Path):
 #         result = super().load(checkpoint_path, logger)
 #         # pylint: disable=no-member
 #         logger.info(f'Including {len(result.symbol_id_dict)} symbol(s).')

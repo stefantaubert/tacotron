@@ -1,11 +1,12 @@
 import pickle
-from logging import Logger
+from logging import getLogger
 from pathlib import Path
 from typing import Any
 
 import torch
 
 from tacotron.checkpoint_handling import CheckpointDict
+from tacotron_cli.logging_configuration import LOGGER_NAME
 
 # def get_train_dir(base_dir: Path, train_name: str) -> Path:
 #     return base_dir / train_name
@@ -15,7 +16,7 @@ from tacotron.checkpoint_handling import CheckpointDict
 # _train_csv = "train.csv"
 # _test_csv = "test.csv"
 # _val_csv = "validation.csv"
-#_settings_json = "settings.json"
+# _settings_json = "settings.json"
 
 
 # def get_train_root_dir(base_dir: Path, model_name: str) -> Path:
@@ -112,7 +113,7 @@ def save_checkpoint(checkpoint: CheckpointDict, path: Path) -> None:
   with open(path, mode="wb") as file:
     torch.save(checkpoint, file)
 
-  #save_obj(checkpoint, path)
+  # save_obj(checkpoint, path)
 
 
 def load_checkpoint(path: Path, device: torch.device) -> CheckpointDict:
@@ -124,7 +125,8 @@ def load_checkpoint(path: Path, device: torch.device) -> CheckpointDict:
   # return load_obj(path)
 
 
-def try_load_checkpoint(path: Path, device: torch.device, logger: Logger) -> CheckpointDict:
+def try_load_checkpoint(path: Path, device: torch.device) -> CheckpointDict:
+  logger = getLogger(LOGGER_NAME)
   try:
     logger.debug("Loading checkpoint...")
     checkpoint_dict = load_checkpoint(path, device)

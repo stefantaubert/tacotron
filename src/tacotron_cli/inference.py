@@ -23,6 +23,7 @@ from tacotron_cli.argparse_helper import (ConvertToOrderedSetAction, get_optiona
 from tacotron_cli.helper import (add_device_argument, add_hparams_argument,
                                  add_max_decoder_steps_argument)
 from tacotron_cli.io import try_load_checkpoint
+from tacotron_cli.logging_configuration import LOGGER_NAME
 
 Utterances = OrderedDictType[int, Symbols]
 Paragraphs = OrderedDictType[int, Utterances]
@@ -69,7 +70,7 @@ def init_synthesis_parser(parser: ArgumentParser) -> None:
   parser.add_argument('--custom-lines', type=parse_non_negative_integer,
                       nargs="*", default=OrderedSet(), action=ConvertToOrderedSetAction, help="synthesize only lines with these numbers")
   add_max_decoder_steps_argument(parser)
-  #parser.add_argument('--batch-size', type=parse_positive_integer, default=64, help="")
+  # parser.add_argument('--batch-size', type=parse_positive_integer, default=64, help="")
   parser.add_argument('--custom-seed', type=get_optional(parse_non_negative_integer),
                       default=None, help="custom seed used for synthesis; if left unset a random seed will be chosen")
   parser.add_argument('-p', '--paragraph-directories', action='store_true',
@@ -90,10 +91,10 @@ def init_synthesis_parser(parser: ArgumentParser) -> None:
 
 
 def synthesize_ns(ns: Namespace) -> bool:
-  logger = getLogger(__name__)
+  logger = getLogger(LOGGER_NAME)
   set_torch_thread_to_max()
 
-  checkpoint_dict = try_load_checkpoint(ns.checkpoint, ns.device, logger)
+  checkpoint_dict = try_load_checkpoint(ns.checkpoint, ns.device)
   if checkpoint_dict is None:
     return False
 
@@ -150,10 +151,9 @@ def synthesize_ns(ns: Namespace) -> bool:
   custom_hparams = split_hparams_string(ns.custom_hparams)
 
   synth = Synthesizer(
-      checkpoint=checkpoint_dict,
-      custom_hparams=custom_hparams,
-      device=ns.device,
-      logger=logger,
+    checkpoint=checkpoint_dict,
+    custom_hparams=custom_hparams,
+    device=ns.device,
   )
 
   max_paragraph_nr = max(paragraphs.keys())
@@ -300,13 +300,13 @@ def synthesize_ns(ns: Namespace) -> bool:
   if len(unmapable_symbols) > 0:
     logger.warning(
         f"Unknown symbols: {' '.join(sorted(unmapable_symbols))} (#{len(unmapable_symbols)})")
-  
+
   logger.info(f"Done. Total spectrogram duration: {total_duration_s:.2f}s")
   logger.info(f"Written output to: '{output_directory.absolute()}'")
   return True
 
 # def synthesize(checkpoint_dict: CheckpointDict, custom_speaker: Optional[str], text_content: str, custom_lines: OrderedSet[int], custom_seed: Optional[int]):
-#   logger = getLogger(__name__)
+#   logger = getLogger(LOGGER_NAME)
 #   set_torch_thread_to_max()
 
 #   if custom_speaker is not None:
@@ -512,7 +512,7 @@ def synthesize_ns(ns: Namespace) -> bool:
 #   if len(unmapable_symbols) > 0:
 #     logger.warning(
 #         f"Unknown symbols: {' '.join(sorted(unmapable_symbols))} (#{len(unmapable_symbols)})")
-  
+
 #   logger.info(f"Done. Total spectrogram duration: {total_duration_s:.2f}s")
 #   logger.info(f"Written output to: '{output_directory.absolute()}'")
 #   return True

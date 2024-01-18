@@ -212,7 +212,7 @@ def validate_ns(ns: Namespace) -> None:
     logger.info(f"Current checkpoint: {iteration}")
     checkpoint_path = get_checkpoint(ns.checkpoints_dir, iteration)
 
-    taco_checkpoint = try_load_checkpoint(checkpoint_path, ns.device, logger)
+    taco_checkpoint = try_load_checkpoint(checkpoint_path, ns.device)
     if taco_checkpoint is None:
       return False
 
@@ -226,7 +226,6 @@ def validate_ns(ns: Namespace) -> None:
         entry_names=ns.files,
         full_run=ns.full_run,
         speaker_name=ns.speaker,
-        logger=logger,
         max_decoder_steps=ns.max_decoder_steps,
         fast=not ns.include_stats,
         save_callback=save_callback,

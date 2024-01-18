@@ -1,4 +1,4 @@
-from logging import Logger
+from logging import getLogger
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -9,6 +9,7 @@ from tqdm import tqdm
 
 from tacotron.frontend.main import get_map_keys, get_mapped_indices
 from tacotron.hparams import HParams
+from tacotron.logging import LOGGER_NAME
 from tacotron.model import ForwardXIn
 from tacotron.taco_stft import TacotronSTFT
 from tacotron.typing import (DurationMapping, Entries, Entry, SpeakerId, SpeakerMapping,
@@ -19,16 +20,16 @@ LoaderEntry = Tuple[IntTensor, Tensor,
 
 
 class SymbolsMelLoader(Dataset):
-  def __init__(self, data: Entries, hparams: HParams, symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], tone_mapping: Optional[ToneMapping], duration_mapping: Optional[DurationMapping], speaker_mapping: Optional[SpeakerMapping], device: torch.device, logger: Logger):
+  def __init__(self, data: Entries, hparams: HParams, symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], tone_mapping: Optional[ToneMapping], duration_mapping: Optional[DurationMapping], speaker_mapping: Optional[SpeakerMapping], device: torch.device):
     super().__init__()
-
+    logger = getLogger(LOGGER_NAME)
     # random.seed(hparams.seed)
     # random.shuffle(data)
     self.use_saved_mels = hparams.use_saved_mels
     self.use_cache: bool = hparams.cache_mels
 
     if not hparams.use_saved_mels:
-      self.mel_parser = TacotronSTFT(hparams, device, logger)
+      self.mel_parser = TacotronSTFT(hparams, device)
 
     self.data: Dict[int, Tuple[IntTensor, Path,
                                Optional[SpeakerId], Optional[IntTensor], Optional[IntTensor], Optional[IntTensor]]] = {}
@@ -240,12 +241,12 @@ def parse_batch(batch: Batch) -> Tuple[ForwardXIn, Tuple[FloatTensor, FloatTenso
   return x, y
 
 
-def prepare_valloader(hparams: HParams, collate_fn: SymbolsMelCollate, valset: Entries, symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], tone_mapping: Optional[ToneMapping], duration_mapping: Optional[DurationMapping], speaker_mapping: Optional[SpeakerMapping], device: torch.device, n_jobs: int, logger: Logger) -> DataLoader:
+def prepare_valloader(hparams: HParams, collate_fn: SymbolsMelCollate, valset: Entries, symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], tone_mapping: Optional[ToneMapping], duration_mapping: Optional[DurationMapping], speaker_mapping: Optional[SpeakerMapping], device: torch.device, n_jobs: int) -> DataLoader:
   # logger.info(
   #   f"Duration valset {valset.total_duration_s / 60:.2f}m / {valset.total_duration_s / 60 / 60:.2f}h")
 
   val = SymbolsMelLoader(valset, hparams, symbol_mapping,
-                         stress_mapping, tone_mapping, duration_mapping, speaker_mapping, device, logger)
+                         stress_mapping, tone_mapping, duration_mapping, speaker_mapping, device)
 
   device_is_cuda = device.type == "cuda"
 
@@ -263,13 +264,13 @@ def prepare_valloader(hparams: HParams, collate_fn: SymbolsMelCollate, valset: E
   return val_loader
 
 
-def prepare_trainloader(hparams: HParams, collate_fn: SymbolsMelCollate, trainset: Entries, symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], tone_mapping: Optional[ToneMapping], duration_mapping: Optional[DurationMapping], speaker_mapping: Optional[SpeakerMapping], device: torch.device, n_jobs: int, logger: Logger) -> DataLoader:
+def prepare_trainloader(hparams: HParams, collate_fn: SymbolsMelCollate, trainset: Entries, symbol_mapping: SymbolMapping, stress_mapping: Optional[StressMapping], tone_mapping: Optional[ToneMapping], duration_mapping: Optional[DurationMapping], speaker_mapping: Optional[SpeakerMapping], device: torch.device, n_jobs: int) -> DataLoader:
   # # Get data, data loaders and collate function ready
   # logger.info(
   #   f"Duration trainset {trainset.total_duration_s / 60:.2f}m / {trainset.total_duration_s / 60 / 60:.2f}h")
 
   trn = SymbolsMelLoader(trainset, hparams, symbol_mapping,
-                         stress_mapping, tone_mapping, duration_mapping, speaker_mapping, device, logger)
+                         stress_mapping, tone_mapping, duration_mapping, speaker_mapping, device)
 
   # https://discuss.pytorch.org/t/when-to-set-pin-memory-to-true/19723/7
   # https://developer.nvidia.com/blog/how-optimize-data-transfers-cuda-cc/

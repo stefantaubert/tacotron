@@ -81,7 +81,7 @@ def emb_plot_2d(emb: np.ndarray, symbols: List[str]) -> go.Figure:
   return fig
 
 
-# def plot_embeddings(symbols: SymbolIdDict, emb: torch.Tensor, logger: Logger) -> Tuple[pd.DataFrame, go.Figure, go.Figure]:
+# def plot_embeddings(symbols: SymbolIdDict, emb: torch.Tensor) -> Tuple[pd.DataFrame, go.Figure, go.Figure]:
 #   assert emb.shape[0] == len(symbols)
 
 #   logger.info(f"Emb size {emb.shape}")

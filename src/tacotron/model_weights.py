@@ -11,7 +11,7 @@
 # from torch import Tensor
 
 
-# def map_weights(model_symbols_id_map: OrderedDictType[SymbolId, SymbolId], model_weights: Tensor, trained_weights: Tensor, logger: Logger) -> None:
+# def map_weights(model_symbols_id_map: OrderedDictType[SymbolId, SymbolId], model_weights: Tensor, trained_weights: Tensor) -> None:
 #     for map_to_id, map_from_id in model_symbols_id_map.items():
 #         assert 0 <= map_to_id < model_weights.shape[0]
 #         assert 0 <= map_from_id < trained_weights.shape[0]
@@ -22,7 +22,7 @@
 #         logger.debug(f"New {model_weights[map_to_id].cpu().numpy()[:5]}")
 
 
-# def get_mapped_symbol_weights(model_symbols: SymbolIdDict, trained_weights: Tensor, trained_symbols: SymbolIdDict, custom_mapping: Optional[SymbolsMap], hparams: HParams, logger: Logger) -> Tensor:
+# def get_mapped_symbol_weights(model_symbols: SymbolIdDict, trained_weights: Tensor, trained_symbols: SymbolIdDict, custom_mapping: Optional[SymbolsMap], hparams: HParams) -> Tensor:
 #   symbols_match_not_model = trained_weights.shape[0] != len(trained_symbols)
 #   if symbols_match_not_model:
 #     logger.exception(
@@ -69,7 +69,7 @@
 #   return model_weights
 
 
-# def get_mapped_speaker_weights(model_speaker_id_dict: SpeakersDict, trained_weights: Tensor, trained_speaker: SpeakersDict, map_from_speaker_name: Speaker, hparams: HParams, logger: Logger) -> Tensor:
+# def get_mapped_speaker_weights(model_speaker_id_dict: SpeakersDict, trained_weights: Tensor, trained_speaker: SpeakersDict, map_from_speaker_name: Speaker, hparams: HParams) -> Tensor:
 #   map_from_id = trained_speaker.get_id(map_from_speaker_name)
 #   speakers_map: OrderedDictType[int, int] = OrderedDict(
 #     {new_speaker_id: map_from_id for new_speaker_id in model_speaker_id_dict.values()})
@@ -130,7 +130,7 @@
 
 
 # def map_symbols(input_model: CheckpointTacotron, target_model: CheckpointTacotron, symbols: Set[Symbol]) -> None:
-#     logger = getLogger(__name__)
+#     logger = getLogger(LOGGER_NAME)
 #     input_embedding: Tensor = input_model.model_state_dict[SYMBOL_EMBEDDING_LAYER_NAME]
 #     input_symbols = input_model.get_symbols()
 

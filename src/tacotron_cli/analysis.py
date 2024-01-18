@@ -19,6 +19,7 @@ from tacotron.utils import get_symbol_printable, set_torch_thread_to_max
 from tacotron_cli.argparse_helper import parse_existing_file, parse_path
 from tacotron_cli.helper import add_device_argument
 from tacotron_cli.io import try_load_checkpoint
+from tacotron_cli.logging_configuration import LOGGER_NAME
 
 
 def init_analysis_parser(parser: ArgumentParser) -> None:
@@ -32,10 +33,10 @@ def init_analysis_parser(parser: ArgumentParser) -> None:
 
 
 def analyze_ns(ns: Namespace) -> bool:
-  logger = getLogger(__name__)
+  logger = getLogger(LOGGER_NAME)
   set_torch_thread_to_max()
 
-  checkpoint = try_load_checkpoint(ns.checkpoint, ns.device, logger)
+  checkpoint = try_load_checkpoint(ns.checkpoint, ns.device)
   if checkpoint is None:
     return False
 
@@ -121,7 +122,7 @@ def analyze_ns(ns: Namespace) -> bool:
 
 
 def compare_embeddings(checkpoint1: Path, checkpoint2: Path, device: torch.device, output_directory: Path) -> bool:
-  logger = getLogger(__name__)
+  logger = getLogger(LOGGER_NAME)
   set_torch_thread_to_max()
 
   if not checkpoint1.is_file():
@@ -132,11 +133,11 @@ def compare_embeddings(checkpoint1: Path, checkpoint2: Path, device: torch.devic
     logger.error("Checkpoint 2 was not found!")
     return False
 
-  checkpoint1_dict = try_load_checkpoint(checkpoint1, device, logger)
+  checkpoint1_dict = try_load_checkpoint(checkpoint1, device)
   if checkpoint1_dict is None:
     return False
 
-  checkpoint2_dict = try_load_checkpoint(checkpoint2, device, logger)
+  checkpoint2_dict = try_load_checkpoint(checkpoint2, device)
   if checkpoint2_dict is None:
     return False
 
