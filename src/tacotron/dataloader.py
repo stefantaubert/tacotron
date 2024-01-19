@@ -75,7 +75,7 @@ class SymbolsMelLoader(Dataset):
           symbols_tensor, entry.wav_absolute_path, speaker_id, stress_tensor, tone_tensor, duration_tensor)
 
     if hparams.use_saved_mels and hparams.cache_mels:
-      logger.info("Loading mels into memory...")
+      logger.debug("Loading mels into memory...")
       self.cache: Dict[int, Tensor] = {}
       vals: tuple
       for i, vals in tqdm(self.data.items()):
