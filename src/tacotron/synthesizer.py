@@ -5,8 +5,8 @@ from typing import Dict, Generator, Iterable, Optional, Set, cast
 
 import numpy as np
 import torch
-from librosa import get_duration
-from torch import IntTensor, LongTensor  # pylint: disable=no-name-in-module
+from librosa import get_duration  # pylint: disable=no-name-in-module
+from torch import LongTensor
 
 from tacotron.audio_utils import mel_to_numpy
 from tacotron.checkpoint_handling import (CheckpointDict, get_duration_mapping, get_hparams,

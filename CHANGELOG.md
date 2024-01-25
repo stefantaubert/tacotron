@@ -7,13 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.0.5] - 2024-01-24
+## [0.0.5] - 2024-01-25
 
 ### Added
 
 - `synthesize-grids`
 - `create-mels`
-- Support for Python 3.12
+- Support for Python 3.8-3.11
 
 ### Changed
 

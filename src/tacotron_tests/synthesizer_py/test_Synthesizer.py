@@ -5,7 +5,7 @@ import wget
 
 from tacotron.synthesizer import Synthesizer
 from tacotron.utils import get_default_device
-from tacotron_cli.io import load_checkpoint, try_load_checkpoint
+from tacotron_cli.io import load_checkpoint
 
 
 def test_component():

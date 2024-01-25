@@ -4,20 +4,16 @@ version = "0.0.5"
 description = "Command-line interface (CLI) to train Tacotron 2 using .wav <=> .TextGrid pairs."
 readme = "README.md"
 requires-python = ">=3.8, <3.12"
-license = {text = "MIT"}
-authors = [
-  {name = "Stefan Taubert", email = "pypi@stefantaubert.com"}
-]
-maintainers = [
-  {name = "Stefan Taubert", email = "pypi@stefantaubert.com"},
-]
+license = { text = "MIT" }
+authors = [{ name = "Stefan Taubert", email = "pypi@stefantaubert.com" }]
+maintainers = [{ name = "Stefan Taubert", email = "pypi@stefantaubert.com" }]
 keywords = [
   "Text-to-speech",
   "Speech synthesis",
   "Corpus",
   "Utils",
   "Language",
-  "Linguistics"
+  "Linguistics",
 ]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
@@ -62,28 +58,23 @@ tacotron-cli = "tacotron_cli.cli:run_prod"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = [
-  "tacotron",
-  "tacotron.*",
-  "tacotron_cli",
+include = ["tacotron", "tacotron.*", "tacotron_cli", "tacotron_cli.*"]
+exclude = [
   "tacotron_tests",
   "tacotron_tests.*",
   "tacotron_cli_tests",
   "tacotron_cli_tests.*",
-]
-exclude = [
   "tacotron_debug",
+  "tacotron_debug.*",
   "tacotron_cli_debug",
+  "tacotron_cli_debug.*",
 ]
 namespaces = true
 
 [tool.pytest.ini_options]
 log_cli = true
 log_level = "DEBUG"
-testpaths = [
-  "src/tacotron_tests",
-  "src/tacotron_cli_tests"
-]
+testpaths = ["src/tacotron_tests", "src/tacotron_cli_tests"]
 console_output_style = "count"
 
 [tool.autopep8]
@@ -113,7 +104,7 @@ useLibraryCodeForTypes = true
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = py{38,39,310,311,312}
+envlist = py{38,39,310,311}
 isolated_build = true
 
 [testenv]
@@ -127,8 +118,5 @@ commands =
 """
 
 [build-system]
-requires = [
-  "setuptools >= 40.9.0",
-  "wheel",
-]
+requires = ["setuptools >= 40.9.0", "wheel"]
 build-backend = "setuptools.build_meta"

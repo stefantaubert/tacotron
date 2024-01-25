@@ -12,8 +12,8 @@ authors:
     affiliation: Chemnitz University of Technology
     orcid: 'https://orcid.org/0000-0002-4932-2874'
     website: 'https://stefantaubert.com/'
-version: 0.0.4
-date-released: 2023-01-17
+version: 0.0.5
+date-released: 2024-01-25
 license: MIT
 url: https://github.com/stefantaubert/tacotron
-doi: 10.5281/zenodo.7543638
+doi: 10.5281/zenodo.10568731
