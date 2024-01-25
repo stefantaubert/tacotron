@@ -142,7 +142,8 @@ def synthesize_ns(ns: Namespace) -> bool:
       np.save(output_path, inf_sent_output.mel_outputs_postnet)
       logger.info(f"Saved output to: \"{output_path.absolute()}\"")
 
-      unmappable_symbols |= inf_sent_output.unmapable_symbols
+      if inf_sent_output.unmappable_symbols is not None:
+        unmappable_symbols |= inf_sent_output.unmappable_symbols
 
       logger.info(f"Spectrogram duration: {inf_sent_output.duration_s:.2f}s")
       if inf_sent_output.reached_max_decoder_steps:
@@ -151,9 +152,9 @@ def synthesize_ns(ns: Namespace) -> bool:
           f"Inference duration: {inf_sent_output.inference_duration_s}")
       logger.debug(
           f"Sampling rate: {inf_sent_output.sampling_rate}")
-      if len(inf_sent_output.unmapable_symbols) > 0:
+      if inf_sent_output.unmappable_symbols is not None and len(inf_sent_output.unmappable_symbols) > 0:
         logger.warning(
-            f"Unknown symbols: {' '.join(sorted(inf_sent_output.unmapable_symbols))}")
+            f"Unknown symbols: {' '.join(sorted(inf_sent_output.unmappable_symbols))}")
       else:
         logger.debug("All symbols were known.")
 

@@ -164,7 +164,7 @@ def synthesize_ns(ns: Namespace) -> bool:
                          for _ in paragraph.keys())
   count_utterances_zfill = len(str(count_utterances))
   utterance_nr = 1
-  unmapable_symbols = set()
+  unmappable_symbols = set()
   total_duration_s = 0
   with tqdm(total=len(line_nrs_to_infer), unit=" lines", ncols=100, desc="Inference") as progress_bar:
     for paragraph_nr, utterances in paragraphs.items():
@@ -247,7 +247,8 @@ def synthesize_ns(ns: Namespace) -> bool:
         paragraph_folder.mkdir(parents=True, exist_ok=True)
         np.save(utterance_mel_path, inf_sent_output.mel_outputs_postnet)
 
-        unmapable_symbols |= inf_sent_output.unmapable_symbols
+        if inf_sent_output.unmappable_symbols is not None:
+          unmappable_symbols |= inf_sent_output.unmappable_symbols
 
         if ns.include_stats:
           log_lines = []
@@ -259,13 +260,13 @@ def synthesize_ns(ns: Namespace) -> bool:
           log_lines.append(
               f"Sampling rate: {inf_sent_output.sampling_rate}")
           log_lines.append(f"Spectrogram duration: {inf_sent_output.duration_s:.2f}s")
-          if len(inf_sent_output.unmapable_symbols) > 0:
+          if inf_sent_output.unmappable_symbols is not None and len(inf_sent_output.unmappable_symbols) > 0:
             log_lines.append(
-                f"Unknown symbols: {' '.join(sorted(inf_sent_output.unmapable_symbols))}")
+                f"Unknown symbols: {' '.join(sorted(inf_sent_output.unmappable_symbols))}")
           else:
             log_lines.append("All symbols were known.")
 
-          # TODO unmapable tones etc logging
+          # TODO unmappable tones etc logging
 
           logger.debug(f"Saving {log_out}...")
           log_out.write_text("\n".join(log_lines), encoding="UTF-8")
@@ -296,9 +297,9 @@ def synthesize_ns(ns: Namespace) -> bool:
         progress_bar.update()
         utterance_nr += 1
 
-  if len(unmapable_symbols) > 0:
+  if len(unmappable_symbols) > 0:
     logger.warning(
-        f"Unknown symbols: {' '.join(sorted(unmapable_symbols))} (#{len(unmapable_symbols)})")
+        f"Unknown symbols: {' '.join(sorted(unmappable_symbols))} (#{len(unmappable_symbols)})")
 
   logger.info(f"Done. Total spectrogram duration: {total_duration_s:.2f}s")
   logger.info(f"Written output to: '{output_directory.absolute()}'")

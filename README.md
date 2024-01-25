@@ -5,7 +5,7 @@
 [![MIT](https://img.shields.io/github/license/stefantaubert/tacotron.svg)](https://github.com/stefantaubert/tacotron/blob/master/LICENSE)
 [![PyPI](https://img.shields.io/pypi/wheel/tacotron-cli.svg)](https://pypi.python.org/pypi/tacotron-cli)
 [![PyPI](https://img.shields.io/pypi/implementation/tacotron-cli.svg)](https://pypi.python.org/pypi/tacotron-cli)
-[![PyPI](https://img.shields.io/github/commits-since/stefantaubert/tacotron/latest/master.svg)](https://pypi.python.org/pypi/tacotron-cli)
+[![PyPI](https://img.shields.io/github/commits-since/stefantaubert/tacotron/latest/master.svg)](https://github.com/stefantaubert/tacotron/compare/v0.0.6...master)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7543638.svg)](https://doi.org/10.5281/zenodo.7543638)
 
 Command-line interface (CLI) to train Tacotron 2 using .wav <=> .TextGrid pairs.
@@ -133,7 +133,6 @@ waveglow-cli synthesize \
 - Outsource method to convert audio files to mel-spectrograms before training
 - Better logging
 - Provide more pre-trained models
-- Add audio examples
 - Adding tests
 
 ## Dependencies
@@ -225,28 +224,3 @@ Final lines of test result output:
 
 ## Changelog
 
-- v0.0.5 (unreleased)
-  - Added:
-    - Added `synthesize-grids`
-    - Added `create-mels`
-- v0.0.4 (2023-01-17)
-  - Added:
-    - Added `--n_jobs` argument for `train` and `continue-train`
-    - Added support of more diphthongs for stress detection
-    - Added logging of mel-spectrogram duration in synthesis
-    - Added logging of PEN in `validate` on non-fast validation
-    - Added logging of device in training
-    - Added returning of an exit code
-  - Bugfixes:
-    - Fixed evaluation of mapping before training
-    - Fixed `validate` with custom file names
-- v0.0.3 (2022-10-19)
-  - Support for separate learning of phoneme durations
-  - Support for learning via one-hot encoding or embedding
-  - Bugfixes
-- v0.0.2 (2022-09-28)
-  - Added support for separate learning of tone
-  - Added plotting of speaker weights in `analyze`
-  - Bugfixes
-- v0.0.1 (2022-06-08)
-  - Initial release

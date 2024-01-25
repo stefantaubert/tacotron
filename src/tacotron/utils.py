@@ -26,6 +26,14 @@ from tacotron.typing import Symbol
 _T = TypeVar('_T')
 PYTORCH_EXT = ".pt"
 
+def get_default_device():
+  cuda_count = torch.cuda.device_count()
+  if cuda_count == 1:
+    return torch.device("cuda")
+  if cuda_count > 1:
+    return torch.device("cuda:0")
+  return torch.device("cpu")
+
 
 def get_symbol_printable(symbol: Symbol) -> str:
   result = symbol.replace(" ", SPACE_DISPLAYABLE)

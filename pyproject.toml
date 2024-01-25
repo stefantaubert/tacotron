@@ -1,9 +1,9 @@
 [project]
 name = "tacotron-cli"
-version = "0.0.4"
+version = "0.0.5"
 description = "Command-line interface (CLI) to train Tacotron 2 using .wav <=> .TextGrid pairs."
 readme = "README.md"
-requires-python = ">=3.8, <3.11"
+requires-python = ">=3.8, <3.12"
 license = {text = "MIT"}
 authors = [
   {name = "Stefan Taubert", email = "pypi@stefantaubert.com"}
@@ -33,22 +33,24 @@ classifiers = [
   "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
   "License :: OSI Approved :: MIT License",
 ]
 dependencies = [
-  "torch",
-  "pandas",
-  "librosa",
+  "numpy>=1.18.5",
+  "scipy>=1.8.0",
+  "tqdm>=4.63.0",
+  "torch>=2.0.0",
+  "pandas>=1.0.5",
+  "librosa>=0.10.0",
   "plotly",
   "scikit-image",
   "matplotlib",
   "scikit-learn",
-  "tqdm",
-  "numpy",
-  "scipy",
   "ordered_set>=4.1.0",
   "speech-dataset-parser>=0.0.4",
-  "mel-cepstral-distance>=0.0.2",
+  "mel-cepstral-distance>=0.0.3",
+  "wget>=3.2",
 ]
 
 [project.urls]
@@ -111,7 +113,7 @@ useLibraryCodeForTypes = true
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = py{38,39,310}
+envlist = py{38,39,310,311,312}
 isolated_build = true
 
 [testenv]
