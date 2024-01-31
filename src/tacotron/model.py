@@ -557,7 +557,7 @@ class Decoder(nn.Module):
 
       if max_decoder_steps > 0 and len(mel_outputs) == max_decoder_steps:
         logger = getLogger(__name__)
-        logger.warning("Reached max decoder steps.")
+        logger.debug("Reached max decoder steps.")
         reached_max_decoder_steps = True
         break
 
