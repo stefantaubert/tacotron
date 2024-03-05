@@ -29,6 +29,11 @@ pip install tacotron-cli --user
 
 ## Usage
 
+<details>
+<summary>
+Click to unfold usage
+</summary>
+
 ```txt
 usage: tacotron-cli [-h] [-v] {create-mels,train,continue-train,validate,synthesize,synthesize-grids,analyze,add-missing-symbols} ...
 
@@ -50,6 +55,8 @@ options:
   -h, --help                  show this help message and exit
   -v, --version               show program's version number and exit
 ```
+
+</details>
 
 ## Training
 
